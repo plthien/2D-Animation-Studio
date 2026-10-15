@@ -1,39 +1,42 @@
 """C0-only baseline ledger completeness gate; no production imports."""
 from __future__ import annotations
 
-import subprocess
 import sys
 from pathlib import Path
 
+from c0_ledger_lib import ALLOWED, BASELINE_SHA, PROTECTED_UI, analyze_reachability, baseline_paths, parse_ledger
+
 ROOT = Path(__file__).resolve().parents[1]
 LEDGER = ROOT / "docs/architecture/CLEAN_CUT_FILE_LEDGER.md"
-ALLOWED = {"KEEP", "ADAPT", "EXTRACT", "DELETE"}
-BASELINE_SHA = "b35834808d99067e362a6e728ce7af8e04d2b6bd"
 
 
 def main() -> int:
     # C0 deliverables are deliberately unclassified: the ledger freezes the
     # source tree it audits, not files created while documenting that tree.
-    tracked = set(subprocess.check_output(
-        ["git", "ls-tree", "-r", "--name-only", BASELINE_SHA], cwd=ROOT, text=True
-    ).splitlines())
-    lines = LEDGER.read_text(encoding="utf-8").splitlines()
     try:
-        start = lines.index("```tsv") + 2
-        end = lines.index("```", start)
-    except ValueError:
-        print("FAIL: inventory TSV markers/header missing")
+        rows = parse_ledger(LEDGER.read_text(encoding="utf-8"))
+    except ValueError as exc:
+        print(f"FAIL: {exc}")
         return 1
-    rows = [line.split("\t") for line in lines[start:end] if line]
-    bad = [row for row in rows if len(row) != 9 or row[1] not in ALLOWED or not all(row)]
-    paths = [row[0] for row in rows]
-    duplicate = sorted({p for p in paths if paths.count(p) > 1})
+    tracked = set(baseline_paths())
+    paths = [row["path"] for row in rows]
+    seen: set[str] = set()
+    duplicate: set[str] = set()
+    for path in paths:
+        if path in seen:
+            duplicate.add(path)
+        seen.add(path)
     listed = set(paths)
     missing, unexpected = sorted(tracked - listed), sorted(listed - tracked)
-    if bad or duplicate or missing or unexpected:
-        print(f"FAIL rows={len(rows)} tracked={len(tracked)} bad={len(bad)} duplicate={duplicate[:5]} missing={missing[:5]} unexpected={unexpected[:5]}")
+    bad = [row["path"] for row in rows if row["classification"] not in ALLOWED or not all(row.values())]
+    bad_extract = [row["path"] for row in rows if row["classification"] == "EXTRACT" and row["extraction_responsibility"] in {"-", "N/A"}]
+    computed = analyze_reachability(list(tracked))
+    bad_active = [row["path"] for row in rows if computed[row["path"]].active == "yes" and row["active_runtime_dependency"] != "yes"]
+    bad_protected = [row["path"] for row in rows if row["path"] in PROTECTED_UI and row["classification"] not in {"KEEP", "ADAPT"}]
+    if bad or duplicate or missing or unexpected or bad_extract or bad_active or bad_protected:
+        print(f"FAIL rows={len(rows)} tracked={len(tracked)} bad={bad[:5]} duplicate={sorted(duplicate)[:5]} missing={missing[:5]} unexpected={unexpected[:5]} bad_extract={bad_extract[:5]} bad_active={bad_active[:5]} bad_protected={bad_protected[:5]}")
         return 1
-    counts = {name: sum(row[1] == name for row in rows) for name in sorted(ALLOWED)}
+    counts = {name: sum(row["classification"] == name for row in rows) for name in sorted(ALLOWED)}
     print(f"PASS tracked={len(tracked)} rows={len(rows)} " + " ".join(f"{k}={v}" for k, v in counts.items()))
     return 0
 
