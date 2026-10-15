@@ -1,5 +1,7 @@
 # Single-product API and state contract
 
+C0 API register contains **37 distinct method/path pairs**: **19 C2 `ACCEPTED` design contracts** and **18 future `PROPOSED` design contracts**. `ACCEPTED` does not mean the endpoint is implemented on the current YTB runtime; it denotes the C2 contract that will be implemented during C2. No future `PROPOSED` route is currently available. Counts are derived from `contracts/animation/api/endpoints.json`, not a separately maintained 35-route table.
+
 The machine-checkable method/path/phase/owner/DTO/status/precondition/idempotency register is `contracts/animation/api/endpoints.json`. Rows marked `ACCEPTED` are the implementable C2 platform contract. Rows marked `PROPOSED` are future phase drafts and must not be registered until implemented; they are not described as frozen. No compatibility or legacy route exists after C2.
 
 All JSON success responses are `{ "data": <DTO>, "meta": {"request_id": "req_*", "schema_version": "api.v1"} }`. Errors are `{ "error": {"code": "...", "message": "...", "details": {}, "request_id": "req_*"} }`. IDs and hashes follow D-001/D-002. Loopback MVP binds `127.0.0.1`; requests from non-loopback origins are rejected before route logic. Every mutating response returns the new `revision`, authoritative identity, lineage IDs/hashes and `updated_at`.

@@ -11,7 +11,7 @@ Baseline: `b35834808d99067e362a6e728ce7af8e04d2b6bd`. Audited remediation start:
 | Reachability | Python AST, TS imports, launchers, package scripts, Alembic and CI roots: reachable 338, unreachable 475, unknown 0, roots 15 | PASS |
 | Database | executable fresh SQLite DDL: 14 tables, foreign keys clean, channel-scoped NULL-project revision duplicate rejected | PASS |
 | Contracts | 18 Draft 2020-12 schemas; 36 positive fixtures; 108 purposeful negative fixtures; semantic bundle and duplicate-key/non-finite checks | PASS |
-| API | 35 unique method/path rows; C2 accepted and later routes proposed; DTO/status/error/CAS/idempotency/lineage/invalidation rules linted | PASS |
+| API | 37 unique method/path rows; C2 accepted and later routes proposed; DTO/status/error/CAS/idempotency/lineage/invalidation rules linted | PASS |
 | UI G0 | 10 real Chrome PNGs, six routes, three viewports, two dialog clicks plus navigation, all hashes verified | PASS |
 | Scope | production `app/`, `src/` and `alembic/versions/` diff is empty | PASS |
 | Local C0 tests | 39 passed, 0 skipped | PASS |
@@ -99,7 +99,7 @@ The six legacy skips are predeclared platform/tool availability cases (Windows/P
 | HIGH | Filename-led ledger could discard reachable UI/runtime code | Rebuilt 813-row ledger from dependency graphs and manual responsibility review; protected UI/root mutation tests pass |
 | HIGH | DB prose did not prove NULL uniqueness, FK ownership or CAS | Added executable 14-table DDL and SQLite concurrency/legacy-refusal suite; 15 DB+ledger tests initially passed and full C0 now passes |
 | HIGH | Schemas accepted semantically inconsistent artifacts | Replaced shallow schemas/fixtures with 36 valid and 108 negative cases plus cross-artifact validator; fixed an empty-pivot validator crash found by negative testing |
-| HIGH | API descriptions lacked exact implementation contract | Added 35-row endpoint registry, DTO/error/CAS/idempotency/lineage/invalidation freeze and mutation linter |
+| HIGH | API descriptions lacked exact implementation contract | Added 37-row endpoint registry, DTO/error/CAS/idempotency/lineage/invalidation freeze and mutation linter |
 | HIGH | No independent C0 or Windows gate | Added exact-head Ubuntu/Windows workflow, pinned tool requirements, scope and evidence checks |
 | HIGH | First remote C0 run loaded legacy `tests/conftest.py` and failed on absent production `pydantic` after every standalone validator passed | Added `--confcutdir=tests/c0` so the independent suite uses only its pinned dependencies; rerun required on the repaired HEAD |
 | HIGH | Legacy backend CI used a shallow checkout, so its otherwise passing full suite could not inspect the pinned baseline tree (`1225 passed`, five ledger errors) | Set backend checkout `fetch-depth: 0`; exact-HEAD rerun required |
@@ -111,3 +111,18 @@ The six legacy skips are predeclared platform/tool availability cases (Windows/P
 `MANIFEST.json` remains the generated YTB package snapshot created by the two pre-remediation bot commits. It is not animation contract authority and is deliberately not regenerated to include C0-only documents, evidence or validators. Regeneration would create repeated mechanical churn and falsely present C0 evidence as YTB release authority. The narrow workflow conditions apply only to `feat/c0-clean-cutover-contracts`; `main` release behavior is unchanged. Deletion of this package manifest remains C2 work, while animation `rig_manifest`, `render_manifest` and `voice_manifest` contracts remain normative.
 
 No C1/C2 implementation, compatibility mode, production migration, YTB source deletion, backend/frontend behavior change or UI redesign is included. Future `PROPOSED` routes are not available until their owner phase. License/security and later runtime provider gates remain phase-specific work and do not weaken C0. Keep PR #1 Draft for owner review; do not merge it as part of C0 execution.
+
+## Targeted F1–F8 final repair (pending remote CI verification)
+
+Starting SHA: `0805a95a427ecf226fcac3138f7f849ec57461bc` (13,639 PR additions at start). Final SHA is recorded in PR HEAD and subsequent GitHub workflow; this file must not claim a CI run before it completes. The pre-repair historical PASS above applies to earlier HEADs, **not** to this repair.
+
+- F1: positive catalog 1,869 → 918 physical lines; negative catalog 5,990 → 501 physical lines (7,859 → 1,419 total). One canonical fixture for each of 18 schemas, 40 intentional mutation negatives; removed 18 near-duplicate revision examples and redundant full-document negatives. Shared mutation application replaces full invalid payloads. Retained basic missing-field/nested schema checks for every schema, source-lineage negative and 18 cross-artifact representative semantic checks; no future runtime mock tests.
+- F2: explicit, exclusive locomotion/gaze/expression/left/right arm channel enforcement, hand-specific grip and overlapping compatible motions. Advanced composition/blending remains deferred.
+- F3: compiled shot plan exact identity/order, exact duration, contiguous global frame offsets, render frame completeness and frame-to-shot ownership. Other than explicit versioned future policy, timing overrides are forbidden.
+- F4: overflowing floating exponent, nested non-finite numbers and non-finite canonical serialization/hash fail closed.
+- F5: `docs/architecture/RENDERER_BOUNDARY.md` freezes pure frame evaluator authority; FFmpeg and future Remotion remain downstream adapters.
+- F6: manual high-risk source evidence summarized in `docs/architecture/C0_REUSE_SOURCE_AUDIT.md`; classifications are reuse decisions, not reachability decisions.
+- F7: 37 unique API pairs (19 ACCEPTED C2, 18 PROPOSED future), with no new endpoints.
+- F8: retained existing exact-head Ubuntu/Windows C0 CI, ledger, DB, evidence, scope and C0-only tests. The C1 future acceptance spec is document-only, NOT_STARTED.
+
+Changed: `tools/validate_c0_contracts.py`, compact fixture catalogs, `tests/c0/test_animation_contracts.py`, API documentation, this review, two new architecture/QA documents and targeted reuse audit. No production or user database modification. Remote CI links/status to be verified independently before reporting a final PASS; no fabricated runtime-test evidence.
