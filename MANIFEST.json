@@ -295,7 +295,7 @@
     "docs/65_DUAL_OFFICIAL_LLM_PHASE1_REPORT.md",
     "docs/67_SCENE_BREAKDOWN_VISUAL_MERGE_COMPLIANCE.md"
   ],
-  "package_file_count_excluding_manifest": 824,
+  "package_file_count_excluding_manifest": 825,
   "package_files": [
     {
       "path": ".github/workflows/refresh-release-manifest.yml",
@@ -2641,6 +2641,11 @@
       "path": "docs/adr/voice_durable_workflow.md",
       "size_bytes": 21695,
       "sha256": "4c175e82e3764e5045f337a483d73b2706a50ae2f0560ed6a174f5209346bc8a"
+    },
+    {
+      "path": "docs/architecture/EXTERNAL_CHATGPT_AUTHORING_CONTRACT.md",
+      "size_bytes": 6583,
+      "sha256": "d62a30048f24aaa78a01fa55e132aeca294a7990acca12c55f199478f1b20dab"
     },
     {
       "path": "docs/architecture/HISTORY_REMOTION_PIVOT.md",
