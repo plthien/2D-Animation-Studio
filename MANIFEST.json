@@ -295,7 +295,7 @@
     "docs/65_DUAL_OFFICIAL_LLM_PHASE1_REPORT.md",
     "docs/67_SCENE_BREAKDOWN_VISUAL_MERGE_COMPLIANCE.md"
   ],
-  "package_file_count_excluding_manifest": 826,
+  "package_file_count_excluding_manifest": 827,
   "package_files": [
     {
       "path": ".github/workflows/refresh-release-manifest.yml",
@@ -2651,6 +2651,11 @@
       "path": "docs/architecture/HISTORY_REMOTION_PIVOT.md",
       "size_bytes": 6156,
       "sha256": "e28cc4de6f5dd1bb57e0d5dacc20d1e03e289f0f1c740a856953128d22154ede"
+    },
+    {
+      "path": "docs/implementation/CODEX_P0_REMAINING_WORK_PROMPT.md",
+      "size_bytes": 8211,
+      "sha256": "7946c06294340afbdf2bee31726222df7b6adf10343ea5f7a6535511192bdf0a"
     },
     {
       "path": "docs/implementation/HISTORY_MOTION_STUDIO_DETAILED_IMPLEMENTATION_PLAN_v1.md",
