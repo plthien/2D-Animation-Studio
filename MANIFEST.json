@@ -2649,8 +2649,8 @@
     },
     {
       "path": "docs/architecture/HISTORY_REMOTION_PIVOT.md",
-      "size_bytes": 5122,
-      "sha256": "52b5940da072f98e07a50f0f6d2c7eaae000cbfb226cb3be6d3b0681e63bb38a"
+      "size_bytes": 6156,
+      "sha256": "e28cc4de6f5dd1bb57e0d5dacc20d1e03e289f0f1c740a856953128d22154ede"
     },
     {
       "path": "experiments/remotion-history-poc/README.md",
