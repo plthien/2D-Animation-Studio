@@ -50,7 +50,7 @@ jobs:
           git diff --check
 
       - name: Run independent C0 tests
-        run: python -m pytest tests/c0 -q --junitxml=c0-reports/pytest.xml
+        run: python -m pytest tests/c0 -q --confcutdir=tests/c0 --junitxml=c0-reports/pytest.xml
 
       - name: Upload C0 reports and G0 evidence
         if: always()
@@ -109,7 +109,7 @@ jobs:
           git diff --check
 
       - name: Run independent C0 tests
-        run: python -m pytest tests/c0 -q --junitxml=c0-reports/pytest.xml
+        run: python -m pytest tests/c0 -q --confcutdir=tests/c0 --junitxml=c0-reports/pytest.xml
 
       - name: Upload Windows C0 reports
         if: always()

@@ -40,7 +40,7 @@ PASS schemas=18 positive=36 negative=108 semantic_bundle=1
 python tools/check_g0_evidence.py
 PASS screenshots=10 routes=6 viewports=3 actions=3 hashes=verified
 
-python -m pytest tests/c0 -q
+python -m pytest tests/c0 -q --confcutdir=tests/c0
 39 passed in 4.10s
 
 python -m pytest -q
@@ -92,6 +92,7 @@ The six legacy skips are predeclared platform/tool availability cases (Windows/P
 | HIGH | Schemas accepted semantically inconsistent artifacts | Replaced shallow schemas/fixtures with 36 valid and 108 negative cases plus cross-artifact validator; fixed an empty-pivot validator crash found by negative testing |
 | HIGH | API descriptions lacked exact implementation contract | Added 35-row endpoint registry, DTO/error/CAS/idempotency/lineage/invalidation freeze and mutation linter |
 | HIGH | No independent C0 or Windows gate | Added exact-head Ubuntu/Windows workflow, pinned tool requirements, scope and evidence checks |
+| HIGH | First remote C0 run loaded legacy `tests/conftest.py` and failed on absent production `pydantic` after every standalone validator passed | Added `--confcutdir=tests/c0` so the independent suite uses only its pinned dependencies; rerun required on the repaired HEAD |
 | MEDIUM | YTB manifest bot generated repeated PR commits | Exempted only this C0 branch from push regeneration; legacy PR CI skips only the YTB manifest generation/diff steps and records the freeze |
 | MEDIUM | Earlier contract fixture had a malformed closing delimiter | Corrected during R3 and reran schema plus full C0 tests |
 

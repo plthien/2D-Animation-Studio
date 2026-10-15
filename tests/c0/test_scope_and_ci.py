@@ -28,7 +28,7 @@ def test_dedicated_ci_has_exact_head_linux_windows_and_all_gates() -> None:
         "pull_request:", "github.event.pull_request.head.sha", "ubuntu-latest", "windows-latest",
         "python-version: '3.12'", "tools/check_c0_ledger.py", "tools/verify_c0_reachability.py",
         "tools/check_c0_db_contract.py", "tools/validate_c0_contracts.py", "tools/check_g0_evidence.py",
-        "tools/check_c0_scope.py", "python -m pytest tests/c0 -q", "git diff --check",
+        "tools/check_c0_scope.py", "python -m pytest tests/c0 -q --confcutdir=tests/c0", "git diff --check",
     ):
         assert required in text
 
