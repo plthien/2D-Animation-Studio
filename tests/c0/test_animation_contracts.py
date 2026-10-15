@@ -129,3 +129,39 @@ def test_compiled_shot_frame_ownership_and_duration(valid_bundle) -> None:
     bundle = copy.deepcopy(valid_bundle)
     bundle["render_manifest.v1"]["frames"].pop()
     assert "render frames must be exact ordered complete set" in semantic_validate_bundle(bundle)
+
+def test_valid_240_frame_shot_and_cross_shot_frame_owner(valid_bundle) -> None:
+    bundle = copy.deepcopy(valid_bundle)
+    bundle["shot_plan.v1"]["shots"][0]["duration_frames"] = 240
+    bundle["animation_plan.v1"]["actions"][0]["end_frame"] = 240
+    bundle["compiled_film.v1"]["shots"][0]["frame_count"] = 240
+    prototype = bundle["render_manifest.v1"]["frames"][0]
+    bundle["render_manifest.v1"]["frames"] = [
+        {**prototype, "frame": index, "relative_path": f"frames/{index:06d}.png",
+         "sha256": f"{index + 1:064x}"}
+        for index in range(240)
+    ]
+    assert not semantic_validate_bundle(bundle)
+    # Add a second approved shot; no action is required for a static shot.
+    second = copy.deepcopy(bundle["shot_plan.v1"]["shots"][0])
+    second["shot_id"] = "shot_two"
+    second["duration_frames"] = 24
+    bundle["shot_plan.v1"]["shots"].append(second)
+    compiled_second = copy.deepcopy(bundle["compiled_film.v1"]["shots"][0])
+    compiled_second.update(shot_id="shot_two", global_start_frame=240, frame_count=24, action_ids=[])
+    bundle["compiled_film.v1"]["shots"].append(compiled_second)
+    bundle["render_manifest.v1"]["frames"] += [
+        {**prototype, "frame": index, "shot_id": "shot_two",
+         "relative_path": f"frames/{index:06d}.png", "sha256": f"{index + 1:064x}"}
+        for index in range(240, 264)
+    ]
+    assert not semantic_validate_bundle(bundle)
+    bundle["render_manifest.v1"]["frames"][239]["shot_id"] = "shot_two"
+    assert "render frame wrong shot ownership" in semantic_validate_bundle(bundle)
+
+
+def test_schema_validation_rejects_python_nonfinite_coordinates(valid_bundle) -> None:
+    schemas = load_schemas()
+    parts = copy.deepcopy(valid_bundle["parts_manifest.v1"])
+    parts["parts"][0]["pivot"]["x"] = float("inf")
+    assert "non-finite" in " ".join(schema_errors(schemas["parts_manifest.v1"], parts))
