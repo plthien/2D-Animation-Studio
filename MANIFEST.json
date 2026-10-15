@@ -2769,8 +2769,8 @@
     },
     {
       "path": "docs/architecture/CLEAN_CUT_FILE_LEDGER.md",
-      "size_bytes": 159395,
-      "sha256": "e5ab700c5958e57777592c3cd97d2308845ba1b146fc7ed885ccc5553155de71"
+      "size_bytes": 159532,
+      "sha256": "bf0c3a0801dff6fc97234d32c6973d9735c5c3060fd56530fc5a6d3ebce50b3b"
     },
     {
       "path": "docs/architecture/CUTOVER_BOUNDARIES.md",
@@ -2804,8 +2804,8 @@
     },
     {
       "path": "docs/qa/PHASE_C0_REVIEW.md",
-      "size_bytes": 2219,
-      "sha256": "8845abe22e57a353a42f0cc255a35a356b528def54381d8d99d1d6670d1f7743"
+      "size_bytes": 2373,
+      "sha256": "a261460025b3255ce5c388606e3f409e949888902f8f92b774e220a2c5578273"
     },
     {
       "path": "index.html",
@@ -4479,8 +4479,8 @@
     },
     {
       "path": "tools/check_c0_ledger.py",
-      "size_bytes": 1533,
-      "sha256": "9ba3efe6a1b5eab57227e8fffc95abf66e77f29abb49d49ffe8b1ad12b0f19b9"
+      "size_bytes": 1791,
+      "sha256": "d9fe5690a6e3e62962f07208e68202719a0d629a58a84eed8504d780abb1a047"
     },
     {
       "path": "tools/evaluate_scene_breakdown_prompt.py",
