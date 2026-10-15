@@ -16,9 +16,9 @@ Baseline: `b35834808d99067e362a6e728ce7af8e04d2b6bd`. Audited remediation start:
 | Scope | production `app/`, `src/` and `alembic/versions/` diff is empty | PASS |
 | Local C0 tests | 39 passed, 0 skipped | PASS |
 | Legacy baseline | Python 1226 passed/6 declared environment skips; legacy contracts 131 schemas/143 operations; Node 160 passed; build and health smoke passed | PASS |
-| Dedicated remote CI | [PR checks](https://github.com/plthien/2D-Animation-Studio/pull/1/checks), [C0 workflow runs](https://github.com/plthien/2D-Animation-Studio/actions/workflows/c0-contract-audit.yml) | PENDING until pushed HEAD is green on Ubuntu and Windows |
+| Dedicated remote CI | [C0 exact-HEAD run 38725859780](https://github.com/plthien/2D-Animation-Studio/actions/runs/38725859780): Ubuntu + Windows; [legacy exact-HEAD run 38725859742](https://github.com/plthien/2D-Animation-Studio/actions/runs/38725859742): backend + frontend + Windows Render | PASS on implementation HEAD `4767189a7ecd3b94e9a6b3833a82f152e39fce42` |
 
-Overall status before the final push is **PARTIAL**. It becomes PASS only after both dedicated C0 jobs and applicable legacy jobs are green on the exact pushed PR HEAD. Exact final check-run URLs are recorded in PR #1 because a commit cannot contain its own future SHA/check-run URL.
+Overall status is **PASS** for implementation HEAD `4767189a7ecd3b94e9a6b3833a82f152e39fce42`: every mandatory local gate, dedicated C0 job and applicable legacy job is green. The PR remains Draft for owner review and is not merged. The PR conversation records the check URLs for the final documentation-only descendant because a commit cannot contain its own future SHA/check-run URL.
 
 ## Commands and results
 
@@ -69,6 +69,15 @@ no output
 
 git diff --check
 exit 0 (Windows line-ending notices only)
+
+GitHub C0 contract audit, run 38725859780
+C0 contracts (Ubuntu, Python 3.12): success
+C0 portability (Windows, Python 3.12): success
+
+GitHub Main Candidate Audit, run 38725859742
+Backend review gates: success; 1230 passed, 2 skipped, 3 warnings in 300.87s
+Frontend and cutover review gates: success
+Windows Render review gates: success
 ```
 
 The six legacy skips are predeclared platform/tool availability cases (Windows/POSIX executable provenance and real FFmpeg coverage), not C0 tests. Dedicated C0 has no skips. The legacy GitHub Windows gate installs FFmpeg and retains its own render coverage.
@@ -101,4 +110,4 @@ The six legacy skips are predeclared platform/tool availability cases (Windows/P
 
 `MANIFEST.json` remains the generated YTB package snapshot created by the two pre-remediation bot commits. It is not animation contract authority and is deliberately not regenerated to include C0-only documents, evidence or validators. Regeneration would create repeated mechanical churn and falsely present C0 evidence as YTB release authority. The narrow workflow conditions apply only to `feat/c0-clean-cutover-contracts`; `main` release behavior is unchanged. Deletion of this package manifest remains C2 work, while animation `rig_manifest`, `render_manifest` and `voice_manifest` contracts remain normative.
 
-No C1/C2 implementation, compatibility mode, production migration, YTB source deletion, backend/frontend behavior change or UI redesign is included. Future `PROPOSED` routes are not available until their owner phase. License/security and later runtime provider gates remain phase-specific work and do not weaken C0. The only pre-push limitation is remote CI status; keep PR #1 Draft until exact final HEAD checks are green and reviewed.
+No C1/C2 implementation, compatibility mode, production migration, YTB source deletion, backend/frontend behavior change or UI redesign is included. Future `PROPOSED` routes are not available until their owner phase. License/security and later runtime provider gates remain phase-specific work and do not weaken C0. Keep PR #1 Draft for owner review; do not merge it as part of C0 execution.
