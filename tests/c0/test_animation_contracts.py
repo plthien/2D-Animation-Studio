@@ -97,3 +97,35 @@ def test_canonical_hash_stable_and_finite_only() -> None:
         with pytest.raises(ValueError, match="non-finite"):
             canonical_json_sha256({"outer": [bad]})
     assert len(canonical_json_sha256({"finite": 0.25})) == 64
+
+def test_channel_overlap_and_conflicts(valid_bundle) -> None:
+    def motion(kind: str, ident: str, hand: str = "none") -> dict:
+        item = copy.deepcopy(valid_bundle["animation_plan.v1"]["actions"][0])
+        item.update(action=kind, action_id=ident, hand=hand, target_id="prop_box",
+                    prop_id=None if kind in {"walk_to", "look_at", "reach_for"} else "prop_box",
+                    start_frame=0, end_frame=12)
+        return item
+
+    def check(actions: list[dict]) -> list[str]:
+        bundle = copy.deepcopy(valid_bundle)
+        bundle["animation_plan.v1"]["actions"] = actions
+        return semantic_validate_bundle(bundle)
+
+    assert "conflicting motion channel" not in " ".join(check([motion("walk_to", "walk"), motion("look_at", "look")]))
+    assert "conflicting motion channel" in " ".join(check([motion("walk_to", "walk"), motion("walk_to", "walk2")]))
+    assert "conflicting motion channel: left_arm" in " ".join(check([motion("reach_for", "reach", "left"), motion("reach_for", "reach2", "left")]))
+    assert "conflicting motion channel" not in " ".join(check([motion("reach_for", "left", "left"), motion("reach_for", "right", "right")]))
+
+
+def test_compiled_shot_frame_ownership_and_duration(valid_bundle) -> None:
+    bundle = copy.deepcopy(valid_bundle)
+    assert not semantic_validate_bundle(bundle)
+
+    bundle["compiled_film.v1"]["shots"][0]["frame_count"] = 47
+    assert "compiled shot duration mismatch" in semantic_validate_bundle(bundle)
+    bundle = copy.deepcopy(valid_bundle)
+    bundle["render_manifest.v1"]["frames"][4]["shot_id"] = "shot_other"
+    assert "render frame shot missing" in semantic_validate_bundle(bundle)
+    bundle = copy.deepcopy(valid_bundle)
+    bundle["render_manifest.v1"]["frames"].pop()
+    assert "render frames must be exact ordered complete set" in semantic_validate_bundle(bundle)

@@ -175,8 +175,9 @@ def semantic_validate_bundle(bundle: dict[str, dict[str, Any]]) -> list[str]:
     capabilities=set(profile["capabilities"])
 
     actions=bundle["animation_plan.v1"]["actions"]
-    actor_spans: dict[tuple[str,str],list[tuple[int,int,str]]] = {}
-    held: dict[tuple[str,str],str] = {}
+    channel_spans: dict[tuple[str, str, str], list[tuple[int, int, str]]] = {}
+    grip_events: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+    seen_action_ids: set[str] = set()
     for action in actions:
         shot=shots.get(action["shot_id"])
         if shot is None: err("action references missing shot");continue
@@ -185,30 +186,91 @@ def semantic_validate_bundle(bundle: dict[str, dict[str, Any]]) -> list[str]:
         if action["action"] not in capabilities: err("rig capability mismatch")
         if action["action"] in TARGET_REQUIRED and not (action["target_id"] or action["prop_id"]): err("action target required")
         if action["prop_id"] and action["prop_id"] not in shot["prop_ids"]: err("action prop not in shot")
-        key=(action["shot_id"],action["actor_id"]); actor_spans.setdefault(key,[]).append((action["start_frame"],action["end_frame"],action["action_id"]))
-        hand=(action["actor_id"],action["hand"])
-        if action["action"]=="grab":
-            if action["hand"]=="none" or hand in held: err("one prop per hand violated")
-            elif action["prop_id"]: held[hand]=action["prop_id"]
-        if action["action"]=="place_at":
-            if held.get(hand)!=action["prop_id"]: err("release without matching grip")
-            else: del held[hand]
-    for spans in actor_spans.values():
+        if action["action_id"] in seen_action_ids:
+            err("duplicate action_id")
+        seen_action_ids.add(action["action_id"])
+        kind, hand = action["action"], action["hand"]
+        if kind in {"grab", "place_at", "reach_for", "point_at"} and hand == "none":
+            err("hand-specific action requires left or right hand")
+        if kind in {"idle", "walk_to", "look_at", "react"} and hand != "none":
+            err("non-hand action must use hand=none")
+        if kind in {"grab", "place_at", "carry_to"} and not action["prop_id"]:
+            err("prop action requires prop_id")
+        if kind == "carry_to":
+            # Carrying is locomotion with a frozen grip. Multi-hand transfer is not part of C0.
+            if hand == "none":
+                err("carry_to requires held hand")
+        # These resources are exclusively owned; distinct channels can overlap.
+        channels = {
+            "idle": ("locomotion",),
+            "walk_to": ("locomotion",),
+            "look_at": ("gaze",),
+            "react": ("expression",),
+            "reach_for": (f"{hand}_arm",),
+            "point_at": (f"{hand}_arm",),
+            "grab": (f"{hand}_arm",),
+            "place_at": (f"{hand}_arm",),
+            "carry_to": ("locomotion",),
+        }[kind]
+        for channel in channels:
+            key = (action["shot_id"], action["actor_id"], channel)
+            channel_spans.setdefault(key, []).append((action["start_frame"], action["end_frame"], action["action_id"]))
+        if kind in {"grab", "place_at", "carry_to"} and hand != "none":
+            grip_events.setdefault((action["shot_id"], action["actor_id"], hand), []).append(action)
+    for key, spans in channel_spans.items():
         spans.sort()
-        if any(spans[i][0] < spans[i-1][1] for i in range(1,len(spans))): err("overlapping actor actions")
+        if any(spans[i][0] < spans[i - 1][1] for i in range(1, len(spans))):
+            err(f"conflicting motion channel: {key[2]}")
+    for key, events in grip_events.items():
+        events.sort(key=lambda item: (item["start_frame"], item["end_frame"], item["action_id"]))
+        held_prop: str | None = None
+        for event in events:
+            if event["action"] == "grab":
+                if held_prop is not None:
+                    err("one prop per hand violated")
+                else:
+                    held_prop = event["prop_id"]
+            elif event["action"] == "carry_to":
+                if held_prop != event["prop_id"]:
+                    err("carry without matching grip")
+            elif event["action"] == "place_at":
+                if held_prop != event["prop_id"]:
+                    err("release without matching grip")
+                else:
+                    held_prop = None
 
     compiled=bundle["compiled_film.v1"]
     if compiled["animation_plan_artifact_id"]!=bundle["animation_plan.v1"]["artifact_id"]: err("compiled animation lineage mismatch")
-    offset=0
+    if compiled["shot_plan_artifact_id"] != plan["artifact_id"]:
+        err("compiled shot-plan lineage mismatch")
+    approved_order = [shot["shot_id"] for shot in plan["shots"]]
+    compiled_order = [shot["shot_id"] for shot in compiled["shots"]]
+    if compiled_order != approved_order or len(compiled_order) != len(set(compiled_order)):
+        err("compiled shot identity/order mismatch")
+    compiled_by_shot: dict[str, dict[str, Any]] = {}
+    offset = 0
     for cshot in compiled["shots"]:
-        if cshot["global_start_frame"]!=offset: err("compiled shot ordering/gap mismatch")
-        offset+=cshot["frame_count"]
-    render=bundle["render_manifest.v1"]
-    frames=render["frames"]
-    if [frame["frame"] for frame in frames] != list(range(offset)): err("render frames must be exact ordered complete set")
-    compiled_by_shot={shot["shot_id"]:shot for shot in compiled["shots"]}
+        approved = shots.get(cshot["shot_id"])
+        if cshot["global_start_frame"] != offset:
+            err("compiled shot ordering/gap mismatch")
+        if approved is not None and cshot["frame_count"] != approved["duration_frames"]:
+            err("compiled shot duration mismatch")
+        if cshot["shot_id"] in compiled_by_shot:
+            err("duplicate compiled shot")
+        compiled_by_shot[cshot["shot_id"]] = cshot
+        offset += cshot["frame_count"]
+    render = bundle["render_manifest.v1"]
+    if render["compiled_film_artifact_id"] != compiled["artifact_id"]:
+        err("render compiled-film lineage mismatch")
+    frames = render["frames"]
+    if [frame["frame"] for frame in frames] != list(range(offset)):
+        err("render frames must be exact ordered complete set")
     for frame in frames:
-        if frame["shot_id"] not in compiled_by_shot: err("render frame shot missing")
+        owner = compiled_by_shot.get(frame["shot_id"])
+        if owner is None:
+            err("render frame shot missing")
+        elif not owner["global_start_frame"] <= frame["frame"] < owner["global_start_frame"] + owner["frame_count"]:
+            err("render frame wrong shot ownership")
 
     voice=bundle["voice_manifest.v1"]
     if voice["script_artifact_id"]!=script["artifact_id"] or voice["render_manifest_artifact_id"]!=render["artifact_id"]: err("voice-last lineage mismatch")
