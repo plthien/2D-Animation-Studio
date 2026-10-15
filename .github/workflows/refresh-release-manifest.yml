@@ -3,6 +3,8 @@ name: Refresh deterministic release artifacts
 on:
   workflow_dispatch:
   push:
+    branches-ignore:
+      - feat/c0-clean-cutover-contracts
     paths-ignore:
       - MANIFEST.json
       - contracts/openapi/youtube_ai_studio_api.openapi.yaml

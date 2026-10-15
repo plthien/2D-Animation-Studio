@@ -114,9 +114,11 @@ jobs:
         run: rm -f runtime-openapi.yaml voice-junit.xml backend-junit.xml
 
       - name: Generate deterministic release manifest
+        if: github.head_ref != 'feat/c0-clean-cutover-contracts'
         run: python tools/package_manifest.py generate
 
       - name: Persist generated release manifest
+        if: github.head_ref != 'feat/c0-clean-cutover-contracts'
         uses: actions/upload-artifact@v4
         with:
           name: generated-manifest
@@ -125,7 +127,12 @@ jobs:
           retention-days: 7
 
       - name: Verify committed release manifest
+        if: github.head_ref != 'feat/c0-clean-cutover-contracts'
         run: git diff --exit-code -- MANIFEST.json
+
+      - name: Record C0 manifest freeze
+        if: github.head_ref == 'feat/c0-clean-cutover-contracts'
+        run: echo "Legacy YTB package authority is transitional and intentionally not regenerated during C0."
 
       - name: Verify candidate source remained clean
         if: ${{ always() }}
