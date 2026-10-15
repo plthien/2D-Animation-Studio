@@ -41,3 +41,4 @@ def test_release_refresh_exempts_only_c0_branch() -> None:
     legacy = LEGACY_AUDIT.read_text(encoding="utf-8")
     assert "Record C0 manifest freeze" in legacy
     assert legacy.count("github.head_ref != 'feat/c0-clean-cutover-contracts'") == 3
+    assert "fetch-depth: 0" in legacy

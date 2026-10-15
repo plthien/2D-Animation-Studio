@@ -93,6 +93,7 @@ The six legacy skips are predeclared platform/tool availability cases (Windows/P
 | HIGH | API descriptions lacked exact implementation contract | Added 35-row endpoint registry, DTO/error/CAS/idempotency/lineage/invalidation freeze and mutation linter |
 | HIGH | No independent C0 or Windows gate | Added exact-head Ubuntu/Windows workflow, pinned tool requirements, scope and evidence checks |
 | HIGH | First remote C0 run loaded legacy `tests/conftest.py` and failed on absent production `pydantic` after every standalone validator passed | Added `--confcutdir=tests/c0` so the independent suite uses only its pinned dependencies; rerun required on the repaired HEAD |
+| HIGH | Legacy backend CI used a shallow checkout, so its otherwise passing full suite could not inspect the pinned baseline tree (`1225 passed`, five ledger errors) | Set backend checkout `fetch-depth: 0`; exact-HEAD rerun required |
 | MEDIUM | YTB manifest bot generated repeated PR commits | Exempted only this C0 branch from push regeneration; legacy PR CI skips only the YTB manifest generation/diff steps and records the freeze |
 | MEDIUM | Earlier contract fixture had a malformed closing delimiter | Corrected during R3 and reran schema plus full C0 tests |
 
