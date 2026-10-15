@@ -14,4 +14,6 @@ The C2 application must remain recognizably the baseline cockpit, not a generic 
 
 New later panels: Shot Plan, Asset Resolver, Generation Review, Rig Workshop, Animation Director, Motion Preview, Voice-last Delivery. They must use the same shell/section/card/status language.
 
+The immutable G0 comparison set is `docs/qa/evidence/g0/manifest.json` plus its ten hash-verified PNG files. It includes a 768×900 narrow capture showing the baseline's sidebar-first reflow; this is an observed baseline behavior, not a C0 redesign.
+
 Acceptance: baseline and C2 screenshots at 1440×900 and 1920×1080 retain sidebar width, header/stepper placement, card-grid hierarchy, modal visual language, tokens, and selected-workspace feedback. Allowed differences: product text, seven stage names/statuses, animation fields/panels, removal of retired controls. Mobile may reflow but retains navigation and feedback semantics.

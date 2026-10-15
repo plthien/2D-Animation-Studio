@@ -1,1 +1,311 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"shot_plan.v1","type":"object","additionalProperties":false,"required":["schema_version","artifact_id","channel_id","project_id","script_artifact_id","shots"],"properties":{"schema_version":{"const":"shot_plan.v1"},"artifact_id":{"type":"string","minLength":1},"channel_id":{"type":"string","minLength":1},"project_id":{"type":"string","minLength":1},"script_artifact_id":{"type":"string","minLength":1},"shots":{"type":"array","minItems":1,"maxItems":30,"items":{"type":"object","additionalProperties":false,"required":["shot_id","start_frame","end_frame","actors","props","location_id","utterance"],"properties":{"shot_id":{"type":"string","minLength":1},"start_frame":{"type":"integer","minimum":0},"end_frame":{"type":"integer","minimum":24,"maximum":720},"actors":{"type":"array","maxItems":2,"items":{"type":"string"}},"props":{"type":"array","maxItems":3,"items":{"type":"string"}},"location_id":{"type":"string"},"utterance":{"oneOf":[{"type":"null"},{"type":"object","additionalProperties":false,"required":["text","script_start","script_end"],"properties":{"text":{"type":"string","minLength":1},"script_start":{"type":"integer","minimum":0},"script_end":{"type":"integer","minimum":1}}}]},"initial_world_state":{"type":"object"},"final_world_state":{"type":"object"}}}}}}
+{
+  "$id": "https://contracts.2d-animation-studio.local/shot_plan.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "actor_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+        "type": "string"
+      },
+      "maxItems": 100,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "channel_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "location_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+        "type": "string"
+      },
+      "maxItems": 100,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "project_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "prop_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+        "type": "string"
+      },
+      "maxItems": 100,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "shot_plan.v1"
+    },
+    "script_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "script_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "shots": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "actor_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+              "type": "string"
+            },
+            "maxItems": 2,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "duration_frames": {
+            "maximum": 720,
+            "minimum": 24,
+            "type": "integer"
+          },
+          "final_world_state": {
+            "additionalProperties": false,
+            "properties": {
+              "actors": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "actor_id": {
+                      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+                      "type": "string"
+                    },
+                    "facing": {
+                      "enum": [
+                        "left",
+                        "right"
+                      ]
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "actor_id",
+                    "x",
+                    "y",
+                    "facing"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 2,
+                "type": "array"
+              },
+              "props": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "held_by": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "prop_id": {
+                      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+                      "type": "string"
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "prop_id",
+                    "x",
+                    "y",
+                    "held_by"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 3,
+                "type": "array"
+              }
+            },
+            "required": [
+              "actors",
+              "props"
+            ],
+            "type": "object"
+          },
+          "initial_world_state": {
+            "additionalProperties": false,
+            "properties": {
+              "actors": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "actor_id": {
+                      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+                      "type": "string"
+                    },
+                    "facing": {
+                      "enum": [
+                        "left",
+                        "right"
+                      ]
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "actor_id",
+                    "x",
+                    "y",
+                    "facing"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 2,
+                "type": "array"
+              },
+              "props": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "held_by": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "prop_id": {
+                      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+                      "type": "string"
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "prop_id",
+                    "x",
+                    "y",
+                    "held_by"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 3,
+                "type": "array"
+              }
+            },
+            "required": [
+              "actors",
+              "props"
+            ],
+            "type": "object"
+          },
+          "location_id": {
+            "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+            "type": "string"
+          },
+          "prop_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+              "type": "string"
+            },
+            "maxItems": 3,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "shot_id": {
+            "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+            "type": "string"
+          },
+          "utterance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "script_end": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "script_start": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "text": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text",
+                  "script_start",
+                  "script_end"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "required": [
+          "shot_id",
+          "duration_frames",
+          "actor_ids",
+          "prop_ids",
+          "location_id",
+          "utterance",
+          "initial_world_state",
+          "final_world_state"
+        ],
+        "type": "object"
+      },
+      "maxItems": 30,
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "channel_id",
+    "project_id",
+    "revision",
+    "created_at",
+    "script_artifact_id",
+    "script_sha256",
+    "actor_ids",
+    "prop_ids",
+    "location_ids",
+    "shots"
+  ],
+  "type": "object"
+}

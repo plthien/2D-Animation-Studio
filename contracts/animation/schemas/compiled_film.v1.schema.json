@@ -1,1 +1,98 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,"required":["schema_version","artifact_id","channel_id","project_id","animation_plan_artifact_id","shots"],"properties":{"schema_version":{"const":"compiled_film.v1"},"artifact_id":{"type":"string"},"channel_id":{"type":"string"},"project_id":{"type":"string"},"animation_plan_artifact_id":{"type":"string"},"shots":{"type":"array","items":{"type":"object","required":["shot_id","frame_count","world_state_hash"],"properties":{"shot_id":{"type":"string"},"frame_count":{"type":"integer","minimum":24},"world_state_hash":{"type":"string"}}}}}}
+{
+  "$id": "https://contracts.2d-animation-studio.local/compiled_film.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "animation_plan_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "channel_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "input_fingerprint": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "project_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "compiled_film.v1"
+    },
+    "shot_plan_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "shots": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "action_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "frame_count": {
+            "maximum": 768,
+            "minimum": 24,
+            "type": "integer"
+          },
+          "global_start_frame": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shot_id": {
+            "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+            "type": "string"
+          },
+          "world_state_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "shot_id",
+          "global_start_frame",
+          "frame_count",
+          "world_state_sha256",
+          "action_ids"
+        ],
+        "type": "object"
+      },
+      "maxItems": 30,
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "channel_id",
+    "project_id",
+    "revision",
+    "created_at",
+    "animation_plan_artifact_id",
+    "shot_plan_artifact_id",
+    "input_fingerprint",
+    "shots"
+  ],
+  "type": "object"
+}

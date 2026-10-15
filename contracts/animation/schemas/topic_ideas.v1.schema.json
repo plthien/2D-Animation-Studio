@@ -1,1 +1,80 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,"required":["schema_version","artifact_id","channel_id","project_id","ideas"],"properties":{"schema_version":{"const":"topic_ideas.v1"},"artifact_id":{"type":"string","minLength":1},"channel_id":{"type":"string","minLength":1},"project_id":{"type":"string","minLength":1},"ideas":{"type":"array","minItems":1,"items":{"type":"object","required":["idea_id","title"],"properties":{"idea_id":{"type":"string"},"title":{"type":"string"}}}}}}
+{
+  "$id": "https://contracts.2d-animation-studio.local/topic_ideas.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "channel_dna_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "channel_dna_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "channel_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "ideas": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "idea_id": {
+            "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+            "type": "string"
+          },
+          "premise": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "idea_id",
+          "title",
+          "premise"
+        ],
+        "type": "object"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "type": "array"
+    },
+    "project_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "topic_ideas.v1"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "channel_id",
+    "project_id",
+    "revision",
+    "created_at",
+    "channel_dna_artifact_id",
+    "channel_dna_hash",
+    "ideas"
+  ],
+  "type": "object"
+}

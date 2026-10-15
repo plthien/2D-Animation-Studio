@@ -1,9 +1,19 @@
-# G0 UI baseline — BLOCKED
+# G0 UI baseline — PASS
 
-Source commit: `b35834808d99067e362a6e728ce7af8e04d2b6bd`. Host: Windows, Python 3.12.10, Node 22.14.0, npm 11.21.0. Baseline was started unchanged using temporary paths: `%TEMP%/c0-ytb-runtime/baseline.sqlite` and `%TEMP%/c0-ytb-runtime/artifacts`, API `127.0.0.1:8010`, Vite `127.0.0.1:5180`. The API completed the legacy 001–031 migration chain against that disposable DB; Vite returned HTTP 200. No existing user DB or artifact was accessed.
+Source commit: `b35834808d99067e362a6e728ce7af8e04d2b6bd`. The backend was started from a detached worktree at that exact commit on Windows 11 against `%TEMP%/c0-g0-runtime-remediation/baseline.sqlite` and a disposable artifact directory. Its legacy 001–031 migrations ran only against that database. The frontend files used by Vite were proven byte-identical with:
 
-Browser evidence is **not available**, so G0 is BLOCKED and C0 cannot be PASS. The connected browser provider had no available surfaces (`iab` creation rejected), the native browser-control pipe was unavailable, and local Chrome headless rendering failed before capture with repeated `GPU process exited unexpectedly` / `GPU process isn't usable` errors. Therefore no mock, generated, or substitute screenshots were committed. The required views remain uncaptured: Channels/DNA/editor/modal; Projects/modal; Studio/stepper; Settings; Jobs; Artifacts; selected sidebar state at 1440×900, 1920×1080, and a narrow viewport.
+```powershell
+git diff --exit-code b35834808d99067e362a6e728ce7af8e04d2b6bd -- src package.json package-lock.json vite.config.ts index.html
+```
 
-Observed baseline runtime facts: `/health` returned 404 (the baseline system route is under its API prefix); Vite served the frontend. The attempted actual Chrome command was `chrome.exe --headless=new --disable-gpu --use-angle=swiftshader --window-size=1440,900 --screenshot=... http://127.0.0.1:5180`; it failed before writing an image. No browser click/navigation evidence can honestly be claimed.
+The command exited 0. Vite served those unchanged files at `127.0.0.1:5190` with its API base pointed to the disposable baseline API at `127.0.0.1:8020`. No user database, artifact directory, credential, or production record was accessed.
 
-Resolution: run the same unchanged baseline on a host with functioning Chrome GPU/software compositor or a connected browser provider, use the above disposable paths, capture the required pages/modals and record hashes. Do not proceed to C2 based on this document.
+`tools/capture_g0_baseline.py` created one named synthetic channel, valid Channel DNA and one project through the real baseline API, launched installed Google Chrome through Playwright, navigated real routes, opened both real create dialogs, and wrote lossless viewport PNGs. The capture covers Channels grid/DNA editor/dialog, Projects grid/dialog, Studio and pipeline stepper, Settings, Jobs, Artifacts, selected sidebar/workspace, 1440×900, 1920×1080 and 768×900.
+
+Evidence is indexed by [the cryptographic manifest](evidence/g0/manifest.json). It records the baseline SHA, exact routes, viewport, Chrome version, Windows version, synthetic fixture IDs, UTC timestamp, browser action, byte count and SHA-256 for all ten images. `python tools/check_g0_evidence.py` returns:
+
+```text
+PASS screenshots=10 routes=6 viewports=3 actions=3 hashes=verified
+```
+
+The negative regression test removes one referenced image from an isolated copy and proves the gate fails. The capture script rejects any baseline SHA other than the full audited SHA. Reviewers can reproduce the capture with a disposable baseline service; the committed PNGs are the review authority for later C2 parity comparison.

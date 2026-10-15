@@ -1,0 +1,141 @@
+{
+  "gate": "G0",
+  "status": "CAPTURED",
+  "baseline_commit": "b35834808d99067e362a6e728ce7af8e04d2b6bd",
+  "source_assertion": "Frontend bytes were verified identical to the audited baseline before capture.",
+  "captured_at_utc": "2026-10-15T07:22:34.580455+00:00",
+  "browser": {
+    "product": "Google Chrome via Playwright Chromium driver",
+    "version": "153.0.8010.53"
+  },
+  "host_os": "Windows-11-10.0.26200-SP0",
+  "frontend_url": "http://127.0.0.1:5190",
+  "api_url": "http://127.0.0.1:8020",
+  "data_policy": "Synthetic records in a disposable migrated SQLite database only.",
+  "fixture": {
+    "channel_id": "channel_37634bc25823",
+    "project_id": "project_984faebb97f6"
+  },
+  "screenshots": [
+    {
+      "file": "docs/qa/evidence/g0/01-channels-dna-editor-1440x900.png",
+      "sha256": "c8a181e1e89c425df351bd010e33c33669daf36026700b9338ceb39fdf20cc34",
+      "bytes": 258530,
+      "route": "/",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "expected_visible_text": "Channel DNA",
+      "browser_action": "navigate"
+    },
+    {
+      "file": "docs/qa/evidence/g0/02-create-channel-modal-1440x900.png",
+      "sha256": "bba32d4ddebba53887be3ad21efc27becdd0db0566c428b291650a1e8d7e2a8a",
+      "bytes": 148752,
+      "route": "/",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "expected_visible_text": "Channels",
+      "browser_action": "open-channel-modal"
+    },
+    {
+      "file": "docs/qa/evidence/g0/03-projects-1440x900.png",
+      "sha256": "00ad054a2f9468d606e99a22bbbe3d421c2cc3d49ab053ccb9a6ee5a69987900",
+      "bytes": 263752,
+      "route": "/projects",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "expected_visible_text": "Projects",
+      "browser_action": "navigate"
+    },
+    {
+      "file": "docs/qa/evidence/g0/04-create-project-modal-1440x900.png",
+      "sha256": "808e22d1ef88b3c86d6ebac8372f0e3b4e8a511c85302175264d538a55db8af4",
+      "bytes": 138116,
+      "route": "/projects",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "expected_visible_text": "Projects",
+      "browser_action": "open-project-modal"
+    },
+    {
+      "file": "docs/qa/evidence/g0/05-studio-pipeline-1440x900.png",
+      "sha256": "a9d6613f71aacab58824a2442e338ed6819384ef875aa33b8c634714fbfd2cda",
+      "bytes": 224398,
+      "route": "/studio",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "expected_visible_text": "Studio",
+      "browser_action": "navigate"
+    },
+    {
+      "file": "docs/qa/evidence/g0/06-settings-1440x900.png",
+      "sha256": "f163ecd2db267c59a5f05de579c1d15395e63fafb027b1cfbe885063396602aa",
+      "bytes": 261684,
+      "route": "/settings",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "expected_visible_text": "Settings",
+      "browser_action": "navigate"
+    },
+    {
+      "file": "docs/qa/evidence/g0/07-jobs-1440x900.png",
+      "sha256": "e73e7329f848cb9fb6181b1196a053d0f9d8c8ef6d49f830fc91e8b3dddd56d3",
+      "bytes": 201160,
+      "route": "/jobs",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "expected_visible_text": "Jobs",
+      "browser_action": "navigate"
+    },
+    {
+      "file": "docs/qa/evidence/g0/08-artifacts-1440x900.png",
+      "sha256": "b565b8d28e98797573d8aeeeded45eb5a6ab008b16cec558b4659b02e4dad2ef",
+      "bytes": 204863,
+      "route": "/artifacts",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "expected_visible_text": "Artifacts",
+      "browser_action": "navigate"
+    },
+    {
+      "file": "docs/qa/evidence/g0/09-studio-wide-1920x1080.png",
+      "sha256": "7408127edf8fab2ee78ad741fffcc7e6be657538700af7d15471af0d7f9d21fa",
+      "bytes": 304822,
+      "route": "/studio",
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "expected_visible_text": "Studio",
+      "browser_action": "navigate"
+    },
+    {
+      "file": "docs/qa/evidence/g0/10-channels-narrow-768x900.png",
+      "sha256": "08ab80a2a24780aa3c11843e95a3d223c6d9c32868b560670980491461ff4de4",
+      "bytes": 110941,
+      "route": "/",
+      "viewport": {
+        "width": 768,
+        "height": 900
+      },
+      "expected_visible_text": "Channel DNA",
+      "browser_action": "navigate"
+    }
+  ]
+}

@@ -1,1 +1,84 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,"required":["schema_version","artifact_id","channel_id","project_id","final_timeline_artifact_id","mp4_sha256","width","height","fps"],"properties":{"schema_version":{"const":"final_video.v1"},"artifact_id":{"type":"string"},"channel_id":{"type":"string"},"project_id":{"type":"string"},"final_timeline_artifact_id":{"type":"string"},"mp4_sha256":{"type":"string"},"width":{"const":1280},"height":{"const":720},"fps":{"const":24}}}
+{
+  "$id": "https://contracts.2d-animation-studio.local/final_video.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "audio_codec": {
+      "const": "aac"
+    },
+    "byte_size": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "channel_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "final_timeline_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "fps": {
+      "const": 24
+    },
+    "height": {
+      "const": 720
+    },
+    "mp4_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "project_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "render_manifest_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "final_video.v1"
+    },
+    "video_codec": {
+      "const": "h264"
+    },
+    "voice_manifest_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "width": {
+      "const": 1280
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "channel_id",
+    "project_id",
+    "revision",
+    "created_at",
+    "final_timeline_artifact_id",
+    "render_manifest_artifact_id",
+    "voice_manifest_artifact_id",
+    "mp4_sha256",
+    "byte_size",
+    "width",
+    "height",
+    "fps",
+    "video_codec",
+    "audio_codec"
+  ],
+  "type": "object"
+}

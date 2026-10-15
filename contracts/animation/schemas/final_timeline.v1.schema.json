@@ -1,1 +1,119 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"final_timeline.v1","type":"object","additionalProperties":false,"required":["schema_version","artifact_id","channel_id","project_id","fps","sample_rate_hz","shots"],"properties":{"schema_version":{"const":"final_timeline.v1"},"artifact_id":{"type":"string","minLength":1},"channel_id":{"type":"string","minLength":1},"project_id":{"type":"string","minLength":1},"fps":{"const":24},"sample_rate_hz":{"const":48000},"shots":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["shot_id","base_end_frame","final_end_frame","audio_sample_count"],"properties":{"shot_id":{"type":"string"},"base_end_frame":{"type":"integer","minimum":24,"maximum":720},"final_end_frame":{"type":"integer","minimum":24,"maximum":768},"audio_sample_count":{"type":"integer","minimum":0}}}}}}
+{
+  "$id": "https://contracts.2d-animation-studio.local/final_timeline.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "channel_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "fps": {
+      "const": 24
+    },
+    "project_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "render_manifest_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "sample_rate_hz": {
+      "const": 48000
+    },
+    "samples_per_frame": {
+      "const": 2000
+    },
+    "schema_version": {
+      "const": "final_timeline.v1"
+    },
+    "shots": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "audio_sample_count": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "base_duration_frames": {
+            "maximum": 720,
+            "minimum": 24,
+            "type": "integer"
+          },
+          "final_duration_frames": {
+            "maximum": 768,
+            "minimum": 24,
+            "type": "integer"
+          },
+          "shot_id": {
+            "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+            "type": "string"
+          },
+          "terminal_hold_frames": {
+            "maximum": 48,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "voiced_end_frame": {
+            "minimum": 1,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "voiced_start_frame": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "shot_id",
+          "base_duration_frames",
+          "terminal_hold_frames",
+          "final_duration_frames",
+          "voiced_start_frame",
+          "voiced_end_frame",
+          "audio_sample_count"
+        ],
+        "type": "object"
+      },
+      "maxItems": 30,
+      "minItems": 1,
+      "type": "array"
+    },
+    "voice_manifest_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "channel_id",
+    "project_id",
+    "revision",
+    "created_at",
+    "render_manifest_artifact_id",
+    "voice_manifest_artifact_id",
+    "fps",
+    "sample_rate_hz",
+    "samples_per_frame",
+    "shots"
+  ],
+  "type": "object"
+}
