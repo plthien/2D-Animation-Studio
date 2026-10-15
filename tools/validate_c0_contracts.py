@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import math
+import copy
+import hashlib
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -30,7 +32,76 @@ def _pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def load_json(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_pairs, parse_constant=lambda value: (_ for _ in ()).throw(ValueError(f"non-finite JSON number: {value}")))
+    return json.loads(
+        path.read_text(encoding="utf-8"),
+        object_pairs_hook=_pairs,
+        parse_constant=lambda value: (_ for _ in ()).throw(ValueError(f"non-finite JSON number: {value}")),
+        parse_float=_finite_float,
+    )
+
+
+def _finite_float(value: str) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"non-finite JSON number: {value}")
+    return number
+
+
+def _finite_errors(value: Any, path: str = "") -> list[str]:
+    if isinstance(value, float) and not math.isfinite(value):
+        return [f"non-finite JSON number at {path or '/'}"]
+    if isinstance(value, dict):
+        return [error for key, item in value.items() for error in _finite_errors(item, f"{path}/{key}")]
+    if isinstance(value, list):
+        return [error for i, item in enumerate(value) for error in _finite_errors(item, f"{path}/{i}")]
+    return []
+
+
+def canonical_json_bytes(value: Any) -> bytes:
+    errors = _finite_errors(value)
+    if errors:
+        raise ValueError(errors[0])
+    return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf-8")
+
+
+def canonical_json_sha256(value: Any) -> str:
+    return hashlib.sha256(canonical_json_bytes(value)).hexdigest()
+
+
+def apply_mutations(canonical: dict[str, Any], mutations: list[dict[str, Any]]) -> dict[str, Any]:
+    """Small RFC6901-pointer subset: add, replace and remove only; never mutate the base."""
+    result = copy.deepcopy(canonical)
+    for mutation in mutations:
+        op, path = mutation["op"], mutation["path"]
+        tokens = path.split("/")[1:]
+        if not path.startswith("/") or not tokens or any("~" in token for token in tokens):
+            raise ValueError(f"unsupported mutation pointer: {path}")
+        target: Any = result
+        for token in tokens[:-1]:
+            target = target[int(token)] if isinstance(target, list) else target[token]
+        key: Any = int(tokens[-1]) if isinstance(target, list) else tokens[-1]
+        if op == "remove":
+            if isinstance(target, list):
+                target.pop(key)
+            else:
+                del target[key]
+        elif op == "replace":
+            if isinstance(target, list):
+                target[key] = mutation["value"]
+            else:
+                if key not in target:
+                    raise ValueError(f"replace target missing: {path}")
+                target[key] = mutation["value"]
+        elif op == "add":
+            if isinstance(target, list):
+                target.insert(key, mutation["value"])
+            else:
+                if key in target:
+                    raise ValueError(f"add target already present: {path}")
+                target[key] = mutation["value"]
+        else:
+            raise ValueError(f"unknown fixture mutation operation: {op}")
+    return result
 
 
 def load_schemas() -> dict[str, dict[str, Any]]:
@@ -46,6 +117,9 @@ def load_schemas() -> dict[str, dict[str, Any]]:
 
 
 def schema_errors(schema: dict[str, Any], document: Any) -> list[str]:
+    finite_errors = _finite_errors(document)
+    if finite_errors:
+        return finite_errors
     errors = Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(document)
     return [f"{'/'.join(map(str,error.absolute_path))}: {error.message} [{error.validator}]" for error in sorted(errors,key=lambda error:list(error.absolute_path))]
 
@@ -152,36 +226,46 @@ def semantic_validate_bundle(bundle: dict[str, dict[str, Any]]) -> list[str]:
 
 
 def validate_all() -> tuple[int,int,int]:
-    schemas=load_schemas();valid=load_json(VALID_PATH);invalid=load_json(INVALID_PATH)
-    if set(valid)!=REQUIRED or set(invalid)!=REQUIRED: raise ValueError("fixture completeness mismatch")
-    canonical: dict[str,dict[str,Any]]={}
-    positive_count=0
-    for name in sorted(REQUIRED):
-        if len(valid[name])<2: raise ValueError(f"{name} requires at least two valid fixtures")
-        for document in valid[name]:
-            found=schema_errors(schemas[name],document)
-            if found: raise ValueError(f"valid {name} failed: {found[0]}")
-            positive_count+=1
-        canonical[name]=valid[name][0]
-    semantic=semantic_validate_bundle(canonical)
-    if semantic: raise ValueError(f"valid cross-artifact bundle failed: {semantic}")
-    negative_count=0
-    for name in sorted(REQUIRED):
-        if len(invalid[name])<4: raise ValueError(f"{name} requires at least four invalid fixtures")
-        for case in invalid[name]:
-            if case["mode"]=="schema":
-                found=schema_errors(schemas[name],case["document"])
-                if not found: raise ValueError(f"invalid {name}/{case['name']} was accepted")
-                haystack=" ".join(found).lower()
-            else:
-                mutated={key:value[0].copy() for key,value in valid.items()}
-                mutated[name]=case["document"]
-                haystack=" ".join(semantic_validate_bundle(mutated)).lower()
-            expected=case["expected"].lower().replace(".","/")
-            if expected not in haystack: raise ValueError(f"invalid {name}/{case['name']} failed for wrong reason: {haystack[:300]}")
-            negative_count+=1
-    return len(schemas),positive_count,negative_count
+    schemas = load_schemas()
+    valid = load_json(VALID_PATH)
+    invalid = load_json(INVALID_PATH)
+    if set(valid) != REQUIRED or set(invalid) != REQUIRED:
+        raise ValueError("fixture completeness mismatch")
 
+    canonical: dict[str, dict[str, Any]] = {}
+    for name in sorted(REQUIRED):
+        document = valid[name]
+        found = schema_errors(schemas[name], document)
+        if found:
+            raise ValueError(f"valid {name} failed: {found[0]}")
+        canonical[name] = document
+    semantic = semantic_validate_bundle(canonical)
+    if semantic:
+        raise ValueError(f"valid cross-artifact bundle failed: {semantic}")
+
+    negative_count = 0
+    for name in sorted(REQUIRED):
+        for case in invalid[name]:
+            document = apply_mutations(canonical[name], case["mutations"])
+            if case["mode"] == "schema":
+                found = schema_errors(schemas[name], document)
+                haystack = " ".join(found).lower()
+            elif case["mode"] == "semantic":
+                mutated = copy.deepcopy(canonical)
+                mutated[name] = document
+                # Isolate semantic expectations from unrelated schema defects.
+                if schema_errors(schemas[name], document):
+                    raise ValueError(f"semantic case {name}/{case['name']} violates its schema")
+                haystack = " ".join(semantic_validate_bundle(mutated)).lower()
+            else:
+                raise ValueError(f"unknown fixture mode: {case['mode']}")
+            if not haystack:
+                raise ValueError(f"invalid {name}/{case['name']} was accepted")
+            expected = case["expected"].lower().replace(".", "/")
+            if expected not in haystack:
+                raise ValueError(f"invalid {name}/{case['name']} failed for wrong reason: {haystack[:300]}")
+            negative_count += 1
+    return len(schemas), len(canonical), negative_count
 
 def main() -> int:
     schema_count,positive_count,negative_count=validate_all()

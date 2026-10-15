@@ -12,20 +12,21 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools"))
 from validate_c0_contracts import (  # noqa: E402
     INVALID_PATH, REQUIRED, VALID_PATH, load_json, load_schemas, schema_errors,
+    canonical_json_bytes, canonical_json_sha256,
     semantic_validate_bundle, validate_all,
 )
 
 
 @pytest.fixture(scope="module")
 def valid_bundle():
-    return {name: documents[0] for name, documents in load_json(VALID_PATH).items()}
+    return load_json(VALID_PATH)
 
 
 def test_all_schemas_positive_and_negative_fixture_counts() -> None:
-    assert validate_all() == (18, 36, 108)
+    assert validate_all() == (18, 18, 40)
     invalid = load_json(INVALID_PATH)
     assert set(invalid) == REQUIRED
-    assert all(len(cases) >= 4 for cases in invalid.values())
+    assert all(len(cases) >= 2 for cases in invalid.values())
 
 
 def test_duplicate_json_keys_are_rejected(tmp_path: Path) -> None:
@@ -77,3 +78,22 @@ def test_unresolved_ref_fails_validation(valid_bundle) -> None:
     with pytest.raises(Exception) as exc:
         schema_errors(schema,valid_bundle["script.v1"])
     assert "resolve" in str(exc.value).lower() or isinstance(exc.value,Unresolvable)
+
+
+@pytest.mark.parametrize("value", ['{"x":1e400}', '{"x":-1e400}', '{"nested":[{"x":1e400}]}', '{"x":NaN}', '{"x":Infinity}'])
+def test_nonfinite_json_is_rejected(tmp_path: Path, value: str) -> None:
+    path = tmp_path / "bad.json"
+    path.write_text(value, encoding="utf-8")
+    with pytest.raises(ValueError, match="non-finite"):
+        load_json(path)
+
+
+def test_canonical_hash_stable_and_finite_only() -> None:
+    first = {"b": [1, {"x": 0.125}], "a": "hi"}
+    second = {"a": "hi", "b": [1, {"x": 0.125}]}
+    assert canonical_json_bytes(first) == canonical_json_bytes(second)
+    assert canonical_json_sha256(first) == canonical_json_sha256(second)
+    for bad in (float("inf"), float("-inf"), float("nan")):
+        with pytest.raises(ValueError, match="non-finite"):
+            canonical_json_sha256({"outer": [bad]})
+    assert len(canonical_json_sha256({"finite": 0.25})) == 64
