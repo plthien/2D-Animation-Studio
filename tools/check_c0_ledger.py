@@ -8,10 +8,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LEDGER = ROOT / "docs/architecture/CLEAN_CUT_FILE_LEDGER.md"
 ALLOWED = {"KEEP", "ADAPT", "EXTRACT", "DELETE"}
+BASELINE_SHA = "b35834808d99067e362a6e728ce7af8e04d2b6bd"
 
 
 def main() -> int:
-    tracked = set(subprocess.check_output(["git", "ls-files"], cwd=ROOT, text=True).splitlines())
+    # C0 deliverables are deliberately unclassified: the ledger freezes the
+    # source tree it audits, not files created while documenting that tree.
+    tracked = set(subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", BASELINE_SHA], cwd=ROOT, text=True
+    ).splitlines())
     lines = LEDGER.read_text(encoding="utf-8").splitlines()
     try:
         start = lines.index("```tsv") + 2

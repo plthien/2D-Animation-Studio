@@ -1,6 +1,6 @@
 # CLEAN-CUT FILE LEDGER
 
-Baseline: `b35834808d99067e362a6e728ce7af8e04d2b6bd`; every baseline path appears once in the TSV below. Classifications describe C2, not a C0 deletion. `active_runtime_dependency=yes` means source inspection identifies a reachable runtime/entrypoint/dependency today.
+Baseline: `b35834808d99067e362a6e728ce7af8e04d2b6bd`; every path in that Git tree appears once in the TSV below. C0 deliverables are deliberately excluded and the checker reads that pinned baseline tree rather than the changing working tree. Classifications describe C2, not a C0 deletion. `active_runtime_dependency=yes` means source inspection identifies a reachable runtime/entrypoint/dependency today.
 
 ## Machine-readable inventory
 
