@@ -295,7 +295,7 @@
     "docs/65_DUAL_OFFICIAL_LLM_PHASE1_REPORT.md",
     "docs/67_SCENE_BREAKDOWN_VISUAL_MERGE_COMPLIANCE.md"
   ],
-  "package_file_count_excluding_manifest": 812,
+  "package_file_count_excluding_manifest": 824,
   "package_files": [
     {
       "path": ".github/workflows/refresh-release-manifest.yml",
@@ -2641,6 +2641,66 @@
       "path": "docs/adr/voice_durable_workflow.md",
       "size_bytes": 21695,
       "sha256": "4c175e82e3764e5045f337a483d73b2706a50ae2f0560ed6a174f5209346bc8a"
+    },
+    {
+      "path": "docs/architecture/HISTORY_REMOTION_PIVOT.md",
+      "size_bytes": 5122,
+      "sha256": "52b5940da072f98e07a50f0f6d2c7eaae000cbfb226cb3be6d3b0681e63bb38a"
+    },
+    {
+      "path": "experiments/remotion-history-poc/README.md",
+      "size_bytes": 3428,
+      "sha256": "6d668fe46b5b8b3434fe89be3c851e2d4f5016275fbf82d20ec3b1c641e5595f"
+    },
+    {
+      "path": "experiments/remotion-history-poc/index.html",
+      "size_bytes": 318,
+      "sha256": "6c55092470553bf99bffc5f7cebeee71d9afd60c8a99d358c5583cfe9bef1f54"
+    },
+    {
+      "path": "experiments/remotion-history-poc/package.json",
+      "size_bytes": 578,
+      "sha256": "ec0d14a916d8f5c64b0426a8f7e11e6b6f71b547e113b9e53d2d077748be8001"
+    },
+    {
+      "path": "experiments/remotion-history-poc/src/DocumentaryComposition.jsx",
+      "size_bytes": 6081,
+      "sha256": "035c04e3bf3eeee3aac98fe61a11ef2df22c089fa39b21afd821bf0682e6b446"
+    },
+    {
+      "path": "experiments/remotion-history-poc/src/Root.jsx",
+      "size_bytes": 442,
+      "sha256": "373718754077fb7298b69e7e5c42f57636208ca931d808b4ba0b55689d4c2d94"
+    },
+    {
+      "path": "experiments/remotion-history-poc/src/index.jsx",
+      "size_bytes": 108,
+      "sha256": "4519132287949d8e5446d1767f921455a359b6cb74f91546a4a49943498e1700"
+    },
+    {
+      "path": "experiments/remotion-history-poc/src/plan.mjs",
+      "size_bytes": 5637,
+      "sha256": "76b0dd117d239afe0a0d2640a6df4439969e7660490e210667bbdeb144844cba"
+    },
+    {
+      "path": "experiments/remotion-history-poc/src/preview.jsx",
+      "size_bytes": 2500,
+      "sha256": "cccd2ea39f59213c07f72609e5c4af1ec17469153ef66ff9a09535c3aee67936"
+    },
+    {
+      "path": "experiments/remotion-history-poc/src/style.css",
+      "size_bytes": 1819,
+      "sha256": "1c1498383394b5d067dd5106b0451ac4afce16ad543e126ff664d050b241a3db"
+    },
+    {
+      "path": "experiments/remotion-history-poc/tests/plan.test.mjs",
+      "size_bytes": 2100,
+      "sha256": "7ccccbb25450eaa72cc6b9fb4e08474aa3f34dcc839b0781d3d438110ef3e51b"
+    },
+    {
+      "path": "experiments/remotion-history-poc/vite.config.mjs",
+      "size_bytes": 128,
+      "sha256": "df900557548345652421ab8ff204b5c6f44643275227af320927c2af859ea29d"
     },
     {
       "path": "index.html",
