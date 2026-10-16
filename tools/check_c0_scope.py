@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import subprocess
+from pathlib import Path
 from pathlib import PurePosixPath
 
 DEFAULT_BASE = "b35834808d99067e362a6e728ce7af8e04d2b6bd"
@@ -24,9 +26,13 @@ EXACT = {
     "tools/capture_g0_baseline.py",
     "tools/check_c0_scope.py",
     "tools/requirements-c0.txt",
+    # C0-EXIT-01: only the inherited Bash-dependent manifest assertion may change.
+    "tests/v4/test_kokoro_setup_static.py",
 }
 PREFIXES = ("contracts/animation/", "docs/architecture/", "docs/plans/", "docs/qa/", "tests/c0/")
 FORBIDDEN_PREFIXES = ("app/", "src/", "alembic/versions/")
+LEGACY_TEST_EXCEPTION = "tests/v4/test_kokoro_setup_static.py"
+LEGACY_TEST_FUNCTION = "test_release_manifest_refresh_targets_active_branch"
 
 
 def changed(base: str, head: str) -> list[tuple[str, str]]:
@@ -46,6 +52,31 @@ def changed(base: str, head: str) -> list[tuple[str, str]]:
     return rows
 
 
+
+def legacy_test_repair_is_narrow(base: str) -> bool:
+    """Allow edits to only the approved manifest-regression function, not other tests."""
+    old = subprocess.run(
+        ["git", "show", f"{base}:{LEGACY_TEST_EXCEPTION}"],
+        check=True, capture_output=True, text=True, encoding="utf-8",
+    ).stdout
+    current = Path(LEGACY_TEST_EXCEPTION).read_text(encoding="utf-8")
+
+    def masked_tree(source: str) -> str:
+        tree = ast.parse(source)
+        matches = [
+            node for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == LEGACY_TEST_FUNCTION
+        ]
+        if len(matches) != 1:
+            raise ValueError("approved legacy test function missing or duplicated")
+        matches[0].body = [ast.Pass()]
+        return ast.dump(tree, include_attributes=False)
+
+    try:
+        return masked_tree(old) == masked_tree(current)
+    except (OSError, SyntaxError, ValueError):
+        return False
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default=DEFAULT_BASE)
@@ -56,6 +87,8 @@ def main() -> int:
     for status, path in rows:
         if path.startswith(FORBIDDEN_PREFIXES):
             errors.append(f"production path changed: {status} {path}")
+        elif path == LEGACY_TEST_EXCEPTION and (status != "M" or not legacy_test_repair_is_narrow(args.base)):
+            errors.append(f"C0-EXIT-01 legacy test edits exceed authorized function: {status} {path}")
         elif path not in EXACT and not path.startswith(PREFIXES):
             errors.append(f"path outside C0 allowlist: {status} {path}")
     if errors:
