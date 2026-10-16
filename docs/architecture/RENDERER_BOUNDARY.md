@@ -37,3 +37,11 @@ These are conceptual interface boundaries; no adapter is implemented in C0. Addi
 ## C1 proof obligations
 
 The independent official Spine/PixiJS runtime must load a licensed manually-prepared rig, evaluate frame indices in arbitrary order, and verify exact repeated frame hashes against the frozen input fingerprint. Produce 240 frames at 24 FPS and an independently validated 10s MP4 via FFmpeg. Document versions, licensing, bone movement, prop grip and failure cases, without declaring C1 complete from C0 schema checks.
+
+## Frozen C0 target, world and action authority (F9–F12)
+
+ShotPlan v1 requires `initial_world_state` with exactly the shot's actor and prop IDs, finite `x/y` and actor facing. A non-null prop `held_by` is the explicit scoped string `actor_id:left` or `actor_id:right`; no hand can initially hold two props. The `spatial_anchors` array is shot-local, has unique IDs, finite `x/y`, and cannot shadow an actor or prop ID. There are no implicit placement defaults and location IDs alone are not movement destinations.
+
+An action target must resolve within that shot's initial actor/prop state or named anchor, with finite spatial coordinates. `walk_to/look_at/point_at` may address actor, prop or anchor; `reach_for/grab` address props (grab's target must match its `prop_id`); `carry_to/place_at` address anchors and require matching held `prop_id`. Missing, foreign, ambiguous or wrong-type targets fail closed.
+
+One prop has at most one owner across every actor/hand in its shot. Ownership begins at the end of `grab`, persists through `carry_to`, and ends at the end of `place_at`. Same-frame cross-owner transfers, two-hand grabs and actor handoffs are unsupported. CompiledFilm per-shot `action_ids` must equal **all** approved shot-local action IDs in deterministic `(start_frame,end_frame,action_id)` order; no lost, fabricated, foreign or reordered actions. A shot with zero approved actions may have an empty compiled list. No motion engine/IK/animation frame emitter is implemented in C0.
