@@ -8,7 +8,8 @@
     "dev": "vite --host 127.0.0.1",
     "c1:render": "node scripts/render-frames.mjs",
     "c1:verify": "node scripts/verify-output.mjs",
-    "c1:preflight": "node scripts/preflight.mjs"
+    "c1:preflight": "node scripts/preflight.mjs",
+    "c1:acquire-example": "node scripts/acquire-official-example.mjs"
   },
   "dependencies": {
     "@esotericsoftware/spine-pixi-v8": "4.2.120",
