@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import {createHash} from 'node:crypto';
 import {evaluateFrame} from '../src/frame-evaluator.mjs';
 import {validateScenario,sealScenario} from '../src/validation.mjs';
+import {validateUsagePolicy} from '../src/licensing.mjs';
 const g1=JSON.parse(fs.readFileSync(new URL('../scenarios/g1-shot.json',import.meta.url),'utf8'));
 const idle=JSON.parse(fs.readFileSync(new URL('../scenarios/static-shot.json',import.meta.url),'utf8'));
 const reseal=(ctx)=>sealScenario(ctx,createHash('sha256').update(JSON.stringify({start:ctx.initial_world,actions:ctx.actions,anchors:ctx.spatial_anchors,rig:ctx.rig})).digest('hex'));
@@ -29,7 +30,7 @@ test('C1-MOTION-01 occupied hand blocks reach/point and second grab',()=>{
   for (const kind of ['reach_for','point_at','grab']) {
     const modified=clone(g1);
     modified.actions.push({id:'bad_action',kind,start:130,end:145,hand:'left',target:kind==='point_at'?'anchor_drop':'prop_box',...(kind==='grab'?{prop:'prop_box'}:{})});
-    assert.throws(()=>validateScenario(modified),/OCCUPIED_HAND_CONFLICT|PROP_ALREADY_OWNED|ARM_CHANNEL_CONFLICT/);
+    assert.throws(()=>validateScenario(modified),/OCCUPIED_HAND_CONFLICT|PROP_ALREADY_OWNED|ARM_CHANNEL_CONFLICT|UNSUPPORTED_G1_GRIP_MULTIPLICITY/);
   }
   const opposite=clone(g1);
   opposite.actions.push({id:'right_point',kind:'point_at',start:130,end:145,hand:'right',target:'anchor_drop'});
@@ -101,4 +102,23 @@ test('F02 identity and target categories are isolated',()=>{
  assert.throws(()=>validateScenario(foreign),/ACTION_TARGET_UNKNOWN_OR_AMBIGUOUS/);
  const nan=clone(g1);nan.spatial_anchors[0].x=Infinity;
  assert.throws(()=>validateScenario(nan),/ANCHOR_ID_COLLISION_OR_INVALID/);
+});
+
+test('F03 private evaluation does not require asset redistribution permission',()=>{
+  const policy={license:{
+    usage_scope:'private_local_evaluation',purpose:'noncommercial_runtime_feasibility_only',
+    runtime_rights:{route:'official_example_evaluation',evidence:'https://github.com/EsotericSoftware/spine-runtimes#licensing'},
+    asset_rights:{route:'official_spineboy_example',noncommercial_only:true,
+      evidence:'https://github.com/EsotericSoftware/spine-runtimes/blob/4.2/examples/spineboy/license.txt',
+      notice_file:'license.txt',notice_sha256:'a'.repeat(64),ci_redistribution_with_notice:false,
+      product_redistribution_authorized:false}
+  }};
+  assert.equal(validateUsagePolicy(policy,'private_local_evaluation'),true);
+  assert.throws(()=>validateUsagePolicy(policy,'hosted_ci_evaluation'),/LICENSE_SCOPE_MISMATCH/);
+  policy.license.usage_scope='hosted_ci_evaluation';
+  assert.throws(()=>validateUsagePolicy(policy,'hosted_ci_evaluation'),/CI_ASSET_PUBLICATION_NOT_AUTHORIZED/);
+  policy.license.asset_rights.ci_redistribution_with_notice=true;
+  assert.equal(validateUsagePolicy(policy,'hosted_ci_evaluation'),true);
+  policy.license.usage_scope='redistributable_product_asset';
+  assert.throws(()=>validateUsagePolicy(policy,'redistributable_product_asset'),/OFFICIAL_EXAMPLE_NOT_FOR_PRODUCT_INTEGRATION/);
 });
