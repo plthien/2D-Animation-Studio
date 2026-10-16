@@ -8,7 +8,7 @@ const root=fileURLToPath(new URL('../',import.meta.url));
 const rev='e7dc1435fa4a0083ab431f1b28e083c14a1f5c68';
 const base='https://raw.githubusercontent.com/EsotericSoftware/spine-runtimes/'+rev+'/examples/spineboy/';
 const files={
-  skeleton:'export/spineboy-pro.json',
+  skeleton:'export/spineboy-ess.json',
   atlas:'export/spineboy.atlas',
   texture:'export/spineboy.png',
   notice:'license.txt'
@@ -35,12 +35,12 @@ async function main(){
   if(!Array.isArray(skeleton.bones)||skeleton.bones.length<15)throw Error('OFFICIAL_RIG_BONES_MISSING');
   if(!bytes.atlas.toString('utf8').startsWith('spineboy.png'))throw Error('ATLAS_TEXTURE_MISMATCH');
   fs.mkdirSync(folder,{recursive:true});
-  for(const [kind,name] of Object.entries({skeleton:'spineboy-pro.json',atlas:'spineboy.atlas',texture:'spineboy.png',notice:'license.txt'}))
+  for(const [kind,name] of Object.entries({skeleton:'spineboy-ess.json',atlas:'spineboy.atlas',texture:'spineboy.png',notice:'license.txt'}))
     fs.writeFileSync(path.join(folder,name),bytes[kind],{flag:'w'});
   const provenance={
     source:{repository:'EsotericSoftware/spine-runtimes',commit:rev,licenseFile:base+'license.txt'},
     spine_data_version:skeleton.skeleton.spine,spine_runtime:'4.2.120',pixi_version:'8.16.0',
-    skeleton:'spineboy-pro.json',atlas:'spineboy.atlas',texture:'spineboy.png',
+    skeleton:'spineboy-ess.json',atlas:'spineboy.atlas',texture:'spineboy.png',
     scene_scale:0.5,grip_offset:{x:0,y:0},
     bones:{root:'root',head:'head',leftUpperArm:'rear-upper-arm',leftForearm:'rear-bracer',
       leftHand:'gun',rightUpperArm:'front-upper-arm',rightForearm:'front-bracer',
