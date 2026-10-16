@@ -295,7 +295,7 @@
     "docs/65_DUAL_OFFICIAL_LLM_PHASE1_REPORT.md",
     "docs/67_SCENE_BREAKDOWN_VISUAL_MERGE_COMPLIANCE.md"
   ],
-  "package_file_count_excluding_manifest": 911,
+  "package_file_count_excluding_manifest": 912,
   "package_files": [
     {
       "path": ".github/workflows/c0-contract-audit.yml",
@@ -531,6 +531,11 @@
       "path": "app/animation/database.py",
       "size_bytes": 4273,
       "sha256": "d0de48437b5fbdbb8ac186643345258dfb06b491e78fb9c0d53312db76470a13"
+    },
+    {
+      "path": "app/animation/service.py",
+      "size_bytes": 27403,
+      "sha256": "70f9890d473098bcc9dfbbfea8ebd7fbfc3d145ad71f8c6c95b864f99e16c556"
     },
     {
       "path": "app/api/__init__.py",
