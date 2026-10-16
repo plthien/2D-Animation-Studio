@@ -38,6 +38,12 @@ jobs:
         run: |
           npm.cmd run c1:test
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Bundle actual browser entrypoint against official Spine/PixiJS packages
+        working-directory: experiments/spine-feasibility
+        shell: pwsh
+        run: |
+          npm.cmd exec -- vite build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Validate C1-only change scope
         shell: pwsh
         run: |
