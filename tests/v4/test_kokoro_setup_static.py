@@ -101,9 +101,33 @@ def test_release_manifest_refresh_targets_active_branch() -> None:
         "MANIFEST.json",
         "contracts/openapi/youtube_ai_studio_api.openapi.yaml",
     ]
-    assert parsed["permissions"]["contents"] == "write"
-    assert 'git push origin "HEAD:${GITHUB_REF_NAME}"' in source
-    assert "git push origin HEAD:main" not in source
+    # This legacy safety test checks the Windows workflow's actual semantics,
+    # not a previously used Bash-only spelling for the branch ref.
+    assert parsed["permissions"] == {"contents": "write"}
+    assert set(parsed["jobs"]) == {"refresh-release-artifacts"}
+    job = parsed["jobs"]["refresh-release-artifacts"]
+    assert job["runs-on"] == "windows-latest"
+    assert job["if"] == "github.ref_name != 'feat/c0-clean-cutover-contracts'"
+    assert events["push"]["branches-ignore"] == ["feat/c0-clean-cutover-contracts"]
+    assert job["steps"][0]["with"]["ref"] == "${{ github.ref }}"
+    steps = {step["name"]: step for step in job["steps"] if "name" in step}
+    scope_script = steps["Verify refresh scope"]["run"]
+    commit_step = steps["Commit refreshed release artifacts"]
+    commit_script = commit_step["run"]
+    assert steps["Verify refresh scope"]["shell"] == "pwsh"
+    assert commit_step["shell"] == "pwsh"
+    assert "git push origin ('HEAD:' + $env:GITHUB_REF_NAME)" in commit_script
+    assert "git push origin HEAD:main" not in commit_script
+    assert "git push origin ('HEAD:main')" not in commit_script
+    assert "if ($env:GITHUB_REF_NAME -eq 'feat/c0-clean-cutover-contracts')" in commit_script
+    assert "git diff --quiet -- MANIFEST.json contracts/openapi/youtube_ai_studio_api.openapi.yaml" in commit_script
+    assert "git add -- MANIFEST.json contracts/openapi/youtube_ai_studio_api.openapi.yaml" in commit_script
+    assert "git diff --cached --name-only" in commit_script
+    assert "$staged" in commit_script and "throw 'Unexpected staged files'" in commit_script
+    assert "$allowed = @('MANIFEST.json','contracts/openapi/youtube_ai_studio_api.openapi.yaml')" in scope_script
+    assert "git diff --name-only" in scope_script
+    assert "throw 'Unexpected generated paths'" in scope_script
+    assert "git status --porcelain -- app src tests" in scope_script
     assert "durable-media-workflow" not in source
 
 
