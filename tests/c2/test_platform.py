@@ -194,6 +194,7 @@ def test_artifact_path_rejects_traversal_and_symlinks(client,tmp_path):
     with pytest.raises(service.DomainError):
         service.bounded_path("/root/outside.txt")
     root=service.artifact_root()
+    root.mkdir(parents=True, exist_ok=True)
     external=tmp_path/"other"
     external.mkdir()
     link=root/"link"
