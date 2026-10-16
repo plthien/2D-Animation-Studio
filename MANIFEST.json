@@ -3279,13 +3279,13 @@
     },
     {
       "path": "src/features/projects/CreateProjectModal.tsx",
-      "size_bytes": 4823,
-      "sha256": "f40ef2b1ad4777b991f9e753668cf82c2548836e64610945bc1f9a616228866a"
+      "size_bytes": 1837,
+      "sha256": "de50aa7c81bb6675c55e4e4908af5fa55c0a176558e6fac061ddae5df865f788"
     },
     {
       "path": "src/features/projects/ProjectCardGrid.tsx",
-      "size_bytes": 6170,
-      "sha256": "a9706119f664564ed882a5708aa2cc307ec2419d8dd47993dc017d1d80fe74ec"
+      "size_bytes": 2611,
+      "sha256": "c04f698da7c3f2c4f90829a06dabb707d601fcfd1e964127fe7dac1586434cf5"
     },
     {
       "path": "src/features/projects/projectProgress.ts",
@@ -3479,8 +3479,8 @@
     },
     {
       "path": "src/pages/ArtifactsPage.tsx",
-      "size_bytes": 2347,
-      "sha256": "b326fb59957ea5a0855519c0ecbadfb6a4d5c94f2f3b6ffe8235233dbfbed1d7"
+      "size_bytes": 1931,
+      "sha256": "4c3bb8ed5d969d01ec3d7aa010c512ec058c518b9852aa55faf3421bedba7188"
     },
     {
       "path": "src/pages/ChannelsPage.tsx",
@@ -3489,23 +3489,23 @@
     },
     {
       "path": "src/pages/JobsPage.tsx",
-      "size_bytes": 2220,
-      "sha256": "54fc1eafafc014e9a7ecb13c3ee1402739c8c35025c3580fde5259b6380ed78f"
+      "size_bytes": 1415,
+      "sha256": "0ae3bc318a36f5bbbf0b6c9e8b4ccdc33835ce889620c1de4573538998224875"
     },
     {
       "path": "src/pages/ProjectsPage.tsx",
-      "size_bytes": 8735,
-      "sha256": "9c91a75b130258e332ee7a014da9dd897da68b7d7098ed3db20960dad27aa942"
+      "size_bytes": 3266,
+      "sha256": "d7212e77feb098d9e5bf8e2114adb7274f2eb679781cdaa07dc33523fc122e93"
     },
     {
       "path": "src/pages/SettingsPage.tsx",
-      "size_bytes": 4267,
-      "sha256": "cc6e89a1c5b45a3b8eef6ea34d61b9269116c26dbc9e23fd025837d0229c8183"
+      "size_bytes": 1151,
+      "sha256": "d212a55c737247878f4f5507a82bda4ffc74c3bc8fa15089cd8edc0de9c2c3e5"
     },
     {
       "path": "src/pages/StudioPage.tsx",
-      "size_bytes": 30511,
-      "sha256": "1652c442d94b4b3f8a52cca5ae2082c13d810a8c144e32848e63857a12a3405f"
+      "size_bytes": 4590,
+      "sha256": "71475b133e0cccaa131ba18de8a383373435ac9cd9929269bf641289bca28494"
     },
     {
       "path": "src/theme/theme.ts",
