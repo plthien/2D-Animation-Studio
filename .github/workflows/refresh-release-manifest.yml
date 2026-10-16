@@ -19,8 +19,9 @@ concurrency:
 jobs:
   refresh-release-artifacts:
     name: Refresh static OpenAPI and MANIFEST.json
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    runs-on: windows-latest
+    if: github.ref_name != 'feat/c0-clean-cutover-contracts'
+    timeout-minutes: 20
     steps:
       - name: Checkout branch head
         uses: actions/checkout@v4
