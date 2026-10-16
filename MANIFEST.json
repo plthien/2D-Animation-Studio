@@ -295,7 +295,7 @@
     "docs/65_DUAL_OFFICIAL_LLM_PHASE1_REPORT.md",
     "docs/67_SCENE_BREAKDOWN_VISUAL_MERGE_COMPLIANCE.md"
   ],
-  "package_file_count_excluding_manifest": 906,
+  "package_file_count_excluding_manifest": 910,
   "package_files": [
     {
       "path": ".github/workflows/c0-contract-audit.yml",
@@ -354,8 +354,13 @@
     },
     {
       "path": "alembic/env.py",
-      "size_bytes": 1978,
-      "sha256": "8cb17acce1cde357e6fc1dfbe9f075a770a3af9d80f99d5e6cd7b8971f12976a"
+      "size_bytes": 1641,
+      "sha256": "1b07b7937d82c1822eb381cc2297018329b3c417317593cbaa318d11032a6c02"
+    },
+    {
+      "path": "alembic/versions/0001_animation_initial.py",
+      "size_bytes": 692,
+      "sha256": "fb768ada1226f71647353beeb1947b1fb6383883d53903efe3d73f1a5613f8e0"
     },
     {
       "path": "alembic/versions/001_v3_platform_baseline.py",
@@ -516,6 +521,16 @@
       "path": "app/__init__.py",
       "size_bytes": 45,
       "sha256": "fe8233b3367a9bb60b8f636d920107eb0fed7c6c64ee16dae138dca81091848b"
+    },
+    {
+      "path": "app/animation/__init__.py",
+      "size_bytes": 63,
+      "sha256": "8bb4ff460933d3ed870e45f535d543cb88b3394df210efac2ce6e073f6ce63c8"
+    },
+    {
+      "path": "app/animation/database.py",
+      "size_bytes": 4273,
+      "sha256": "d0de48437b5fbdbb8ac186643345258dfb06b491e78fb9c0d53312db76470a13"
     },
     {
       "path": "app/api/__init__.py",
@@ -3541,6 +3556,11 @@
       "path": "tests/c0/test_scope_and_ci.py",
       "size_bytes": 2356,
       "sha256": "17f3b3570b5ca16547f58c88d33246219b62d5db91dcfbb5d38b83968c62417f"
+    },
+    {
+      "path": "tests/c2/test_fresh_animation_database.py",
+      "size_bytes": 2784,
+      "sha256": "e6b541b9e4b4d9096e30b7f895a62a446abca45109b559f3cb3e128034ac2649"
     },
     {
       "path": "tests/channel-dna-style-bible.test.mjs",
