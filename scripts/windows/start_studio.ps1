@@ -1,3 +1,4 @@
+param([ValidateRange(0,120)][int]$SmokeTestSeconds = 0)
 # Windows-only animation application launcher. No legacy hosts and no paid calls.
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
@@ -46,12 +47,17 @@ try {
   $api = Start-Process -FilePath $venvPython -ArgumentList @('-m','uvicorn','app.main:app','--host','127.0.0.1','--port','8000') -WorkingDirectory $root -PassThru -NoNewWindow
   $ui = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/d','/c','npm.cmd run dev -- --host 127.0.0.1') -WorkingDirectory $root -PassThru -NoNewWindow
   Write-Host 'Open http://127.0.0.1:5173. Press Ctrl+C to stop both owned process trees.'
+  $started = Get-Date
   while ($true) {
     Start-Sleep -Seconds 2
     $api.Refresh()
     $ui.Refresh()
     if ($api.HasExited) { throw "Animation API stopped unexpectedly (exit $($api.ExitCode))." }
     if ($ui.HasExited) { throw "Cockpit frontend stopped unexpectedly (exit $($ui.ExitCode))." }
+    if ($SmokeTestSeconds -gt 0 -and ((Get-Date) - $started).TotalSeconds -ge $SmokeTestSeconds) {
+      Write-Host 'Smoke run completed; stopping both owned service trees.'
+      break
+    }
   }
 }
 catch {

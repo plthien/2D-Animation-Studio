@@ -65,6 +65,8 @@ jobs:
       - name: Node production dependency audit (reported separately)
         continue-on-error: true
         run: npm audit --omit=dev --audit-level=high
+      - name: Actual Windows launcher first-run, spaced path and shutdown
+        run: ./tests/c2/windows_launcher_smoke.ps1
       - name: Verify future API routes not registered
         run: |
           python -c "from app.main import app; print('C2 OpenAPI endpoints:',sum(len(v) for v in app.openapi()['paths'].values()))"
