@@ -197,8 +197,23 @@ def test_artifact_path_rejects_traversal_and_symlinks(client,tmp_path):
     external=tmp_path/"other"
     external.mkdir()
     link=root/"link"
-    try:link.symlink_to(external,target_is_directory=True)
-    except (OSError,NotImplementedError):pytest.skip("Symlink privilege unavailable")
+    try:
+        link.symlink_to(external, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        # Ordinary Windows runner tokens cannot always create symlinks.
+        # Directory junctions are real reparse points and must be rejected too.
+        import os
+        import subprocess
+        if os.name != "nt":
+            pytest.fail("Unable to create the required symlink-containment fixture")
+        result = subprocess.run(
+            ["cmd.exe", "/d", "/c", "mklink", "/J", str(link), str(external)],
+            capture_output=True, text=True, check=False,
+        )
+        assert result.returncode == 0, (
+            "Cannot run Windows symlink/junction safety gate: " + result.stderr + result.stdout
+        )
+        assert getattr(link, "is_junction", lambda: False)(), "Test fixture is not a junction"
     with pytest.raises(service.DomainError):
         service.bounded_path("link/escape.json")
 
