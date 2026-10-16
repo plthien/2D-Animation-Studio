@@ -54,14 +54,18 @@ jobs:
           ffprobe -version
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Validate isolated Kokoro Python dependencies
+        shell: pwsh
         run: |
-          tmp="$(mktemp -d)"
-          trap 'rm -rf "$tmp"' EXIT
-          python -m venv "$tmp/.kokoro-ci-venv"
-          "$tmp/.kokoro-ci-venv/bin/python" -m pip install --upgrade pip
-          "$tmp/.kokoro-ci-venv/bin/python" -m pip install -r kokoro/requirements.txt
-          "$tmp/.kokoro-ci-venv/bin/python" -c "import kokoro_onnx, onnxruntime"
-
+          $venv = Join-Path $env:RUNNER_TEMP "kokoro-ci-venv"
+          python -m venv $venv
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $py = Join-Path $venv "Scripts/python.exe"
+          & $py -m pip install --upgrade pip
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $py -m pip install -r kokoro/requirements.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $py -c "import kokoro_onnx, onnxruntime"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Validate Alembic head
         shell: pwsh
         run: |
