@@ -295,7 +295,7 @@
     "docs/65_DUAL_OFFICIAL_LLM_PHASE1_REPORT.md",
     "docs/67_SCENE_BREAKDOWN_VISUAL_MERGE_COMPLIANCE.md"
   ],
-  "package_file_count_excluding_manifest": 912,
+  "package_file_count_excluding_manifest": 914,
   "package_files": [
     {
       "path": ".github/workflows/c0-contract-audit.yml",
@@ -306,6 +306,11 @@
       "path": ".github/workflows/c1-spine-feasibility.yml",
       "size_bytes": 4536,
       "sha256": "56ba8bcb96c10fca109a09c472e4fb8951141f4eb40cc18d322136ce2c52ff36"
+    },
+    {
+      "path": ".github/workflows/c2-animation-cutover.yml",
+      "size_bytes": 1558,
+      "sha256": "5b753c00ae72ea03a5ee81271526f3b29bd7993579fda7ff3b84888951ac0a3d"
     },
     {
       "path": ".github/workflows/refresh-release-manifest.yml",
@@ -3571,6 +3576,11 @@
       "path": "tests/c2/test_fresh_animation_database.py",
       "size_bytes": 2784,
       "sha256": "e6b541b9e4b4d9096e30b7f895a62a446abca45109b559f3cb3e128034ac2649"
+    },
+    {
+      "path": "tests/c2/test_platform.py",
+      "size_bytes": 9956,
+      "sha256": "291338c30f4474fdb7c2eaadd0e50533828165e85767f664e29fc513a79784ed"
     },
     {
       "path": "tests/channel-dna-style-bible.test.mjs",
