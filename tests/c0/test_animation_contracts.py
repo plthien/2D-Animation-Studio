@@ -109,12 +109,13 @@ def test_channel_overlap_and_conflicts(valid_bundle) -> None:
     def check(actions: list[dict]) -> list[str]:
         bundle = copy.deepcopy(valid_bundle)
         bundle["animation_plan.v1"]["actions"] = actions
+        bundle["compiled_film.v1"]["shots"][0]["action_ids"] = [a["action_id"] for a in sorted(actions, key=lambda a: (a["start_frame"], a["end_frame"], a["action_id"]))]
         return semantic_validate_bundle(bundle)
 
-    assert "conflicting motion channel" not in " ".join(check([motion("walk_to", "walk"), motion("look_at", "look")]))
+    assert check([motion("walk_to", "walk"), motion("look_at", "look")]) == []
     assert "conflicting motion channel" in " ".join(check([motion("walk_to", "walk"), motion("walk_to", "walk2")]))
     assert "conflicting motion channel: left_arm" in " ".join(check([motion("reach_for", "reach", "left"), motion("reach_for", "reach2", "left")]))
-    assert "conflicting motion channel" not in " ".join(check([motion("reach_for", "left", "left"), motion("reach_for", "right", "right")]))
+    assert check([motion("reach_for", "left", "left"), motion("reach_for", "right", "right")]) == []
 
 
 def test_compiled_shot_frame_ownership_and_duration(valid_bundle) -> None:
