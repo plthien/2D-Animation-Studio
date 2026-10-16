@@ -98,7 +98,9 @@ jobs:
       - name: Run focused Voice regression suite
         id: focused_voice_pytest
         run: |
-          python -m pytest -q tests/v4/test_voice_*.py --junitxml=voice-junit.xml
+          $voiceTests = @(Get-ChildItem -Path tests/v4 -Filter 'test_voice_*.py' | ForEach-Object { $_.FullName })
+          if ($voiceTests.Count -eq 0) { throw 'No voice regression tests found' }
+          python -m pytest -q @voiceTests --junitxml=voice-junit.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Persist focused Voice pytest diagnostics
