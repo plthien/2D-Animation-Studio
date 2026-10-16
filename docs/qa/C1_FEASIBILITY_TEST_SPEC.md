@@ -17,3 +17,7 @@ One legally reusable manually cut-out actor with official Spine-compatible rig, 
 7. Reject unsupported rig capability, missing required bone/attachment, frame -1 or 240, invalid prop grip or release, and observed nondeterministic repeated evaluation.
 
 C0 validates only schema/contract prerequisites and does not fabricate runtime tests, visual proof, video or passing C1 status. Acceptance fails closed when licensed rig, official runtime or supported capability is unavailable.
+
+## Windows-only execution gate (future C1, not implemented)
+
+Use Windows 11 x64 on a real supported local target in addition to the Windows Server GitHub Actions runner. Pin Python 3.12, Node 22, actual Windows Chrome/Chromium, FFmpeg and FFprobe, and the official version-matched Spine/PixiJS runtime with recorded license rights. If Windows 10 x64 is declared supported, run separate compatibility evidence. Reject ambiguous/undeclared spatial targets, missing frozen initial actor/prop transforms, two hands/actors owning one prop, unsupported handoffs and compiled action-list mismatches. C0 JSON contract tests are not C1 visual/runtime evidence.
