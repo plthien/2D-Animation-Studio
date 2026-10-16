@@ -6,6 +6,7 @@ import {evaluateFrame} from '../src/frame-evaluator.mjs';
 import {validateScenario} from '../src/validation.mjs';
 const g1=JSON.parse(fs.readFileSync(new URL('../scenarios/g1-shot.json',import.meta.url),'utf8'));
 const idle=JSON.parse(fs.readFileSync(new URL('../scenarios/static-shot.json',import.meta.url),'utf8'));
+for (const ctx of [g1,idle]) ctx.fingerprint=createHash('sha256').update(JSON.stringify(ctx)).digest('hex');
 const clone = (x)=>structuredClone(x);
 const hash=(x)=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 test('frozen full-shot and static scenarios validate',()=>{assert.equal(validateScenario(g1),true);assert.equal(validateScenario(idle),true);});
@@ -46,4 +47,9 @@ test('missing frozen input and impossible target fail closed',()=>{
   assert.throws(()=>evaluateFrame('shot_g1',0,broken),/INITIAL_WORLD_INVALID/);
   const unknown=clone(g1);unknown.actions[1].target='missing';
   assert.throws(()=>validateScenario(unknown),/ACTION_TARGET_UNKNOWN/);
+});
+
+test('missing frozen fingerprint explicitly fails',()=>{
+ const broken=clone(g1);delete broken.fingerprint;
+ assert.throws(()=>evaluateFrame('shot_g1',0,broken),/FROZEN_INPUT_FINGERPRINT_MISSING/);
 });
