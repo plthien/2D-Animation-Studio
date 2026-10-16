@@ -54,3 +54,11 @@ Only after the legal/runtime prerequisites are satisfied should the Windows CI s
 ## Product boundary
 
 No production `app/` / `src/`, migrations, API, databases, Remotion, C2 cutover, C6 segmentation, C7 automatic rig, C8 full motion/IK, C10 multi-shot or C11 voice implementations. Any expanded rig/body geometry/IK claims remain in their owning later phase and must not be inferred from isolated evaluator tests. The experiment stays Draft/BLOCKED until licensed real rig, real visual proof, exact-head CI and Windows 11 target evidence exist.
+
+## Verified implementation checkpoint (historical code HEAD)
+
+At implementation SHA `eb03d87e3debb48bc35542ef1478e9c0b1f5ce87`, the dedicated [Windows C1 run 38858122240](https://github.com/plthien/2D-Animation-Studio/actions/runs/38858122240) recorded **9/9 core tests PASS** and [C1 scope](https://github.com/plthien/2D-Animation-Studio/actions/runs/38858122240/job/116834061619) **28 changed paths, 0 production paths**. The parallel [Windows C0 regression](https://github.com/plthien/2D-Animation-Studio/actions/runs/38858122224) passed. The [real G1 job](https://github.com/plthien/2D-Animation-Studio/actions/runs/38858122240/job/116834228958) deliberately **FAILED the legal-asset preflight**: `SPINE_LICENSE_OR_ASSET_BLOCKED: no approved provenance.json`. It never ran Spine frame rendering or made a video, as required by fail-closed policy.
+
+An inherited manifest refresh had initially changed legacy `MANIFEST.json` on the feature branch before branch-specific protections were installed. That generated change was reverted to byte-identical `main`, and both transitional manifest workflows now exclude this branch. It is not C1 product authority.
+
+**Provenance of these numbers:** exact code checkpoint above. Later changes (including browser bundling and independent FFprobe frame-count verification) require a fresh exact-HEAD Windows run. The final immutable SHA and CI links are recorded in PR #3's description, which can be updated without a new commit. No actual PNG, contact sheet or MP4 exists or is claimed.
