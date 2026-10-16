@@ -10,61 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  c0-linux:
-    name: C0 contracts (Ubuntu, Python 3.12)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout exact PR head
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-
-      - name: Verify exact event head
-        shell: bash
-        env:
-          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: tools/requirements-c0.txt
-
-      - name: Install pinned C0 dependencies
-        run: python -m pip install -r tools/requirements-c0.txt
-
-      - name: Validate ledger, reachability, DB, contracts, evidence and scope
-        shell: bash
-        run: |
-          set -o pipefail
-          mkdir -p c0-reports
-          python tools/check_c0_ledger.py | tee c0-reports/ledger.txt
-          python tools/verify_c0_reachability.py | tee c0-reports/reachability.txt
-          python tools/check_c0_db_contract.py | tee c0-reports/database.txt
-          python tools/validate_c0_contracts.py | tee c0-reports/contracts.txt
-          python tools/check_g0_evidence.py | tee c0-reports/g0.txt
-          python tools/check_c0_scope.py | tee c0-reports/scope.txt
-          git diff --check
-
-      - name: Run independent C0 tests
-        run: python -m pytest tests/c0 -q --confcutdir=tests/c0 --junitxml=c0-reports/pytest.xml
-
-      - name: Upload C0 reports and G0 evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: c0-audit-linux-${{ github.event.pull_request.head.sha || github.sha }}
-          path: |
-            c0-reports/
-            docs/qa/evidence/g0/*.png
-            docs/qa/evidence/g0/manifest.json
-          if-no-files-found: error
-
   c0-windows:
-    name: C0 portability (Windows, Python 3.12)
+    name: C0 contracts (Windows, Python 3.12)
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
@@ -88,7 +35,10 @@ jobs:
           cache-dependency-path: tools/requirements-c0.txt
 
       - name: Install pinned C0 dependencies
-        run: python -m pip install -r tools/requirements-c0.txt
+        shell: pwsh
+        run: |
+          python -m pip install -r tools/requirements-c0.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Validate C0 under Windows paths and locale
         shell: pwsh
@@ -107,14 +57,21 @@ jobs:
           python tools/check_c0_scope.py | Tee-Object c0-reports/scope.txt
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           git diff --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run independent C0 tests
-        run: python -m pytest tests/c0 -q --confcutdir=tests/c0 --junitxml=c0-reports/pytest.xml
+        shell: pwsh
+        run: |
+          python -m pytest tests/c0 -q --confcutdir=tests/c0 --junitxml=c0-reports/pytest.xml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload Windows C0 reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: c0-audit-windows-${{ github.event.pull_request.head.sha || github.sha }}
-          path: c0-reports/
+          path: |
+            c0-reports/
+            docs/qa/evidence/g0/*.png
+            docs/qa/evidence/g0/manifest.json
           if-no-files-found: error
