@@ -238,12 +238,7 @@ jobs:
         run: python tools/audit_no_redis_rq.py
 
       - name: Run Windows Render lifecycle and launcher regression
-        run: >-
-          python -m pytest -q
-          tests/v4/test_render_windows_process_lifecycle.py
-          tests/v4/test_render_windows_input_aliases.py
-          tests/v4/test_render_pixel_format_contract.py
-          tests/v4/test_render_durable_runner.py
-          tests/v4/test_render_durable_cutover.py
-          tests/test_windows_release_packaging.py
+        shell: pwsh
+        run: |
+          python -m pytest -q tests/v4/test_render_windows_process_lifecycle.py tests/v4/test_render_windows_input_aliases.py tests/v4/test_render_pixel_format_contract.py tests/v4/test_render_durable_runner.py tests/v4/test_render_durable_cutover.py tests/test_windows_release_packaging.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
