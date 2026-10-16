@@ -4,10 +4,11 @@ from __future__ import annotations
 import ast
 import json
 import re
+import sys
 from pathlib import Path
-from app.main import app
-
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from app.main import app
 FORBIDDEN_PREFIXES=(
     "app/modules/v4/", "tests/v4/", "app/api/",
     "app/db/", "app/repositories/", "app/services/", "app/platform/",
