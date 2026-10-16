@@ -162,3 +162,18 @@ No production app/src, original YTB repository, old database or `main` modificat
 **Frozen scope:** 813-file ledger, 14-table SQLite contract, 18 schemas, 18 canonical positives, 40 negative mutations, 53 pre-repair C0 tests, 37 API contract routes, 10 authentic G0 images with verified hashes, Windows-only D-010 and renderer boundary are retained. No `app/`, `src/`, legacy Alembic, user DB or original YTB repository changes; no release manifest edit, no new PR and no merge.
 
 **Mandatory Windows verification on the final HEAD:** `python -m pytest -q tests/v4/test_kokoro_setup_static.py::test_release_manifest_refresh_targets_active_branch`, `python -m pytest tests/c0 -q --confcutdir=tests/c0`, `python tools/check_c0_ledger.py`, `python tools/verify_c0_reachability.py`, `python tools/check_c0_db_contract.py`, `python tools/validate_c0_contracts.py`, `python tools/check_g0_evidence.py`, `python tools/check_c0_scope.py`, `git diff --check`. Four same-SHA Windows jobs required: C0 contracts, Backend review, Frontend and cutover review, Windows Render review. Historical green runs are not transferable to this document's commit. See current PR Checks for the final job URLs and conclusions. **Recommendation is BLOCKED until all four exact-final-HEAD jobs pass; then READY FOR OWNER REVIEW, never auto-merge.**
+
+### Verified final-exit code HEAD evidence — 2026-10-16
+
+Implementation HEAD `6c99540e7132acdd75a6e1ffa7f15e25e60f3a2c` has now passed **all four mandatory Windows jobs**, on one exact SHA, without test skips or bypasses added by this repair:
+
+| Windows job | Exact evidence | Result |
+|---|---|---|
+| C0 contracts (Windows Python 3.12) | [run 38850530421 / job 116810513301](https://github.com/plthien/2D-Animation-Studio/actions/runs/38850530421/job/116810513301) | **PASS**: 53 C0 tests, 18 schemas, 18 valid and 40 negative fixtures, 14 SQLite tables, 813 ledger paths, 10 G0 images with hashes, 0 production changes |
+| Backend review gates | [run 38850530539 / job 116810513965](https://github.com/plthien/2D-Animation-Studio/actions/runs/38850530539/job/116810513965) | **PASS**: 1,245 backend tests passed, 1 preexisting skip; legacy Windows manifest assertion repaired |
+| Frontend and cutover review gates | [run 38850530539 / job 116810514098](https://github.com/plthien/2D-Animation-Studio/actions/runs/38850530539/job/116810514098) | **PASS**: 160 tests and build |
+| Windows Render review gates | [run 38850530539 / job 116810514130](https://github.com/plthien/2D-Animation-Studio/actions/runs/38850530539/job/116810514130) | **PASS**: 33 render/launcher tests |
+
+The targeted regression is part of the passing full backend pytest suite, not a separately claimed command invocation. No Windows 10/11 consumer runtime, Spine/IK or final video proof was executed; these are deferred to C1/C12.
+
+**Final reporting-commit rule:** adding this evidence creates a new documentation-only HEAD, so the four results above are immutable evidence for the *previous code HEAD*, not an automatic PASS for the new commit. The current PR #1 tip must itself have all four Windows jobs PASS in GitHub Actions. Once that exact-tip condition is verified, the outcome is **C0 READY FOR OWNER MERGE APPROVAL** (PR remains Draft; only the owner chooses whether to merge). Otherwise, **C0 BLOCKED** with the failing job as evidence. Final HEAD identity and its run links are recorded in the PR description, which can be updated without making a new commit.
