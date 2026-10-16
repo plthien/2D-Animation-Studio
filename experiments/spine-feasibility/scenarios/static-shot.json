@@ -1,0 +1,42 @@
+{
+  "scenario_id": "g1-idle-static",
+  "shot_id": "shot_static",
+  "fps": 24,
+  "width": 1280,
+  "height": 720,
+  "duration_frames": 240,
+  "initial_world": {
+    "actor": {
+      "id": "actor_hero",
+      "x": 250,
+      "y": 575
+    },
+    "prop": {
+      "id": "prop_box",
+      "x": 580,
+      "y": 570,
+      "held_by": null
+    },
+    "camera": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  "spatial_anchors": [],
+  "rig": {
+    "actor_id": "actor_hero",
+    "hand": "left",
+    "required_capabilities": [
+      "idle"
+    ]
+  },
+  "actions": [
+    {
+      "id": "act_idle",
+      "kind": "idle",
+      "start": 0,
+      "end": 240,
+      "hand": "none"
+    }
+  ]
+}
