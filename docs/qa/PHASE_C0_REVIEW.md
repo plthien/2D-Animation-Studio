@@ -1,5 +1,7 @@
 # Phase C0 remediation review
 
+> Prior Ubuntu check results below are historical only; see the newest Windows-only repair section for active gates.
+
 Baseline: `b35834808d99067e362a6e728ce7af8e04d2b6bd`. Audited remediation start: `3a44fedc60092f5f29679c747ea0df70958f0f50`. Branch: `feat/c0-clean-cutover-contracts`; existing PR: [#1](https://github.com/plthien/2D-Animation-Studio/pull/1). No `app/`, `src/`, old migration or dependency-lock source was changed. No user database was opened or migrated.
 
 ## Acceptance matrix
@@ -126,3 +128,23 @@ Starting SHA: `0805a95a427ecf226fcac3138f7f849ec57461bc` (13,639 PR additions at
 - F8: retained existing exact-head Ubuntu/Windows C0 CI, ledger, DB, evidence, scope and C0-only tests. The C1 future acceptance spec is document-only, NOT_STARTED.
 
 Changed: `tools/validate_c0_contracts.py`, compact fixture catalogs, `tests/c0/test_animation_contracts.py`, API documentation, this review, two new architecture/QA documents and targeted reuse audit. No production or user database modification. Remote CI links/status to be verified independently before reporting a final PASS; no fabricated runtime-test evidence.
+
+## Windows-only F9–F13 targeted repair (2026-10-16)
+
+Starting HEAD `2df15a3005b3ad468058948e25c2a20c0832d8f8`; code HEAD verified before this report: `d6bc60c106d5f9abcca01c5100d3fc3c203cc374`. Final report commit cannot embed its own SHA: use the PR tip and exact-HEAD GitHub Actions as the final source authority. Previous Ubuntu results above are **historical YTB baseline evidence only**, not active animation acceptance gates.
+
+| Finding | Repair |
+|---|---|
+| F9 | Resolve every action target against frozen shot-local actor/prop coordinates or explicit `spatial_anchors`; reject unknown, ambiguous, incompatible types and nonspatial location IDs |
+| F10 | Global per-shot prop ownership across actors and hands, matching grab/carry/place, no two-hand ownership or implicit handoffs; reject ambiguous same-frame transfers |
+| F11 | Every initial actor/prop has an explicit finite position and exact approved ID; validated initial `held_by` must be `actor_id:hand` |
+| F12 | Compiled action IDs exactly equal approved shot-local actions, deterministic ordering, no missing/foreign/duplicate; explicit no-action static shot allowed |
+| F13 | Valid motion test cases assert zero semantic errors; compiled action fixture remains synchronized |
+
+**Windows-only policy:** D-010 and `docs/qa/WINDOWS_ONLY_TEST_POLICY.md`. Primary Windows 11 x64, Windows 10 x64 conditional on separate testing. Windows Server `windows-latest` CI cannot prove consumer Windows compatibility. C1 Spine/PixiJS/FFmpeg and C12 real target tests remain future gates; C1 **NOT_STARTED**.
+
+**Active workflow inventory:** `c0-contract-audit.yml` has only one Windows C0 job (Ubuntu job removed). `scene-assets-v2-candidate-audit.yml` has three transitional YTB baseline jobs migrated to Windows (backend, frontend, render); they remain historical safety tests, not animation contracts. `refresh-release-manifest.yml` uses Windows, preserves exact C0 branch exclusion and guards scoped YTB artifact updates. Both legacy workflows must be deleted/replaced in C2. No active Ubuntu/Linux/macOS job remains.
+
+**Real Windows C0 check on implementation SHA:** [Run 38846323814](https://github.com/plthien/2D-Animation-Studio/actions/runs/38846323814/job/116797563073): `python tools/check_c0_ledger.py`, `python tools/verify_c0_reachability.py`, `python tools/check_c0_db_contract.py`, `python tools/validate_c0_contracts.py`, `python tools/check_g0_evidence.py`, `python tools/check_c0_scope.py`, `git diff --check` all passed. Validator: **18 schemas, 18 positive fixtures, 40 negative mutations**; G0: **10 hash-verified screenshots**; production diff: **0 paths**. `python -m pytest tests/c0 -q --confcutdir=tests/c0 --junitxml=c0-reports/pytest.xml`: **53 passed in 4.53s**. Recheck on final PR HEAD is mandatory; separate Main Candidate Windows legacy status is not inferred from this C0 success.
+
+No production app/src, original YTB repository, old database or `main` modification. No C1/C2 implementation, UI redesign, merge or additional PR. Remaining target Windows 10/11, licensing and real motion/video proof are NOT_RUN, not falsely marked PASS.
