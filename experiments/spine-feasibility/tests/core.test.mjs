@@ -53,3 +53,13 @@ test('missing frozen fingerprint explicitly fails',()=>{
  const broken=clone(g1);delete broken.fingerprint;
  assert.throws(()=>evaluateFrame('shot_g1',0,broken),/FROZEN_INPUT_FINGERPRINT_MISSING/);
 });
+
+test('compatible occupied-left carry plus right pointing changes right bone only',()=>{
+  const opposite=clone(g1);
+  opposite.actions.push({id:'right_point',kind:'point_at',start:130,end:145,hand:'right',target:'anchor_drop'});
+  assert.equal(validateScenario(opposite),true);
+  const orig=evaluateFrame('shot_g1',143,g1),newState=evaluateFrame('shot_g1',143,opposite);
+  assert.notEqual(newState.bones.rightUpperArm,orig.bones.rightUpperArm);
+  assert.equal(newState.bones.leftUpperArm,orig.bones.leftUpperArm);
+  assert.equal(newState.prop.owner,'actor_hero:left');
+});
