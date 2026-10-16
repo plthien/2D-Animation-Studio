@@ -295,17 +295,22 @@
     "docs/65_DUAL_OFFICIAL_LLM_PHASE1_REPORT.md",
     "docs/67_SCENE_BREAKDOWN_VISUAL_MERGE_COMPLIANCE.md"
   ],
-  "package_file_count_excluding_manifest": 847,
+  "package_file_count_excluding_manifest": 881,
   "package_files": [
     {
+      "path": ".github/workflows/c0-contract-audit.yml",
+      "size_bytes": 2749,
+      "sha256": "9cab8658c186aca9e275b6b38364c9af290184cb4fbe6040a8db248ceae49a5f"
+    },
+    {
       "path": ".github/workflows/refresh-release-manifest.yml",
-      "size_bytes": 2584,
-      "sha256": "98dc60fa64fbd3d20e0153509b510cd78a35402ac95992e80427cbbe8aed9103"
+      "size_bytes": 2892,
+      "sha256": "fd2889752945b832bc392acc9aa063abe13a1ab7d6bff11b62c176b7bf7b9b6f"
     },
     {
       "path": ".github/workflows/scene-assets-v2-candidate-audit.yml",
-      "size_bytes": 6874,
-      "sha256": "c42f582895e49c6bd2a5a525e774fb8052f07585f1f620d70e103d2fcb8908f9"
+      "size_bytes": 8829,
+      "sha256": "33114741ed98d2f23a6624a5949b03d16647f2f1fb8c6fb4af78f7974e2c6c18"
     },
     {
       "path": ".gitignore",
@@ -324,8 +329,8 @@
     },
     {
       "path": "AGENTS.md",
-      "size_bytes": 1164,
-      "sha256": "da1ebae11c0b749e1f1b62fb2f867dc18a5783b94b6e1feb3efea04a681c838b"
+      "size_bytes": 3092,
+      "sha256": "d468906afb93563cdd7948416164fa38429f3bbc799a4c84e202678283de0254"
     },
     {
       "path": "README.md",
@@ -1769,8 +1774,8 @@
     },
     {
       "path": "contracts/animation/DB_SCHEMA.md",
-      "size_bytes": 6823,
-      "sha256": "4538ed9ffa7df5706695da72d6d99f5f21c1c379b7ed5cd19d972651b9fb3b0c"
+      "size_bytes": 5489,
+      "sha256": "bf09f11241bf17ecd8e2dd8593c67f279b1777422c06af1cdda756695f49f7cb"
     },
     {
       "path": "contracts/animation/README.md",
@@ -1778,104 +1783,114 @@
       "sha256": "3b440ea211f026c236f2ab7b23ed65e7f3160d7276403e0a7d2cd3ca162de215"
     },
     {
-      "path": "contracts/animation/examples/invalid/catalog.json",
-      "size_bytes": 609,
-      "sha256": "b59c1f7248e84e163fe77a95d312c0ddfb70292dec21ef41ad4461bc9abe38f7"
+      "path": "contracts/animation/animation_schema.sql",
+      "size_bytes": 11187,
+      "sha256": "91a94f188a734506fe44a88da4efaf9d3696852a09e32d7139bc9fd734afdcf2"
+    },
+    {
+      "path": "contracts/animation/api/endpoints.json",
+      "size_bytes": 13770,
+      "sha256": "2888d63f9e60af55e1c9fcefc23129a276d687c2cb922aac49b71270ebfde7fe"
+    },
+    {
+      "path": "contracts/animation/examples/invalid/cases.json",
+      "size_bytes": 9904,
+      "sha256": "6e69b483c6b153d136b5555d09e49d828f46c806fad313d61ae5923303480b61"
     },
     {
       "path": "contracts/animation/examples/valid/catalog.json",
-      "size_bytes": 4835,
-      "sha256": "da4b9af67bac46d40bb24a38fffaa6b5c79cff74d7b0f1e8ec05e755523e3661"
+      "size_bytes": 29427,
+      "sha256": "01fa0f1f9dd0f27de722cf9ddbd7bb18583ca878e9ae7184d19dea022f201f77"
     },
     {
       "path": "contracts/animation/schemas/animation_plan.v1.schema.json",
-      "size_bytes": 964,
-      "sha256": "097a0321aa53e29a2bd3b027068a26932ea46f5447378ab0608b8a1d3802099a"
+      "size_bytes": 2903,
+      "sha256": "23cfeea53b0cfa9035c9a57ae85d59bcd82b71909adebd06f19589e4d0c02131"
     },
     {
       "path": "contracts/animation/schemas/asset_requirements.v1.schema.json",
-      "size_bytes": 645,
-      "sha256": "6f4ebe635842f29db014b18cd956c8ab26e68b2e9e7d225b32379c555d4cf02f"
+      "size_bytes": 2636,
+      "sha256": "236afc6399e5b224572eccf10f55136c09abc2f0f92ce5d74591bef866bab2bd"
     },
     {
       "path": "contracts/animation/schemas/asset_resolution.v1.schema.json",
-      "size_bytes": 593,
-      "sha256": "31cdbd9670db61aca174ea45fd17a02821e28fe320849dfb98babb94c2520c75"
+      "size_bytes": 2536,
+      "sha256": "1852bf9c4db788dc201fa67f36388cee260742353a6da7b3584c88defc839378"
     },
     {
       "path": "contracts/animation/schemas/asset_version.v1.schema.json",
-      "size_bytes": 536,
-      "sha256": "40e528b186735dd8bd0bc10ddafb0d3072d0dba1bd89eee20acb9dbd10633edd"
+      "size_bytes": 1842,
+      "sha256": "3acac333030d4414ba762c163c15977308202b5e1f8650860c9e8f026f37db5a"
     },
     {
       "path": "contracts/animation/schemas/channel_dna.v2.schema.json",
-      "size_bytes": 1136,
-      "sha256": "b1738214221d9d2836762b0125bda000970e694d05648dc49ae71bc11abf5f3d"
+      "size_bytes": 2966,
+      "sha256": "9904d23c9f7d6bac5d8453244b4244012b15f53bd03ba161a058c8f83f740b71"
     },
     {
       "path": "contracts/animation/schemas/compiled_film.v1.schema.json",
-      "size_bytes": 646,
-      "sha256": "4b81124a8433447e4f3bf6acec07017d1e50aa2575a114e197bb3701515f9aea"
+      "size_bytes": 2331,
+      "sha256": "fc8207fba95a449c30c55d420bdbfe035520ca70fb9ed93bc0d2da7744204591"
     },
     {
       "path": "contracts/animation/schemas/final_timeline.v1.schema.json",
-      "size_bytes": 862,
-      "sha256": "bd6e2000721dc8a1f9f7320255c2553ab78267bd6ffe648786a3fcc006201876"
+      "size_bytes": 2758,
+      "sha256": "f69ce722eb7a59f8dc0fa05488ba02c4241ec316a3deef563423e49a003a6234"
     },
     {
       "path": "contracts/animation/schemas/final_video.v1.schema.json",
-      "size_bytes": 535,
-      "sha256": "64dbc7fa0467b858d49ae12d178adf6273aad46f558114a830efba7f86afd85d"
+      "size_bytes": 1780,
+      "sha256": "d434c1a165fef6b98f70296240a65f918e2e41406fcc09da761f1961e4867b1f"
     },
     {
       "path": "contracts/animation/schemas/parts_manifest.v1.schema.json",
-      "size_bytes": 553,
-      "sha256": "fdf9d395f36ab595c59c5aba590ea4b5b0e8487138a96bb2fa9e65ff80bc22ba"
+      "size_bytes": 2978,
+      "sha256": "a0f02e07f3e92233a2c22ff342cec7880a24d997ad8d5695ebf6a9842f794506"
     },
     {
       "path": "contracts/animation/schemas/qc_report.v1.schema.json",
-      "size_bytes": 486,
-      "sha256": "aebdc2d990f3fb2308f9a517229a5e133e3517d26a5ebe92669274bb4f217f7d"
+      "size_bytes": 1731,
+      "sha256": "ac52b79a0be1e121c472e5f94cc17420ff0ff391ec5f57bae25d131eb445b567"
     },
     {
       "path": "contracts/animation/schemas/render_manifest.v1.schema.json",
-      "size_bytes": 678,
-      "sha256": "5dd09eef6a162ebd50213b6ef43e2f8ef300da42f18843f885008319dbb646c6"
+      "size_bytes": 2039,
+      "sha256": "4bbfb6b6f9defaecc254121be9c2e1b2cbb6684d81bb0b133f7c8ff7931c684d"
     },
     {
       "path": "contracts/animation/schemas/rig_manifest.v1.schema.json",
-      "size_bytes": 548,
-      "sha256": "19bd82bd881fe3d1fd8baa34c5c3d5227414f2c4de82aaa89fe2d8a55aaf0429"
+      "size_bytes": 1797,
+      "sha256": "411f4685d34a8e1001f450ea6e558abeec3880c4f5121c07343f8449f9667bf5"
     },
     {
       "path": "contracts/animation/schemas/rig_profile.v1.schema.json",
-      "size_bytes": 533,
-      "sha256": "0cf88ae2be1702baf64a119978f185e84f467670f99a578dd14935a9635a2fb7"
+      "size_bytes": 2220,
+      "sha256": "41a3ba660c3f9e3f7f8f6a8e4be60329106cd03e5d02e1d6822bbbcc74e4ab16"
     },
     {
       "path": "contracts/animation/schemas/script.v1.schema.json",
-      "size_bytes": 546,
-      "sha256": "072b4924cd8d170c9c288a6eed9d23e31fea94f8f88519167c423ee2ace90442"
+      "size_bytes": 2007,
+      "sha256": "133e76db9b7ed3f0fb337b99b3e2cbba186c61d767a84a20bb34cc686552f879"
     },
     {
       "path": "contracts/animation/schemas/script_analysis.v1.schema.json",
-      "size_bytes": 430,
-      "sha256": "40670ef5df83515adb2a00548cab4696b6f2ee1c904bc7d6b79d88c19557b650"
+      "size_bytes": 1850,
+      "sha256": "7f6b91325421e0e759553722a1d4561bb8936ea1a4d2c43aeee1e3d7f8e664d4"
     },
     {
       "path": "contracts/animation/schemas/shot_plan.v1.schema.json",
-      "size_bytes": 1347,
-      "sha256": "59d99fb09458b4293d526061dba5d7030c6fcbee5d09527147bd28aa40b65549"
+      "size_bytes": 8958,
+      "sha256": "0d1842476ab78f0e31388f4a3af0503205a619ed5ae79293a5f0e4f77de8bb8e"
     },
     {
       "path": "contracts/animation/schemas/topic_ideas.v1.schema.json",
-      "size_bytes": 541,
-      "sha256": "07ba70d77d3efc8b716bc4c362c3e7a7d25f3fc38b3012a9dff058cfee1f24f8"
+      "size_bytes": 1787,
+      "sha256": "31716ba2d898bd37841100fb56be5034c734335377bd27a9d1263ff09ae84d1e"
     },
     {
       "path": "contracts/animation/schemas/voice_manifest.v1.schema.json",
-      "size_bytes": 537,
-      "sha256": "463476705bce9e3d677b0aafe2f7944adc898e243669fcd40045285a211a8a29"
+      "size_bytes": 2783,
+      "sha256": "6b3351714e09881f4d6fb70abcf70f9c33b1539398f2c470088fc2638c0414cb"
     },
     {
       "path": "contracts/examples/platform/channel_dna_zenn.json",
@@ -2759,18 +2774,23 @@
     },
     {
       "path": "docs/architecture/API_CONTRACTS.md",
-      "size_bytes": 3678,
-      "sha256": "4cc054626044f1e2e0d0b1da5cd03dd30b3161535a09cbde1c6ccd0e2a73ba21"
+      "size_bytes": 6584,
+      "sha256": "a262c072c4adebb87b1463c2bc67d981b9449b080974d26559bdc355feb7fc77"
     },
     {
       "path": "docs/architecture/BASELINE.md",
-      "size_bytes": 1475,
-      "sha256": "e5fcf023e5e87af81824628fe5cac340d3b8ce82e540b1f5ee16410a845a8497"
+      "size_bytes": 1739,
+      "sha256": "4c22943525f6b8acee0e3be59499e071a3c2f2bb0316e72ee8f1f2798e460427"
+    },
+    {
+      "path": "docs/architecture/C0_REUSE_SOURCE_AUDIT.md",
+      "size_bytes": 5317,
+      "sha256": "cd5fd4ef672cb4fb9d9551a6fb3f2e1351b70e73b5d21ebeb8c0f3129410196b"
     },
     {
       "path": "docs/architecture/CLEAN_CUT_FILE_LEDGER.md",
-      "size_bytes": 159532,
-      "sha256": "bf0c3a0801dff6fc97234d32c6973d9735c5c3060fd56530fc5a6d3ebce50b3b"
+      "size_bytes": 299402,
+      "sha256": "6d70d30b6341215b54fe56ba3c0aa71ad1ff79451557da49dfad74e21ebd3e3e"
     },
     {
       "path": "docs/architecture/CUTOVER_BOUNDARIES.md",
@@ -2779,8 +2799,18 @@
     },
     {
       "path": "docs/architecture/DB_SCHEMA.md",
-      "size_bytes": 424,
-      "sha256": "08e039e8093fab8f69763cf968c5191f1297e57f5c767e76aa71daabc126edb5"
+      "size_bytes": 628,
+      "sha256": "ed328d1dce22beb3db5b5a5f46a5200fbfed3a524a31c9b4e976451b885a7be2"
+    },
+    {
+      "path": "docs/architecture/DECISION_REGISTER.md",
+      "size_bytes": 3797,
+      "sha256": "17503830e1dbe7523758c2c16f6e25107eee8f9b4fede358e2311dc070814726"
+    },
+    {
+      "path": "docs/architecture/RENDERER_BOUNDARY.md",
+      "size_bytes": 5390,
+      "sha256": "a99fc1fd686df53ae3cbe0fa73c9b43d32b1ac26523d47f20353d574e8deef41"
     },
     {
       "path": "docs/architecture/REUSE_MATRIX.md",
@@ -2789,23 +2819,93 @@
     },
     {
       "path": "docs/architecture/SECURITY_LICENSE.md",
-      "size_bytes": 1999,
-      "sha256": "a8cf7bdb8b02eb1722a3d52914f30584b46b079efd9c2a2661bc475ff4131a67"
+      "size_bytes": 2230,
+      "sha256": "9f339f2ea79b0d519611d774fc764d791c7fe4789636b692b233545d98576925"
     },
     {
       "path": "docs/architecture/UI_PARITY.md",
-      "size_bytes": 2037,
-      "sha256": "088765cd361d5aef5c6c5d661137240f58127d60752f1990af7c7ce317a89129"
+      "size_bytes": 2288,
+      "sha256": "740a1d69595a0fdfbacd4066e5ec1e1c4b6e6ccaf7f9817e40264c3dcf139ff9"
+    },
+    {
+      "path": "docs/plans/2D_ANIMATION_STUDIO_CLEAN_CUTOVER_IMPLEMENTATION_PLAN_v3.md",
+      "size_bytes": 65215,
+      "sha256": "864a13834c1c9230d83f8cb88a70d95090328d10904227eaf11d283bbdb74142"
+    },
+    {
+      "path": "docs/qa/C1_FEASIBILITY_TEST_SPEC.md",
+      "size_bytes": 4385,
+      "sha256": "47c791dd956f7ef5e43a5b00c6cc74f7803515e7279f37d2915ddae084c4216b"
     },
     {
       "path": "docs/qa/G0_UI_BASELINE.md",
-      "size_bytes": 1770,
-      "sha256": "7e355a31d3ef480bd0f0af71b8bb1bb17944867a4be1a802e2bdc01a782eb2f4"
+      "size_bytes": 1973,
+      "sha256": "3da94670b0bd07df715b63d51c06dc8d759a8f4d585938736cd5f52cbfe21ccf"
     },
     {
       "path": "docs/qa/PHASE_C0_REVIEW.md",
-      "size_bytes": 2373,
-      "sha256": "a261460025b3255ce5c388606e3f409e949888902f8f92b774e220a2c5578273"
+      "size_bytes": 20153,
+      "sha256": "7a67624e41000801e635cb3ba82cc854f1877d6b252e581cbf0f4fac22e69cfd"
+    },
+    {
+      "path": "docs/qa/WINDOWS_ONLY_TEST_POLICY.md",
+      "size_bytes": 2636,
+      "sha256": "92021039f2766b8f1b2417aefce9cf199e21b562f8a5aea9314dfa7de2e6d405"
+    },
+    {
+      "path": "docs/qa/evidence/g0/01-channels-dna-editor-1440x900.png",
+      "size_bytes": 258530,
+      "sha256": "c8a181e1e89c425df351bd010e33c33669daf36026700b9338ceb39fdf20cc34"
+    },
+    {
+      "path": "docs/qa/evidence/g0/02-create-channel-modal-1440x900.png",
+      "size_bytes": 148752,
+      "sha256": "bba32d4ddebba53887be3ad21efc27becdd0db0566c428b291650a1e8d7e2a8a"
+    },
+    {
+      "path": "docs/qa/evidence/g0/03-projects-1440x900.png",
+      "size_bytes": 263752,
+      "sha256": "00ad054a2f9468d606e99a22bbbe3d421c2cc3d49ab053ccb9a6ee5a69987900"
+    },
+    {
+      "path": "docs/qa/evidence/g0/04-create-project-modal-1440x900.png",
+      "size_bytes": 138116,
+      "sha256": "808e22d1ef88b3c86d6ebac8372f0e3b4e8a511c85302175264d538a55db8af4"
+    },
+    {
+      "path": "docs/qa/evidence/g0/05-studio-pipeline-1440x900.png",
+      "size_bytes": 224398,
+      "sha256": "a9d6613f71aacab58824a2442e338ed6819384ef875aa33b8c634714fbfd2cda"
+    },
+    {
+      "path": "docs/qa/evidence/g0/06-settings-1440x900.png",
+      "size_bytes": 261684,
+      "sha256": "f163ecd2db267c59a5f05de579c1d15395e63fafb027b1cfbe885063396602aa"
+    },
+    {
+      "path": "docs/qa/evidence/g0/07-jobs-1440x900.png",
+      "size_bytes": 201160,
+      "sha256": "e73e7329f848cb9fb6181b1196a053d0f9d8c8ef6d49f830fc91e8b3dddd56d3"
+    },
+    {
+      "path": "docs/qa/evidence/g0/08-artifacts-1440x900.png",
+      "size_bytes": 204863,
+      "sha256": "b565b8d28e98797573d8aeeeded45eb5a6ab008b16cec558b4659b02e4dad2ef"
+    },
+    {
+      "path": "docs/qa/evidence/g0/09-studio-wide-1920x1080.png",
+      "size_bytes": 304822,
+      "sha256": "7408127edf8fab2ee78ad741fffcc7e6be657538700af7d15471af0d7f9d21fa"
+    },
+    {
+      "path": "docs/qa/evidence/g0/10-channels-narrow-768x900.png",
+      "size_bytes": 110941,
+      "sha256": "08ab80a2a24780aa3c11843e95a3d223c6d9c32868b560670980491461ff4de4"
+    },
+    {
+      "path": "docs/qa/evidence/g0/manifest.json",
+      "size_bytes": 4374,
+      "sha256": "ea6efdcd7a6daf2fdff32df5b097dfe1fc6129841f6c5927cad2f13c546215b7"
     },
     {
       "path": "index.html",
@@ -3291,6 +3391,36 @@
       "path": "tests/assembly-stage.test.mjs",
       "size_bytes": 2781,
       "sha256": "07560a4a681617eb81185d84b9c62bf30894182c4a45b484f79c230aed4452f4"
+    },
+    {
+      "path": "tests/c0/test_animation_contracts.py",
+      "size_bytes": 12980,
+      "sha256": "a77fbcc2e69958e7ade647d9e4005ce1bff0b95ec53f00c72a25ca4a9b465423"
+    },
+    {
+      "path": "tests/c0/test_api_contract_docs.py",
+      "size_bytes": 3267,
+      "sha256": "92faa1f49ca8692c7f8cd35b00580be322e6bed9866d03f9187c0526869b951c"
+    },
+    {
+      "path": "tests/c0/test_database_contract.py",
+      "size_bytes": 5388,
+      "sha256": "b95e65f54d271f13362b4ee647b1fc694da20554e22ed8d67a0504c45ce8f259"
+    },
+    {
+      "path": "tests/c0/test_g0_evidence.py",
+      "size_bytes": 1010,
+      "sha256": "7c9545afc44668e97942d622047a95d3b29368c6e67bbc62d8d229e6e7de4e58"
+    },
+    {
+      "path": "tests/c0/test_ledger.py",
+      "size_bytes": 3320,
+      "sha256": "0e9d6eab09fcf1589f9253a474e279734c00b1a06a61737426dce301dc75b323"
+    },
+    {
+      "path": "tests/c0/test_scope_and_ci.py",
+      "size_bytes": 2356,
+      "sha256": "17f3b3570b5ca16547f58c88d33246219b62d5db91dcfbb5d38b83968c62417f"
     },
     {
       "path": "tests/channel-dna-style-bible.test.mjs",
@@ -3839,8 +3969,8 @@
     },
     {
       "path": "tests/v4/test_kokoro_setup_static.py",
-      "size_bytes": 5038,
-      "sha256": "29315358b71b0c49e2ad6795c42bb28c525e3746ddfb35c7cad48aae4a2e2073"
+      "size_bytes": 6786,
+      "sha256": "33da8f22d0852505176701fa19b971f285d448e7d424d6e429b68d47a24ebe8c"
     },
     {
       "path": "tests/v4/test_media_provider_snapshot_contract_bridge.py",
@@ -4478,9 +4608,34 @@
       "sha256": "3c1bc5840fb76aea4957850f39550e4d376ed50dabc546be658afef1392aa15a"
     },
     {
+      "path": "tools/c0_ledger_lib.py",
+      "size_bytes": 7405,
+      "sha256": "61c6c7f8accaa16a20105259749dc82a0c628178d6a19bcd5c9a56aa0e1f5561"
+    },
+    {
+      "path": "tools/capture_g0_baseline.py",
+      "size_bytes": 10205,
+      "sha256": "efea5ddc16f19df96c2f33d36ea48f000a2e9f93b921b23a4a118ffb0fd1674a"
+    },
+    {
+      "path": "tools/check_c0_db_contract.py",
+      "size_bytes": 3183,
+      "sha256": "9b288587ea258b22e05840c2c825b905386351509418b212ba84698c57d5189e"
+    },
+    {
       "path": "tools/check_c0_ledger.py",
-      "size_bytes": 1791,
-      "sha256": "d9fe5690a6e3e62962f07208e68202719a0d629a58a84eed8504d780abb1a047"
+      "size_bytes": 2236,
+      "sha256": "f073b5713c3c8dbef19a37beea2535b2c2f87b2cd5830a18f662922c0b37b372"
+    },
+    {
+      "path": "tools/check_c0_scope.py",
+      "size_bytes": 3804,
+      "sha256": "8c601349affd6243baa9b0de2f2339e9ae3381e8ec30585fe0b64b9e1e266220"
+    },
+    {
+      "path": "tools/check_g0_evidence.py",
+      "size_bytes": 4115,
+      "sha256": "10381390a221cb9197b0d4474def0a99b9284f6a1bbe87d8cf1946c13fcf36ef"
     },
     {
       "path": "tools/evaluate_scene_breakdown_prompt.py",
@@ -4508,19 +4663,34 @@
       "sha256": "970f465565ae741a10d816cc4d84b149d450d4202f9ce8f53065d5f5438c4424"
     },
     {
+      "path": "tools/render_c0_ledger.py",
+      "size_bytes": 15323,
+      "sha256": "de6b739d4a7da9ca2b0faf5b23a08ed0ddd5c16e3f7c8dbe14f52a098372e1e2"
+    },
+    {
+      "path": "tools/requirements-c0.txt",
+      "size_bytes": 33,
+      "sha256": "330359afb6fa834e61464f5fc2ebd80ea979998a937d9b590ec70b738194b56b"
+    },
+    {
       "path": "tools/task9_release_gate.py",
       "size_bytes": 11349,
       "sha256": "b27d2f4a8d5c538d4a184b72d417f67e52923881bf70044c1726b2874a671388"
     },
     {
       "path": "tools/validate_c0_contracts.py",
-      "size_bytes": 2297,
-      "sha256": "ea60bd3dc1a941078051b5033a6bd105d8c106964e2a5f6d540952430f2fd589"
+      "size_bytes": 23726,
+      "sha256": "e3b0fb6e54e6b9552a2409293ca4f375d0b5ccf0130132d3f2be7404d4d6ca83"
     },
     {
       "path": "tools/validate_contracts.py",
       "size_bytes": 5061,
       "sha256": "620277f9c84794401e6d1842d3eb0c823fff956ca15966841ca2405f94e33a56"
+    },
+    {
+      "path": "tools/verify_c0_reachability.py",
+      "size_bytes": 1022,
+      "sha256": "e077c873dae4f7c5a0b3bdd41c3fdcec1c93aa12e7fa73493b19fb97a86ed406"
     },
     {
       "path": "tsconfig.json",
