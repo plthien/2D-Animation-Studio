@@ -1,5 +1,7 @@
 # C0 implementation authority
 
+**ACCEPTED WINDOWS_ONLY_TEST_POLICY:** Windows-only application and CI for C0–C12, per `docs/qa/WINDOWS_ONLY_TEST_POLICY.md` and decision D-010. Windows 11 x64 primary target; Windows 10 x64 only with actual compatibility evidence. Historical YTB/Linux checks are not animation acceptance authority. No active Ubuntu jobs or OS matrix.
+
 This repository is in a temporary C0 source-baseline state on `feat/c0-clean-cutover-contracts`; it is **not** a released dual-mode product. The checked-in YTB implementation is evidence for UI and neutral-infrastructure reuse only. C0 may add documentation, contract fixtures, validators, and baseline evidence. It must not alter production routes, models, migrations, services, or legacy files.
 
 The authoritative transition is the clean-cut plan v3: C1 is an isolated Spine feasibility proof; C2 is the single atomic deletion/replacement change. No contributor may introduce a compatibility mode, YTB data migration, dual read/write path, legacy adapter, or a second workflow authority. Preserve the Cockpit UX named in `docs/architecture/UI_PARITY.md`.
