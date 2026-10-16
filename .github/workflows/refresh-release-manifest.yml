@@ -5,6 +5,7 @@ on:
   push:
     branches-ignore:
       - feat/c0-clean-cutover-contracts
+      - feat/c1-spine-feasibility
     paths-ignore:
       - MANIFEST.json
       - contracts/openapi/youtube_ai_studio_api.openapi.yaml
@@ -20,7 +21,7 @@ jobs:
   refresh-release-artifacts:
     name: Refresh static OpenAPI and MANIFEST.json
     runs-on: windows-latest
-    if: github.ref_name != 'feat/c0-clean-cutover-contracts'
+    if: github.ref_name != 'feat/c0-clean-cutover-contracts' && github.ref_name != 'feat/c1-spine-feasibility'
     timeout-minutes: 20
     steps:
       - name: Checkout branch head
@@ -56,7 +57,7 @@ jobs:
       - name: Commit refreshed release artifacts
         shell: pwsh
         run: |
-          if ($env:GITHUB_REF_NAME -eq 'feat/c0-clean-cutover-contracts') { throw 'Protected C0 branch' }
+          if ($env:GITHUB_REF_NAME -in @('feat/c0-clean-cutover-contracts','feat/c1-spine-feasibility')) { throw 'Protected experiment branch' }
           git diff --quiet -- MANIFEST.json contracts/openapi/youtube_ai_studio_api.openapi.yaml
           if ($LASTEXITCODE -eq 0) { exit 0 }
           if ($LASTEXITCODE -ne 1) { exit $LASTEXITCODE }
