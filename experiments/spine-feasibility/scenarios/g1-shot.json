@@ -14,7 +14,7 @@
     "prop": {
       "id": "prop_box",
       "x": 580,
-      "y": 570,
+      "y": 433,
       "held_by": null
     },
     "camera": {
@@ -26,7 +26,7 @@
     {
       "id": "anchor_drop",
       "x": 900,
-      "y": 570
+      "y": 433
     }
   ],
   "rig": {
@@ -41,7 +41,9 @@
       "place_at",
       "react",
       "point_at"
-    ]
+    ],
+    "approach_root_offset_x": 67,
+    "release_root_offset_x": 67
   },
   "actions": [
     {

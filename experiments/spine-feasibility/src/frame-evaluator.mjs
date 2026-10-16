@@ -12,10 +12,10 @@ export function evaluateFrame(shotId,frameIndex,ctx){
   ensure(ctx.approvedScenarioBinding===scenarioBinding(ctx),'FROZEN_SCENARIO_IDENTITY_MISMATCH');
   const f=frameIndex,start=ctx.initial_world.actor,prop=ctx.initial_world.prop;
   const lookup=id=>id===start.id?start:id===prop.id?prop:ctx.spatial_anchors.find(a=>a.id===id);
-  const walkEnd=s.walk?lookup(s.walk.target).x-40:start.x;
+  const walkEnd=s.walk?lookup(s.walk.target).x+(ctx.rig.approach_root_offset_x ?? -40):start.x;
   let x=start.x;
   if(s.walk) x=f<s.walk.start?start.x:f<s.walk.end?lerp(start.x,walkEnd,progress(f,s.walk)):walkEnd;
-  const carryEnd=s.carry?lookup(s.carry.target).x-60:walkEnd;
+  const carryEnd=s.carry?lookup(s.carry.target).x+(ctx.rig.release_root_offset_x ?? -60):walkEnd;
   if(s.carry&&f>=s.carry.start) x=f<s.carry.end?lerp(walkEnd,carryEnd,progress(f,s.carry)):carryEnd;
   const activeMove=(currentAction(s.walk,f)||currentAction(s.carry,f));
   const move=activeMove?(s.carry&&currentAction(s.carry,f)?s.carry:s.walk):null;
