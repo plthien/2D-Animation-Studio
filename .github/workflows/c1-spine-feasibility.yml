@@ -52,10 +52,14 @@ jobs:
           git diff --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   c1-real-g1:
-    name: G1 real rig, frames and MP4 (BLOCKED unless licensed assets provided)
+    name: G1 official Spineboy evaluation render (Windows)
     needs: c1-core
     runs-on: windows-latest
     timeout-minutes: 35
+    env:
+      C1_USAGE_SCOPE: hosted_ci_evaluation
+      C1_OFFICIAL_SAMPLE_EVAL: '1'
+      VITE_C1_SCOPE: hosted_ci_evaluation
     steps:
       - uses: actions/checkout@v4
         with:
@@ -68,6 +72,12 @@ jobs:
         shell: pwsh
         run: |
           npm.cmd ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Fetch pinned noncommercial official Spineboy example and license
+        working-directory: experiments/spine-feasibility
+        shell: pwsh
+        run: |
+          npm.cmd run c1:acquire-example
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Fail closed if Spine rights or approved rig are missing
         working-directory: experiments/spine-feasibility
