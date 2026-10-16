@@ -61,57 +61,123 @@ const main=async()=>{
     bones[key]=bone;
   }
   const bg=new Graphics().rect(0,575,1280,145).fill(0x9eaa7d);
-  const supports=new Graphics().rect(540,452,80,12).fill(0x71684e).rect(880,457,80,12).fill(0x71684e).rect(552,464,10,112).fill(0x71684e).rect(940,469,10,107).fill(0x71684e);
+  // Both tabletops share the same prop resting height, so carry and release
+  // need no hidden Y-axis shift.
+  const supports=new Graphics().rect(540,452,80,12).fill(0x71684e)
+    .rect(880,452,80,12).fill(0x71684e)
+    .rect(552,464,10,112).fill(0x71684e)
+    .rect(940,464,10,112).fill(0x71684e);
   const prop=new Graphics().roundRect(-18,-18,36,36,4).fill(0xb4794a).stroke({color:0x4e3b30,width:3});
-  app.stage.addChild(bg,supports,spine,prop);
-  spine.scale.set(p.scene_scale);
+  // The foreground fist must remain visible over the test prop.
+  app.stage.addChild(bg,supports,prop,spine);
   ensure(Number.isFinite(p.scene_scale)&&p.scene_scale>0,'INVALID_RIG_SCALE');
-  const setupPose=()=>{spine.state.clearTracks();spine.skeleton.setToSetupPose();spine.update(0);};
+  spine.scale.set(p.scene_scale);
+  const setupPose=()=>{
+    spine.state.clearTracks();
+    spine.skeleton.setToSetupPose();
+    spine.update(0);
+  };
+  const visibleFistSlot=spine.skeleton.findSlot('front-fist');
+  ensure(visibleFistSlot && bones.leftHand.data.name==='front-fist',
+    'VISIBLE_FRONT_FIST_MAPPING_REQUIRED');
+  const gunSlot=spine.skeleton.findSlot('gun');
+  if(p.license.asset_rights.route==='official_spineboy_example')
+    ensure(gunSlot,'OFFICIAL_SAMPLE_GUN_SLOT_MISSING');
+  const handWorld=()=>{
+    const hand={x:bones.leftHand.worldX,y:bones.leftHand.worldY};
+    spine.skeletonToPixiWorldCoordinates(hand);
+    ensure(finite2(hand),'HAND_WORLD_COORDINATE_INVALID');
+    return hand;
+  };
+
+  // A single, deterministic manual-fitting helper for THIS approved G1 shot:
+  // pick two EXISTING Spineboy arm joint rotations against the real front-fist
+  // bone. This is not C8 IK, not a generic motion planner, and does not invent
+  // animation frames or use previous-frame mutable state.
+  const approachX=ctx.initial_world.prop.x+ctx.rig.approach_root_offset_x;
+  const contactGoal={
+    x:ctx.initial_world.prop.x-p.grip_offset.x,
+    y:ctx.initial_world.prop.y-p.grip_offset.y
+  };
+  const neutralUpper=bones.leftUpperArm.data.rotation;
+  const neutralForearm=bones.leftForearm.data.rotation;
+  function measureContact(upper,forearm){
+    setupPose();
+    spine.position.set(approachX,ctx.initial_world.actor.y);
+    bones.leftUpperArm.rotation=neutralUpper+upper;
+    bones.leftForearm.rotation=neutralForearm+forearm;
+    spine.update(0);
+    const fist=handWorld();
+    return {upper,forearm,error:Math.hypot(fist.x-contactGoal.x,fist.y-contactGoal.y),fist};
+  }
+  let fit=null;
+  for(let upper=-160;upper<=160;upper+=20){
+    for(let forearm=-160;forearm<=160;forearm+=20){
+      const probe=measureContact(upper,forearm);
+      // Keep a compact natural-looking limb configuration when solutions tie.
+      const rank=probe.error+0.008*(Math.abs(upper)+Math.abs(forearm));
+      if(fit===null || rank<fit.rank)fit={...probe,rank};
+    }
+  }
+  for(const step of [10,5,2,1,0.5,0.25]){
+    for(const [da,db] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,1]]){
+      const a=fit.upper+da*step,b=fit.forearm+db*step;
+      if(Math.abs(a)>170 || Math.abs(b)>170)continue;
+      const probe=measureContact(a,b);
+      const rank=probe.error+0.008*(Math.abs(a)+Math.abs(b));
+      if(rank<fit.rank)fit={...probe,rank};
+    }
+  }
+  ensure(fit.error<=6,'VISIBLE_FRONT_FIST_CONTACT_UNREACHABLE',
+    'real front-fist error='+fit.error.toFixed(2)+'px at approach root '+approachX);
+  const contactPose={upper:fit.upper,forearm:fit.forearm,error:fit.error,approachX};
+  const {grab,place,reach,reaction}=schedule;
+  ensure(grab&&place&&reach&&reaction,'G1_INTERACTION_ACTIONS_MISSING');
   function render(frameIndex) {
     const evaluated=evaluateFrame(ctx.shot_id,frameIndex,ctx);
     setupPose();
     spine.position.set(evaluated.root.x,evaluated.root.y);
     for(const [key,delta] of Object.entries(evaluated.bones)) {
       ensure(bones[key],'REQUIRED_SPINE_BONE_MISSING',key);
-      bones[key].rotation=bones[key].data.rotation+delta;
+      const applied=key==='leftUpperArm'?contactPose.upper*evaluated.handContactWeight:
+        key==='leftForearm'?contactPose.forearm*evaluated.handContactWeight:delta;
+      bones[key].rotation=bones[key].data.rotation+applied;
     }
     spine.update(0);
-    // The official Spineboy example equips a gun by default. This is a
-    // noncommercial prop-handling evaluation, not a gun animation.
-    // The "gun" bone is the existing forearm grip point, but the gun sprite
-    // must never obscure the test prop.
-    if (p.license.asset_rights.route==='official_spineboy_example') {
-      const gunSlot=spine.skeleton.findSlot('gun');
-      ensure(gunSlot,'OFFICIAL_SAMPLE_GUN_SLOT_MISSING');
-      gunSlot.setAttachment(null);
-      spine.update(0);
-    }
-    app.renderer.render({container:app.stage});
-    const handBone=bones.leftHand;
-    const handLocal={x:handBone.worldX,y:handBone.worldY};
-    spine.skeletonToPixiWorldCoordinates(handLocal);
+    if(gunSlot)gunSlot.setAttachment(null);
+    const fistClosed=frameIndex>=Math.floor((grab.start+grab.end)/2)&&frameIndex<place.end;
+    spine.skeleton.setAttachment('front-fist',fistClosed?'front-fist-closed':'front-fist-open');
+    spine.update(0);
+    const fist=handWorld();
     const worldProp=evaluated.prop.attachment==='spine_hand_bone'
-      ? {x:handLocal.x+p.grip_offset.x,y:handLocal.y+p.grip_offset.y}
+      ? {x:fist.x+p.grip_offset.x,y:fist.y+p.grip_offset.y}
       : evaluated.prop.world;
     ensure(finite2(worldProp),'NONFINITE_PROP_WORLD');
-    // No synthesized teleport at the two immutable ownership boundaries.
-    if (frameIndex === schedule.grab?.end || frameIndex === (schedule.place?.end - 1)) {
-      const contactTarget=frameIndex===schedule.grab?.end
-        ? ctx.initial_world.prop
-        : ctx.spatial_anchors.find(a=>a.id===schedule.place.target);
-      const distance=Math.hypot(worldProp.x-contactTarget.x,worldProp.y-contactTarget.y);
-      ensure(distance<=20,'PROP_CONTACT_DISCONTINUITY',
-        'frame='+frameIndex+' hand=('+Math.round(worldProp.x)+','+Math.round(worldProp.y)+') target=('+Math.round(contactTarget.x)+','+Math.round(contactTarget.y)+') distance='+Math.round(distance)+'px; align rig contact');
+    const contactAt=frameIndex===reach.end-1||frameIndex===grab.end-1||
+      frameIndex===grab.end||frameIndex===place.end-1;
+    if(contactAt){
+      const target=frameIndex<grab.end?ctx.initial_world.prop:
+        ctx.spatial_anchors.find(a=>a.id===place.target);
+      const error=Math.hypot(fist.x+p.grip_offset.x-target.x,
+        fist.y+p.grip_offset.y-target.y);
+      // The hand must reach the real prop BEFORE attachment, not merely
+      // jump to its current world position on the first carry frame.
+      ensure(error<=8,'VISIBLE_HAND_CONTACT_INVALID',
+        'frame='+frameIndex+' error='+error.toFixed(2));
     }
     prop.position.set(worldProp.x,worldProp.y);
     app.renderer.render({container:app.stage});
-    const materialized={
+    return {
       ...evaluated,
       prop:{...evaluated.prop,world:{x:worldProp.x,y:worldProp.y}},
-      realBones:Object.fromEntries(Object.entries(bones).map(([name,b])=>[name,{x:b.worldX,y:b.worldY,rotation:b.rotation}])),
-      officialRuntimeLoaded:true,rigHash:p.sha256.skeleton,rendererBackend:app.renderer.type
+      handWorld:{x:fist.x,y:fist.y},
+      frontFistClosed:fistClosed,
+      contactPose,
+      realBones:Object.fromEntries(Object.entries(bones).map(([name,b])=>[
+        name,{x:b.worldX,y:b.worldY,rotation:b.rotation}])),
+      officialRuntimeLoaded:true,rigHash:p.sha256.skeleton,
+      rendererBackend:app.renderer.type
     };
-    return materialized;
   }
   window.G1={
     ready:true,identity:fingerprint,rendererBackend:app.renderer.type,

@@ -7,17 +7,17 @@
   "texture": "spineboy.png",
   "scene_scale": 0.5,
   "grip_offset": {
-    "x": 0,
+    "x": 14,
     "y": 0
   },
   "bones": {
     "root": "root",
     "head": "head",
-    "leftUpperArm": "rear-upper-arm",
-    "leftForearm": "rear-bracer",
-    "leftHand": "gun",
-    "rightUpperArm": "front-upper-arm",
-    "rightForearm": "front-bracer",
+    "leftUpperArm": "front-upper-arm",
+    "leftForearm": "front-bracer",
+    "leftHand": "front-fist",
+    "rightUpperArm": "rear-upper-arm",
+    "rightForearm": "rear-bracer",
     "leftThigh": "front-thigh",
     "rightThigh": "rear-thigh",
     "leftShin": "front-shin",

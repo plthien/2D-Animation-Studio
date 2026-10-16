@@ -26,7 +26,7 @@
     {
       "id": "anchor_drop",
       "x": 900,
-      "y": 438
+      "y": 433
     }
   ],
   "rig": {
@@ -42,8 +42,8 @@
       "react",
       "point_at"
     ],
-    "approach_root_offset_x": 24,
-    "release_root_offset_x": -19
+    "approach_root_offset_x": -80,
+    "release_root_offset_x": -80
   },
   "actions": [
     {

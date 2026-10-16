@@ -20,16 +20,21 @@ export function evaluateFrame(shotId,frameIndex,ctx){
   const activeMove=(currentAction(s.walk,f)||currentAction(s.carry,f));
   const move=activeMove?(s.carry&&currentAction(s.carry,f)?s.carry:s.walk):null;
   const phase=move?2*Math.PI*(f-move.start)/24:0;
-  const reachRise=s.reach?progress(f,s.reach):0;
-  const reachFall=s.place?1-progress(f,s.place):1;
-  const reach=reachRise*reachFall;
+  // G1-only arm contact progression. Keep the fist at the prop through the
+  // complete grab/carry/place, then visibly withdraw AFTER the release.
+  const contactRise=s.reach?progress(f,s.reach):0;
+  const retractFrames=s.reaction?Math.min(24,s.reaction.end-s.reaction.start):24;
+  const withdrawal=s.place&&f>=s.place.end
+    ? clamp((f-s.place.end)/retractFrames):0;
+  const contactWeight=s.reach&&s.grab&&s.place
+    ? Math.max(0,Math.min(1,contactRise))*(1-withdrawal):0;
   const pointing=s.ordered.find(a=>a.kind==='point_at'&&a.hand==='right'&&currentAction(a,f));
   const owned=!!s.grab&&!!s.place&&f>=s.grab.end&&f<s.place.end;
   const released=!!s.place&&f>=s.place.end;
   const destination=s.place?lookup(s.place.target):null;
   const headReact=s.reaction&&currentAction(s.reaction,f)?9*Math.sin(Math.PI*progress(f,s.reaction)):0;
   const bone={
-    leftUpperArm:round(-53*reach),leftForearm:round(-26*reach),
+    leftUpperArm:round(-53*contactWeight),leftForearm:round(-26*contactWeight),
     rightUpperArm:round(pointing?-55:(activeMove?18*Math.sin(phase):0)),
     rightForearm:round(pointing?-18:(activeMove?-12*Math.sin(phase):0)),
     leftThigh:round(activeMove?27*Math.sin(phase):0),
@@ -43,6 +48,7 @@ export function evaluateFrame(shotId,frameIndex,ctx){
     shotId,frameIndex,timeSeconds:round(f/ctx.fps),
     phase:s.ordered.find(a=>currentAction(a,f))?.kind??'static',
     root:{x:round(x),y:round(start.y)},bones:bone,
+    handContactWeight:round(contactWeight),
     prop:{id:prop.id,owner:owned?ctx.initial_world.actor.id+':'+s.grab.hand:null,
       attachment:owned?'spine_hand_bone':'world',world},
     camera:{...ctx.initial_world.camera},background:'flat_matte',

@@ -122,3 +122,20 @@ test('F03 private evaluation does not require asset redistribution permission',(
   policy.license.usage_scope='redistributable_product_asset';
   assert.throws(()=>validateUsagePolicy(policy,'redistributable_product_asset'),/OFFICIAL_EXAMPLE_NOT_FOR_PRODUCT_INTEGRATION/);
 });
+
+test('C1 G1 approach stops before physical prop; contact persists until release',()=>{
+  const approach=evaluateFrame('shot_g1',95,g1);
+  const preGrab=evaluateFrame('shot_g1',113,g1);
+  const firstCarry=evaluateFrame('shot_g1',114,g1);
+  const lastPlace=evaluateFrame('shot_g1',195,g1);
+  const released=evaluateFrame('shot_g1',196,g1);
+  const afterRelease=evaluateFrame('shot_g1',220,g1);
+  assert.ok(approach.root.x <= g1.initial_world.prop.x-65);
+  assert.equal(approach.handContactWeight,1);
+  assert.equal(preGrab.handContactWeight,1);
+  assert.equal(firstCarry.handContactWeight,1);
+  assert.equal(lastPlace.handContactWeight,1);
+  assert.equal(released.prop.owner,null);
+  assert.equal(released.prop.world.x,900);
+  assert.equal(afterRelease.handContactWeight,0);
+});
