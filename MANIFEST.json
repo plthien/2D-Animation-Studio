@@ -295,22 +295,27 @@
     "docs/65_DUAL_OFFICIAL_LLM_PHASE1_REPORT.md",
     "docs/67_SCENE_BREAKDOWN_VISUAL_MERGE_COMPLIANCE.md"
   ],
-  "package_file_count_excluding_manifest": 881,
+  "package_file_count_excluding_manifest": 906,
   "package_files": [
     {
       "path": ".github/workflows/c0-contract-audit.yml",
-      "size_bytes": 2749,
-      "sha256": "9cab8658c186aca9e275b6b38364c9af290184cb4fbe6040a8db248ceae49a5f"
+      "size_bytes": 2929,
+      "sha256": "32419009450e50d288da4d52ae4de86fefa32ef0f7c6c380643204b5dc8eee79"
+    },
+    {
+      "path": ".github/workflows/c1-spine-feasibility.yml",
+      "size_bytes": 4536,
+      "sha256": "56ba8bcb96c10fca109a09c472e4fb8951141f4eb40cc18d322136ce2c52ff36"
     },
     {
       "path": ".github/workflows/refresh-release-manifest.yml",
-      "size_bytes": 2892,
-      "sha256": "fd2889752945b832bc392acc9aa063abe13a1ab7d6bff11b62c176b7bf7b9b6f"
+      "size_bytes": 3015,
+      "sha256": "21e9e8a00b1e5dc9770d09963155d2ab5e1e01345255f8d19236d5259eb56c7d"
     },
     {
       "path": ".github/workflows/scene-assets-v2-candidate-audit.yml",
-      "size_bytes": 8829,
-      "sha256": "33114741ed98d2f23a6624a5949b03d16647f2f1fb8c6fb4af78f7974e2c6c18"
+      "size_bytes": 9029,
+      "sha256": "4a1041cb4fff0be044cf461e991962546a25c7d062208fb7c3beb6de41df7d79"
     },
     {
       "path": ".gitignore",
@@ -1800,7 +1805,7 @@
     {
       "path": "contracts/animation/examples/valid/catalog.json",
       "size_bytes": 29427,
-      "sha256": "01fa0f1f9dd0f27de722cf9ddbd7bb18583ca878e9ae7184d19dea022f201f77"
+      "sha256": "7fd45bf2e99e320428d612aad1353d2f07c2da5b5ec00ddd61961bd29d51a3e1"
     },
     {
       "path": "contracts/animation/schemas/animation_plan.v1.schema.json",
@@ -2838,6 +2843,11 @@
       "sha256": "47c791dd956f7ef5e43a5b00c6cc74f7803515e7279f37d2915ddae084c4216b"
     },
     {
+      "path": "docs/qa/C1_SPINE_FEASIBILITY.md",
+      "size_bytes": 15884,
+      "sha256": "a4e3a348967dff827982eef50c09ebd4b1b6c84f52f8586121481188c44832c1"
+    },
+    {
       "path": "docs/qa/G0_UI_BASELINE.md",
       "size_bytes": 1973,
       "sha256": "3da94670b0bd07df715b63d51c06dc8d759a8f4d585938736cd5f52cbfe21ccf"
@@ -2906,6 +2916,116 @@
       "path": "docs/qa/evidence/g0/manifest.json",
       "size_bytes": 4374,
       "sha256": "ea6efdcd7a6daf2fdff32df5b097dfe1fc6129841f6c5927cad2f13c546215b7"
+    },
+    {
+      "path": "experiments/spine-feasibility/.gitignore",
+      "size_bytes": 79,
+      "sha256": "ffdf16301ef5258026b3f9cd5f7e9cd43f7bfdb530be1022e0208137d602731e"
+    },
+    {
+      "path": "experiments/spine-feasibility/README.md",
+      "size_bytes": 2430,
+      "sha256": "645267d1b7a91d0fdd311b20c8a3e057ff2f6410bdce06872870765bc59431e2"
+    },
+    {
+      "path": "experiments/spine-feasibility/assets/README.md",
+      "size_bytes": 2910,
+      "sha256": "5048dba0a07fc419c746d4b2de66c6c4d4833db3ef9d31779c61652def849b19"
+    },
+    {
+      "path": "experiments/spine-feasibility/assets/provenance.example.json",
+      "size_bytes": 1299,
+      "sha256": "75bf745700ad01bc70112b3d3955ec5c82011aea3b34bab055a29550d64f9161"
+    },
+    {
+      "path": "experiments/spine-feasibility/index.html",
+      "size_bytes": 388,
+      "sha256": "25fbc20d47853d1b5bcdabc3887887b166b629ef1f21b0126b8b68938ab8d7bc"
+    },
+    {
+      "path": "experiments/spine-feasibility/package-lock.json",
+      "size_bytes": 41970,
+      "sha256": "10c97c7071b154ae997f35d84508abff72ca064676f17553fda3aa6e3c875501"
+    },
+    {
+      "path": "experiments/spine-feasibility/package.json",
+      "size_bytes": 598,
+      "sha256": "1fa732b2f22d33b8ba8080f96b0253caa90d69974c58172de27217a9bc86ac07"
+    },
+    {
+      "path": "experiments/spine-feasibility/public/assets/.gitkeep",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "experiments/spine-feasibility/scenarios/g1-shot.json",
+      "size_bytes": 1869,
+      "sha256": "604c522d4b1f87530d858672cc67f58fdf0a8232b93e9fb0a89794bea323b210"
+    },
+    {
+      "path": "experiments/spine-feasibility/scenarios/invalid-actions.json",
+      "size_bytes": 842,
+      "sha256": "dafe3785be56fb048b3d876c92792af01e67998ff840d74e5551e10aaf5761fb"
+    },
+    {
+      "path": "experiments/spine-feasibility/scenarios/static-shot.json",
+      "size_bytes": 668,
+      "sha256": "d78ef9556a4acc897c2575396ac610005744baf218f8e2fd671d421ec96d6a8d"
+    },
+    {
+      "path": "experiments/spine-feasibility/scripts/acquire-official-example.mjs",
+      "size_bytes": 4209,
+      "sha256": "54209923c6b61828a71a5dc54403fb3c672d857e2fd073ed550a358937b5994c"
+    },
+    {
+      "path": "experiments/spine-feasibility/scripts/preflight.mjs",
+      "size_bytes": 2063,
+      "sha256": "4fa9716d12c56d57336889f7cd371f6c806ad089748cb7c6740ed294e5af1724"
+    },
+    {
+      "path": "experiments/spine-feasibility/scripts/render-frames.mjs",
+      "size_bytes": 6693,
+      "sha256": "b97a127479a76717bbb40e7ce2955699923bb1683c375b3f2ffd0aef55eb7622"
+    },
+    {
+      "path": "experiments/spine-feasibility/scripts/run-c1.ps1",
+      "size_bytes": 417,
+      "sha256": "0a77a9995997ce17a5e4e77c4c72ca3af4a3fca402d1c43e81fab4612fce3d75"
+    },
+    {
+      "path": "experiments/spine-feasibility/scripts/verify-output.mjs",
+      "size_bytes": 1049,
+      "sha256": "2ea39fad3714b6dda14cbc5eaf99357742042433af2614923cb0c7d1565aba90"
+    },
+    {
+      "path": "experiments/spine-feasibility/src/frame-evaluator.mjs",
+      "size_bytes": 3664,
+      "sha256": "b65ff1bad56baa8b5cbb9f7e4f121aa0f23f23576c18b97c309ae750721999dc"
+    },
+    {
+      "path": "experiments/spine-feasibility/src/licensing.mjs",
+      "size_bytes": 2022,
+      "sha256": "e17122334c37be88453feb5dbcd602fa3862f7c8be54d1ee3a322388a13dbc08"
+    },
+    {
+      "path": "experiments/spine-feasibility/src/main.mjs",
+      "size_bytes": 9838,
+      "sha256": "b0e71ad41f5e418f903cd1c19a23e39c028af0ab9d7c661af6a85407ba33f641"
+    },
+    {
+      "path": "experiments/spine-feasibility/src/validation.mjs",
+      "size_bytes": 6239,
+      "sha256": "646ed5ca6e1ef7fd9de2b0e5b0937694d79715b440a80fc5fcddba01446e6c9a"
+    },
+    {
+      "path": "experiments/spine-feasibility/tests/core.test.mjs",
+      "size_bytes": 8540,
+      "sha256": "3019b3c83e64f99186bca7e5366d030b8f0c6f7ad35b3d144697168ffd5a3d5f"
+    },
+    {
+      "path": "experiments/spine-feasibility/vite.config.mjs",
+      "size_bytes": 181,
+      "sha256": "23d58192a87ef1bfddce1d5b59c758877c0c8584493a9a25191556664e07ecdb"
     },
     {
       "path": "index.html",
@@ -3969,8 +4089,8 @@
     },
     {
       "path": "tests/v4/test_kokoro_setup_static.py",
-      "size_bytes": 6786,
-      "sha256": "33da8f22d0852505176701fa19b971f285d448e7d424d6e429b68d47a24ebe8c"
+      "size_bytes": 6896,
+      "sha256": "ae0add3c68f00c8e709c7d91a72d64d8e4a374858e6ef497561f3e446fccfceb"
     },
     {
       "path": "tests/v4/test_media_provider_snapshot_contract_bridge.py",
@@ -4631,6 +4751,11 @@
       "path": "tools/check_c0_scope.py",
       "size_bytes": 3804,
       "sha256": "8c601349affd6243baa9b0de2f2339e9ae3381e8ec30585fe0b64b9e1e266220"
+    },
+    {
+      "path": "tools/check_c1_scope.py",
+      "size_bytes": 1257,
+      "sha256": "947b05cf767d5545eb59f2b7419e7f85ad7ed64f47097e7547b05f2617273da7"
     },
     {
       "path": "tools/check_g0_evidence.py",
