@@ -295,7 +295,7 @@
     "docs/65_DUAL_OFFICIAL_LLM_PHASE1_REPORT.md",
     "docs/67_SCENE_BREAKDOWN_VISUAL_MERGE_COMPLIANCE.md"
   ],
-  "package_file_count_excluding_manifest": 883,
+  "package_file_count_excluding_manifest": 889,
   "package_files": [
     {
       "path": ".github/workflows/c0-contract-audit.yml",
@@ -2916,6 +2916,36 @@
       "path": "experiments/spine-feasibility/package.json",
       "size_bytes": 527,
       "sha256": "1e62a5326f04f33859556e78f5a4766c85fb6742c1de6b68eba57ceb3d931b1a"
+    },
+    {
+      "path": "experiments/spine-feasibility/scenarios/g1-shot.json",
+      "size_bytes": 1854,
+      "sha256": "76409025e0da3f9acae0a3ddd4d2f6de12750bf5a0e66df171468ac7e090a0fd"
+    },
+    {
+      "path": "experiments/spine-feasibility/scenarios/invalid-actions.json",
+      "size_bytes": 842,
+      "sha256": "dafe3785be56fb048b3d876c92792af01e67998ff840d74e5551e10aaf5761fb"
+    },
+    {
+      "path": "experiments/spine-feasibility/scenarios/static-shot.json",
+      "size_bytes": 668,
+      "sha256": "d78ef9556a4acc897c2575396ac610005744baf218f8e2fd671d421ec96d6a8d"
+    },
+    {
+      "path": "experiments/spine-feasibility/src/frame-evaluator.mjs",
+      "size_bytes": 2642,
+      "sha256": "404af6cb8134fd6be89b52a81353b0359468da6ac8e3b6bd11bba581bc3afdcf"
+    },
+    {
+      "path": "experiments/spine-feasibility/src/validation.mjs",
+      "size_bytes": 4841,
+      "sha256": "6e4de3fab87f9f217f38f2e1a823a68cb909577ff7e09c87a98ccfaa029be294"
+    },
+    {
+      "path": "experiments/spine-feasibility/tests/core.test.mjs",
+      "size_bytes": 2972,
+      "sha256": "e4b31f1861a311310983c440955257dfda706f209276c67dd3b26f3a17efc182"
     },
     {
       "path": "index.html",
