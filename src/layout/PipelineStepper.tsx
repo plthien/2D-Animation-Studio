@@ -4,13 +4,13 @@ import { cx } from '../lib/cx';
 export type PipelineStep = {
   id: string;
   label: string;
-  status: 'complete' | 'draft' | 'text_approved' | 'active' | 'ready' | 'preview' | 'locked' | 'unknown' | 'queued' | 'running' | 'validation_failed' | 'provider_failed' | 'approved' | 'failed';
+  status: 'complete' | 'draft' | 'text_approved' | 'active' | 'ready' | 'preview' | 'locked' | 'unknown' | 'queued' | 'running' | 'validation_failed' | 'provider_failed' | 'approved' | 'failed' | 'blocked' | 'stale';
   hint?: string;
 };
 
 function iconForStatus(status: PipelineStep['status']) {
   if (status === 'complete' || status === 'text_approved' || status === 'approved') return CheckCircle2;
-  if (status === 'locked' || status === 'preview') return Lock;
+  if (status === 'locked' || status === 'preview' || status === 'blocked') return Lock;
   return Sparkles;
 }
 
@@ -37,7 +37,7 @@ export function PipelineStepper({
         {steps.map((step, index) => {
           const Icon = iconForStatus(step.status);
           const selected = step.id === activeStepId;
-          const disabledTone = step.status === 'locked' || step.status === 'preview';
+          const disabledTone = false;
           const statusLabel = labelForStatus(step.status);
           return (
             <button
