@@ -46,7 +46,8 @@ export function validateScenario(ctx) {
       events.push({frame:a.end,type:'release',action:a});
     }
   }
-  events.sort((a,b) => a.frame-b.frame || a.type.localeCompare(b.type));
+  const priority={grab:0,carry:1,place_start:2,release:3};
+  events.sort((a,b) => a.frame-b.frame || priority[a.type]-priority[b.type] || a.action.id.localeCompare(b.action.id));
   let owner = null;
   for (const e of events) {
     if (e.type === 'grab') {
