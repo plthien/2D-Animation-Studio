@@ -24,11 +24,6 @@
   },
   "spatial_anchors": [
     {
-      "id": "prop_box",
-      "x": 580,
-      "y": 570
-    },
-    {
       "id": "anchor_drop",
       "x": 900,
       "y": 570
