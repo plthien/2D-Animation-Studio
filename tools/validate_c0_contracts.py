@@ -349,6 +349,13 @@ def semantic_validate_bundle(bundle: dict[str, dict[str, Any]]) -> list[str]:
             err("compiled shot duration mismatch")
         if cshot["shot_id"] in compiled_by_shot:
             err("duplicate compiled shot")
+        approved_actions = sorted(
+            (a for a in actions if a["shot_id"] == cshot["shot_id"]),
+            key=lambda a: (a["start_frame"], a["end_frame"], a["action_id"]),
+        )
+        expected_action_ids = [a["action_id"] for a in approved_actions]
+        if cshot["action_ids"] != expected_action_ids:
+            err("compiled action identity/order mismatch")
         compiled_by_shot[cshot["shot_id"]] = cshot
         offset += cshot["frame_count"]
     render = bundle["render_manifest.v1"]
