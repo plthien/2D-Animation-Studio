@@ -40,7 +40,8 @@ async function ready(url,timeoutMs=60000){
 async function capture(page,label){
  for(const [w,h] of [[1440,900],[1920,1080],[768,900]]){
   await page.setViewportSize({width:w,height:h});
-  await page.screenshot({path:join(evidence,label+'-'+w+'x'+h+'.png'),fullPage:true,animations:'disabled'});
+  await page.evaluate(()=>window.scrollTo(0,0));
+  await page.screenshot({path:join(evidence,label+'-'+w+'x'+h+'.png'),fullPage:false,animations:'disabled'});
  }
 }
 function assert(value,message){if(!value)throw new Error(message);}
