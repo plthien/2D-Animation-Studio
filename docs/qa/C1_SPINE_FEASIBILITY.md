@@ -101,3 +101,20 @@ Key evidence:
 **WINDOWS_11_REAL_DEVICE = NOT_RUN.** The technical proof ran on GitHub Windows Server `win32` (OS build `10.0.26100`), Node `v22.23.3`, Chrome `155.0.8059.40`; it does not prove consumer Windows 11. Manual local visual sign-off remains mandatory even after a server job passes.
 
 **Remaining C1 owner tasks only:** visually approve the corrected licensed, noncommercial sample choreography, obtain real Windows 11 consumer run/evidence. Commercial product integration remains a separate editor/runtime licensing obligation before commercial release. Do not begin C2 or use the noncommercial sample as shipped product content.
+
+
+## C1 visual pickup/carry/place targeted repair — 2026-10-16
+
+**Implementation checkpoint:** `b2e2d12ffe786bf33773b09c08c3e7c280db2fe8`. This section supersedes earlier frame-appearance caveats for the *new* artifact; historical material remains for traceability.
+
+- **Approach:** G1-only scenario actor root stops ~45 pixels left of prop center, rather than walking through the box. Both tabletops align to the same resting prop Y.
+- **Reach:** official Spineboy `front-upper-arm` / `front-bracer` / `front-fist`, rather than the occluded rear gun attachment, are the actual visible gripping chain. A single-shot, deterministic real-bone angle calibration fits the visible front-fist to the box's upper-left contact point. This manual contact pose is not a C8 IK engine and never depends on previous rendered frames.
+- **Grip:** official `front-fist-open` closes to `front-fist-closed` during grab and remains closed through carry/place. No static surrogate skeleton. The prop follows the actual rendered front-fist world transform, using the calibrated contact offset.
+- **Release:** the fist opens on the approved `place_at` completion frame and retracts over the first 24 frames of the existing reaction interval. The prop remains at the frozen drop anchor.
+- **Boundary safeguards:** pre-grab, first carry and last place contact checks remain fail-closed, with zero 320px false comparison against the future drop position. The Pixi transform must be refreshed before bone-local → world coordinate measurement.
+
+**Exact implementation Windows proof:** [Run 38892442395](https://github.com/plthien/2D-Animation-Studio/actions/runs/38892442395), [artifact 12041838876](https://github.com/plthien/2D-Animation-Studio/actions/runs/38892442395/artifacts/12041838876) from SHA `b2e2d12ffe786bf33773b09c08c3e7c280db2fe8`. Dedicated C1 core job and official real Spine/Pixi rendering job both **SUCCESS**. Independently extracted artifact: 240/240 PNG byte SHA-256 matched manifest; H.264 1280×720 at 24fps, 240 decoded frames, 10.000 seconds, MP4 SHA-256 `54eebf1b92a72b62bec819aac8fe8de69d5e0472f49fe6c00ceac0bc64b8b6c1`; frozen input fingerprint `f56e4f13099d424c556bc3460095394e7110d3ce6fc30c89846227f5bf41cc60`; 173 unique PNG hashes. GitHub ZIP digest `941f24e858a88dff4fa8034c315202e8778338f358815cddb3b5fe353556264b`.
+
+**Manual visual sampling of downloaded exact artifact:** frames 70,80,95,104,113,114,143,168,195,196,210,220 show the character stops beside the first tabletop, visible open front fist reaches the box, closes before carrying, box follows the visible fist rather than the rear gun bone, then releases on the second table and the now-open arm retracts. No large contact-boundary teleport observed in sampled PNGs. Visual sample QA **PASS**; end-user visual approval is distinct. These are actual PNG observations, not claims inferred solely from green CI.
+
+**Remaining mandatory product gate:** `WINDOWS_11_REAL_DEVICE = NOT_RUN`. GitHub Windows Server remains insufficient for consumer Windows 11 acceptance. Official Spineboy license covers only the previously recorded noncommercial evaluation; this PR does not establish commercial editor/runtime or asset redistribution rights. **G1 overall remains BLOCKED** until consumer Windows 11 evidence and owner approval. Do not merge or begin C2 solely on Windows Server evidence.
