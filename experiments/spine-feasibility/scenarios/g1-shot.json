@@ -38,6 +38,7 @@
     "actor_id": "actor_hero",
     "hand": "left",
     "required_capabilities": [
+      "idle",
       "walk_to",
       "reach_for",
       "grab",
