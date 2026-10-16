@@ -1,0 +1,77 @@
+{
+  "$id": "https://contracts.2d-animation-studio.local/rig_manifest.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "atlas_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "channel_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "parts_manifest_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "pixi_version": {
+      "pattern": "^8\\.(1[6-9]|[2-9][0-9])\\.[0-9]+$",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "rig_profile_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "rig_version_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "runtime_package": {
+      "const": "@esotericsoftware/spine-pixi-v8"
+    },
+    "runtime_version": {
+      "pattern": "^4\\.2\\.[0-9]+$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "rig_manifest.v1"
+    },
+    "skeleton_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "spine_data_version": {
+      "const": "4.2"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "channel_id",
+    "revision",
+    "created_at",
+    "rig_version_id",
+    "rig_profile_artifact_id",
+    "parts_manifest_artifact_id",
+    "spine_data_version",
+    "runtime_package",
+    "runtime_version",
+    "pixi_version",
+    "skeleton_sha256",
+    "atlas_sha256"
+  ],
+  "type": "object"
+}

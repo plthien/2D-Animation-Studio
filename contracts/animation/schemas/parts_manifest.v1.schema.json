@@ -1,0 +1,126 @@
+{
+  "$id": "https://contracts.2d-animation-studio.local/parts_manifest.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "asset_version_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "channel_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "parts": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "mask_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "pivot": {
+            "additionalProperties": false,
+            "properties": {
+              "coordinate_system": {
+                "const": "normalized_top_left"
+              },
+              "x": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "y": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              }
+            },
+            "required": [
+              "x",
+              "y",
+              "coordinate_system"
+            ],
+            "type": "object"
+          },
+          "png_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "reviewed": {
+            "const": true
+          },
+          "role": {
+            "enum": [
+              "head",
+              "torso",
+              "pelvis",
+              "upper_arm_l",
+              "lower_arm_l",
+              "hand_l",
+              "upper_arm_r",
+              "lower_arm_r",
+              "hand_r",
+              "upper_leg_l",
+              "lower_leg_l",
+              "foot_l",
+              "upper_leg_r",
+              "lower_leg_r"
+            ]
+          },
+          "sprite_artifact_id": {
+            "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "sprite_artifact_id",
+          "png_sha256",
+          "mask_sha256",
+          "pivot",
+          "reviewed"
+        ],
+        "type": "object"
+      },
+      "maxItems": 14,
+      "minItems": 14,
+      "type": "array"
+    },
+    "project_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "parts_manifest.v1"
+    },
+    "source_image_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "channel_id",
+    "project_id",
+    "revision",
+    "created_at",
+    "asset_version_id",
+    "source_image_sha256",
+    "parts"
+  ],
+  "type": "object"
+}

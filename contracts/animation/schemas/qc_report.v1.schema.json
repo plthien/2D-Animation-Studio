@@ -1,0 +1,82 @@
+{
+  "$id": "https://contracts.2d-animation-studio.local/qc_report.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "channel_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "checks": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "check_id": {
+            "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+            "type": "string"
+          },
+          "details": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pass",
+              "fail"
+            ]
+          }
+        },
+        "required": [
+          "check_id",
+          "status",
+          "details"
+        ],
+        "type": "object"
+      },
+      "maxItems": 100,
+      "minItems": 1,
+      "type": "array"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "final_video_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "project_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "qc_report.v1"
+    },
+    "status": {
+      "enum": [
+        "pass",
+        "fail"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "channel_id",
+    "project_id",
+    "revision",
+    "created_at",
+    "final_video_artifact_id",
+    "status",
+    "checks"
+  ],
+  "type": "object"
+}

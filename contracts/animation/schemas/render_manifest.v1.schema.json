@@ -1,0 +1,95 @@
+{
+  "$id": "https://contracts.2d-animation-studio.local/render_manifest.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "channel_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "compiled_film_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "fps": {
+      "const": 24
+    },
+    "frames": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "frame": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "relative_path": {
+            "pattern": "^[^/].*\\.png$",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "shot_id": {
+            "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "frame",
+          "shot_id",
+          "relative_path",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "maxItems": 23040,
+      "minItems": 1,
+      "type": "array"
+    },
+    "height": {
+      "const": 720
+    },
+    "project_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "runtime_identity": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "render_manifest.v1"
+    },
+    "width": {
+      "const": 1280
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "channel_id",
+    "project_id",
+    "revision",
+    "created_at",
+    "compiled_film_artifact_id",
+    "runtime_identity",
+    "width",
+    "height",
+    "fps",
+    "frames"
+  ],
+  "type": "object"
+}

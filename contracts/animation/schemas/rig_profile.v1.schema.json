@@ -1,0 +1,100 @@
+{
+  "$id": "https://contracts.2d-animation-studio.local/rig_profile.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "bones": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "enum": [
+              "root",
+              "hip",
+              "chest",
+              "neck",
+              "head",
+              "left_upper_arm",
+              "left_lower_arm",
+              "left_hand",
+              "right_upper_arm",
+              "right_lower_arm",
+              "right_hand",
+              "left_upper_leg",
+              "left_lower_leg",
+              "left_foot",
+              "right_upper_leg",
+              "right_lower_leg",
+              "right_foot"
+            ]
+          },
+          "runtime_bone": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "runtime_bone"
+        ],
+        "type": "object"
+      },
+      "maxItems": 64,
+      "minItems": 16,
+      "type": "array"
+    },
+    "capabilities": {
+      "items": {
+        "enum": [
+          "idle",
+          "walk_to",
+          "look_at",
+          "reach_for",
+          "grab",
+          "carry_to",
+          "place_at",
+          "point_at",
+          "react"
+        ]
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "channel_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "parts_manifest_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "rig_profile.v1"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "channel_id",
+    "revision",
+    "created_at",
+    "parts_manifest_artifact_id",
+    "bones",
+    "capabilities"
+  ],
+  "type": "object"
+}

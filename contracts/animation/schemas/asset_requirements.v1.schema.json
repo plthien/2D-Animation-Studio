@@ -1,0 +1,112 @@
+{
+  "$id": "https://contracts.2d-animation-studio.local/asset_requirements.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "channel_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "project_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "requirements": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "actor",
+              "prop",
+              "location",
+              "background"
+            ]
+          },
+          "required_capabilities": {
+            "items": {
+              "enum": [
+                "idle",
+                "walk_to",
+                "look_at",
+                "reach_for",
+                "grab",
+                "carry_to",
+                "place_at",
+                "point_at",
+                "react"
+              ]
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "requirement_id": {
+            "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+            "type": "string"
+          },
+          "semantic_key": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "shot_ids": {
+            "items": {
+              "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "view": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "requirement_id",
+          "kind",
+          "semantic_key",
+          "view",
+          "shot_ids",
+          "required_capabilities"
+        ],
+        "type": "object"
+      },
+      "maxItems": 500,
+      "minItems": 1,
+      "type": "array"
+    },
+    "revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "asset_requirements.v1"
+    },
+    "shot_plan_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "channel_id",
+    "project_id",
+    "revision",
+    "created_at",
+    "shot_plan_artifact_id",
+    "requirements"
+  ],
+  "type": "object"
+}

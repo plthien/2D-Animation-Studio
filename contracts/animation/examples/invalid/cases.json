@@ -1,0 +1,500 @@
+{
+  "animation_plan.v1": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "actions.0.action",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/actions/0/action",
+          "value": "fly"
+        }
+      ]
+    },
+    {
+      "name": "cross_channel_lineage",
+      "mode": "semantic",
+      "expected": "channel ownership mismatch",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/channel_id",
+          "value": "channel_other"
+        }
+      ]
+    }
+  ],
+  "asset_requirements.v1": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "requirements.0.kind",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/requirements/0/kind",
+          "value": "voice"
+        }
+      ]
+    }
+  ],
+  "asset_resolution.v1": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "pins.0.approval_status",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/pins/0/approval_status",
+          "value": "candidate"
+        }
+      ]
+    }
+  ],
+  "asset_version.v1": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "width",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/width",
+          "value": 0
+        }
+      ]
+    }
+  ],
+  "channel_dna.v2": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "visual.palette",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/visual/palette",
+          "value": []
+        }
+      ]
+    }
+  ],
+  "compiled_film.v1": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "shots.0.frame_count",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/shots/0/frame_count",
+          "value": 1
+        }
+      ]
+    }
+  ],
+  "final_timeline.v1": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "samples_per_frame",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/samples_per_frame",
+          "value": 1999
+        }
+      ]
+    }
+  ],
+  "final_video.v1": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "video_codec",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/video_codec",
+          "value": "vp9"
+        }
+      ]
+    }
+  ],
+  "parts_manifest.v1": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "parts.0.pivot.x",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/parts/0/pivot/x",
+          "value": 2
+        }
+      ]
+    }
+  ],
+  "qc_report.v1": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "checks",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/checks",
+          "value": []
+        }
+      ]
+    }
+  ],
+  "render_manifest.v1": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "fps",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/fps",
+          "value": 30
+        }
+      ]
+    }
+  ],
+  "rig_manifest.v1": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "spine_data_version",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/spine_data_version",
+          "value": "3.8"
+        }
+      ]
+    }
+  ],
+  "rig_profile.v1": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "bones",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/bones",
+          "value": []
+        }
+      ]
+    }
+  ],
+  "script.v1": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "wrong_version",
+      "mode": "schema",
+      "expected": "schema_version",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/schema_version",
+          "value": "wrong.v0"
+        }
+      ]
+    },
+    {
+      "name": "unexpected_property",
+      "mode": "schema",
+      "expected": "Additional properties",
+      "mutations": [
+        {
+          "op": "add",
+          "path": "/legacy_mode",
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "wrong_revision_type",
+      "mode": "schema",
+      "expected": "revision",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/revision",
+          "value": "one"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "sections.0.end_char",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/sections/0/end_char",
+          "value": 0
+        }
+      ]
+    }
+  ],
+  "script_analysis.v1": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "entities.0.kind",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/entities/0/kind",
+          "value": "voice"
+        }
+      ]
+    }
+  ],
+  "shot_plan.v1": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "shots.0.duration_frames",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/shots/0/duration_frames",
+          "value": 10
+        }
+      ]
+    }
+  ],
+  "topic_ideas.v1": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "ideas",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/ideas",
+          "value": []
+        }
+      ]
+    }
+  ],
+  "voice_manifest.v1": [
+    {
+      "name": "missing_artifact_id",
+      "mode": "schema",
+      "expected": "artifact_id",
+      "mutations": [
+        {
+          "op": "remove",
+          "path": "/artifact_id"
+        }
+      ]
+    },
+    {
+      "name": "nested_or_bound_violation",
+      "mode": "schema",
+      "expected": "sample_rate_hz",
+      "mutations": [
+        {
+          "op": "replace",
+          "path": "/sample_rate_hz",
+          "value": 44100
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+{
+  "$id": "https://contracts.2d-animation-studio.local/voice_manifest.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "channel_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "channels": {
+      "const": 1
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "project_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "provider_identity": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "render_manifest_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "sample_format": {
+      "const": "pcm_s16le"
+    },
+    "sample_rate_hz": {
+      "const": 48000
+    },
+    "schema_version": {
+      "const": "voice_manifest.v1"
+    },
+    "script_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "voice_identity": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "voiced_shots": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "end_frame": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pcm_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "sample_count": {
+            "minimum": 2000,
+            "type": "integer"
+          },
+          "script_end": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "script_start": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "shot_id": {
+            "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+            "type": "string"
+          },
+          "start_frame": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "text": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "shot_id",
+          "script_start",
+          "script_end",
+          "text",
+          "start_frame",
+          "end_frame",
+          "sample_count",
+          "pcm_sha256"
+        ],
+        "type": "object"
+      },
+      "maxItems": 30,
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "channel_id",
+    "project_id",
+    "revision",
+    "created_at",
+    "script_artifact_id",
+    "render_manifest_artifact_id",
+    "provider_identity",
+    "voice_identity",
+    "sample_rate_hz",
+    "channels",
+    "sample_format",
+    "voiced_shots"
+  ],
+  "type": "object"
+}

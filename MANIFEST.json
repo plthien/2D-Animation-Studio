@@ -295,7 +295,7 @@
     "docs/65_DUAL_OFFICIAL_LLM_PHASE1_REPORT.md",
     "docs/67_SCENE_BREAKDOWN_VISUAL_MERGE_COMPLIANCE.md"
   ],
-  "package_file_count_excluding_manifest": 812,
+  "package_file_count_excluding_manifest": 847,
   "package_files": [
     {
       "path": ".github/workflows/refresh-release-manifest.yml",
@@ -321,6 +321,11 @@
       "path": "00_START_HERE.md",
       "size_bytes": 7688,
       "sha256": "50b7fe025ec3f66d87e60d46dcd8f2b9abff81df4f8c9c103d94a3c3f01dd13f"
+    },
+    {
+      "path": "AGENTS.md",
+      "size_bytes": 1164,
+      "sha256": "da1ebae11c0b749e1f1b62fb2f867dc18a5783b94b6e1feb3efea04a681c838b"
     },
     {
       "path": "README.md",
@@ -1763,6 +1768,116 @@
       "sha256": "3f0dbce0ebe1e7293413e47c3e872033d4d3e9db54e3d89b2ddca9ba08e067df"
     },
     {
+      "path": "contracts/animation/DB_SCHEMA.md",
+      "size_bytes": 6823,
+      "sha256": "4538ed9ffa7df5706695da72d6d99f5f21c1c379b7ed5cd19d972651b9fb3b0c"
+    },
+    {
+      "path": "contracts/animation/README.md",
+      "size_bytes": 1170,
+      "sha256": "3b440ea211f026c236f2ab7b23ed65e7f3160d7276403e0a7d2cd3ca162de215"
+    },
+    {
+      "path": "contracts/animation/examples/invalid/catalog.json",
+      "size_bytes": 609,
+      "sha256": "b59c1f7248e84e163fe77a95d312c0ddfb70292dec21ef41ad4461bc9abe38f7"
+    },
+    {
+      "path": "contracts/animation/examples/valid/catalog.json",
+      "size_bytes": 4835,
+      "sha256": "da4b9af67bac46d40bb24a38fffaa6b5c79cff74d7b0f1e8ec05e755523e3661"
+    },
+    {
+      "path": "contracts/animation/schemas/animation_plan.v1.schema.json",
+      "size_bytes": 964,
+      "sha256": "097a0321aa53e29a2bd3b027068a26932ea46f5447378ab0608b8a1d3802099a"
+    },
+    {
+      "path": "contracts/animation/schemas/asset_requirements.v1.schema.json",
+      "size_bytes": 645,
+      "sha256": "6f4ebe635842f29db014b18cd956c8ab26e68b2e9e7d225b32379c555d4cf02f"
+    },
+    {
+      "path": "contracts/animation/schemas/asset_resolution.v1.schema.json",
+      "size_bytes": 593,
+      "sha256": "31cdbd9670db61aca174ea45fd17a02821e28fe320849dfb98babb94c2520c75"
+    },
+    {
+      "path": "contracts/animation/schemas/asset_version.v1.schema.json",
+      "size_bytes": 536,
+      "sha256": "40e528b186735dd8bd0bc10ddafb0d3072d0dba1bd89eee20acb9dbd10633edd"
+    },
+    {
+      "path": "contracts/animation/schemas/channel_dna.v2.schema.json",
+      "size_bytes": 1136,
+      "sha256": "b1738214221d9d2836762b0125bda000970e694d05648dc49ae71bc11abf5f3d"
+    },
+    {
+      "path": "contracts/animation/schemas/compiled_film.v1.schema.json",
+      "size_bytes": 646,
+      "sha256": "4b81124a8433447e4f3bf6acec07017d1e50aa2575a114e197bb3701515f9aea"
+    },
+    {
+      "path": "contracts/animation/schemas/final_timeline.v1.schema.json",
+      "size_bytes": 862,
+      "sha256": "bd6e2000721dc8a1f9f7320255c2553ab78267bd6ffe648786a3fcc006201876"
+    },
+    {
+      "path": "contracts/animation/schemas/final_video.v1.schema.json",
+      "size_bytes": 535,
+      "sha256": "64dbc7fa0467b858d49ae12d178adf6273aad46f558114a830efba7f86afd85d"
+    },
+    {
+      "path": "contracts/animation/schemas/parts_manifest.v1.schema.json",
+      "size_bytes": 553,
+      "sha256": "fdf9d395f36ab595c59c5aba590ea4b5b0e8487138a96bb2fa9e65ff80bc22ba"
+    },
+    {
+      "path": "contracts/animation/schemas/qc_report.v1.schema.json",
+      "size_bytes": 486,
+      "sha256": "aebdc2d990f3fb2308f9a517229a5e133e3517d26a5ebe92669274bb4f217f7d"
+    },
+    {
+      "path": "contracts/animation/schemas/render_manifest.v1.schema.json",
+      "size_bytes": 678,
+      "sha256": "5dd09eef6a162ebd50213b6ef43e2f8ef300da42f18843f885008319dbb646c6"
+    },
+    {
+      "path": "contracts/animation/schemas/rig_manifest.v1.schema.json",
+      "size_bytes": 548,
+      "sha256": "19bd82bd881fe3d1fd8baa34c5c3d5227414f2c4de82aaa89fe2d8a55aaf0429"
+    },
+    {
+      "path": "contracts/animation/schemas/rig_profile.v1.schema.json",
+      "size_bytes": 533,
+      "sha256": "0cf88ae2be1702baf64a119978f185e84f467670f99a578dd14935a9635a2fb7"
+    },
+    {
+      "path": "contracts/animation/schemas/script.v1.schema.json",
+      "size_bytes": 546,
+      "sha256": "072b4924cd8d170c9c288a6eed9d23e31fea94f8f88519167c423ee2ace90442"
+    },
+    {
+      "path": "contracts/animation/schemas/script_analysis.v1.schema.json",
+      "size_bytes": 430,
+      "sha256": "40670ef5df83515adb2a00548cab4696b6f2ee1c904bc7d6b79d88c19557b650"
+    },
+    {
+      "path": "contracts/animation/schemas/shot_plan.v1.schema.json",
+      "size_bytes": 1347,
+      "sha256": "59d99fb09458b4293d526061dba5d7030c6fcbee5d09527147bd28aa40b65549"
+    },
+    {
+      "path": "contracts/animation/schemas/topic_ideas.v1.schema.json",
+      "size_bytes": 541,
+      "sha256": "07ba70d77d3efc8b716bc4c362c3e7a7d25f3fc38b3012a9dff058cfee1f24f8"
+    },
+    {
+      "path": "contracts/animation/schemas/voice_manifest.v1.schema.json",
+      "size_bytes": 537,
+      "sha256": "463476705bce9e3d677b0aafe2f7944adc898e243669fcd40045285a211a8a29"
+    },
+    {
       "path": "contracts/examples/platform/channel_dna_zenn.json",
       "size_bytes": 18033,
       "sha256": "10963b5d8af78c6c8fd0c14b67df1db7245f69f4beec8c82f2f2a9e213371743"
@@ -2641,6 +2756,56 @@
       "path": "docs/adr/voice_durable_workflow.md",
       "size_bytes": 21695,
       "sha256": "4c175e82e3764e5045f337a483d73b2706a50ae2f0560ed6a174f5209346bc8a"
+    },
+    {
+      "path": "docs/architecture/API_CONTRACTS.md",
+      "size_bytes": 3678,
+      "sha256": "4cc054626044f1e2e0d0b1da5cd03dd30b3161535a09cbde1c6ccd0e2a73ba21"
+    },
+    {
+      "path": "docs/architecture/BASELINE.md",
+      "size_bytes": 1475,
+      "sha256": "e5fcf023e5e87af81824628fe5cac340d3b8ce82e540b1f5ee16410a845a8497"
+    },
+    {
+      "path": "docs/architecture/CLEAN_CUT_FILE_LEDGER.md",
+      "size_bytes": 159532,
+      "sha256": "bf0c3a0801dff6fc97234d32c6973d9735c5c3060fd56530fc5a6d3ebce50b3b"
+    },
+    {
+      "path": "docs/architecture/CUTOVER_BOUNDARIES.md",
+      "size_bytes": 1258,
+      "sha256": "0181970ebee3b9894295d3ac2213cc37473cddc6456a9c5c120dead6e8469109"
+    },
+    {
+      "path": "docs/architecture/DB_SCHEMA.md",
+      "size_bytes": 424,
+      "sha256": "08e039e8093fab8f69763cf968c5191f1297e57f5c767e76aa71daabc126edb5"
+    },
+    {
+      "path": "docs/architecture/REUSE_MATRIX.md",
+      "size_bytes": 2149,
+      "sha256": "618630467df79f445dbcecb61eedeb816ec216e01de0854cd7b90cab4b98fcaa"
+    },
+    {
+      "path": "docs/architecture/SECURITY_LICENSE.md",
+      "size_bytes": 1999,
+      "sha256": "a8cf7bdb8b02eb1722a3d52914f30584b46b079efd9c2a2661bc475ff4131a67"
+    },
+    {
+      "path": "docs/architecture/UI_PARITY.md",
+      "size_bytes": 2037,
+      "sha256": "088765cd361d5aef5c6c5d661137240f58127d60752f1990af7c7ce317a89129"
+    },
+    {
+      "path": "docs/qa/G0_UI_BASELINE.md",
+      "size_bytes": 1770,
+      "sha256": "7e355a31d3ef480bd0f0af71b8bb1bb17944867a4be1a802e2bdc01a782eb2f4"
+    },
+    {
+      "path": "docs/qa/PHASE_C0_REVIEW.md",
+      "size_bytes": 2373,
+      "sha256": "a261460025b3255ce5c388606e3f409e949888902f8f92b774e220a2c5578273"
     },
     {
       "path": "index.html",
@@ -4313,6 +4478,11 @@
       "sha256": "3c1bc5840fb76aea4957850f39550e4d376ed50dabc546be658afef1392aa15a"
     },
     {
+      "path": "tools/check_c0_ledger.py",
+      "size_bytes": 1791,
+      "sha256": "d9fe5690a6e3e62962f07208e68202719a0d629a58a84eed8504d780abb1a047"
+    },
+    {
       "path": "tools/evaluate_scene_breakdown_prompt.py",
       "size_bytes": 1283,
       "sha256": "a4ca38757f33d57864742b76c4b5796d8aaa13df35ffa4a69cc3ab3b08376209"
@@ -4341,6 +4511,11 @@
       "path": "tools/task9_release_gate.py",
       "size_bytes": 11349,
       "sha256": "b27d2f4a8d5c538d4a184b72d417f67e52923881bf70044c1726b2874a671388"
+    },
+    {
+      "path": "tools/validate_c0_contracts.py",
+      "size_bytes": 2297,
+      "sha256": "ea60bd3dc1a941078051b5033a6bd105d8c106964e2a5f6d540952430f2fd589"
     },
     {
       "path": "tools/validate_contracts.py",

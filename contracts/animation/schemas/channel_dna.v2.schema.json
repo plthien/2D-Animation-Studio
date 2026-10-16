@@ -1,0 +1,139 @@
+{
+  "$id": "https://contracts.2d-animation-studio.local/channel_dna.v2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "channel_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "identity": {
+      "additionalProperties": false,
+      "properties": {
+        "audience": {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "audience"
+      ],
+      "type": "object"
+    },
+    "narration": {
+      "additionalProperties": false,
+      "properties": {
+        "language": {
+          "pattern": "^[a-z]{2,3}(-[A-Z]{2})?$",
+          "type": "string"
+        },
+        "voice_character": {
+          "maxLength": 300,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "language",
+        "voice_character"
+      ],
+      "type": "object"
+    },
+    "narration_identity_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "performance": {
+      "additionalProperties": false,
+      "properties": {
+        "motion_density": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "tone": {
+          "maxLength": 300,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "tone",
+        "motion_density"
+      ],
+      "type": "object"
+    },
+    "performance_style_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "channel_dna.v2"
+    },
+    "visual": {
+      "additionalProperties": false,
+      "properties": {
+        "palette": {
+          "items": {
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "type": "string"
+          },
+          "maxItems": 16,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "style": {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "style",
+        "palette"
+      ],
+      "type": "object"
+    },
+    "visual_style_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "channel_id",
+    "revision",
+    "created_at",
+    "identity",
+    "visual",
+    "performance",
+    "narration",
+    "visual_style_hash",
+    "performance_style_hash",
+    "narration_identity_hash"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,3 @@
+# Database schema authority
+
+The normative table/column/FK/constraint freeze is [contracts/animation/DB_SCHEMA.md](../../contracts/animation/DB_SCHEMA.md), backed by executable C0-only DDL in `contracts/animation/animation_schema.sql`. It establishes exactly fourteen application tables, ChannelDNA revisions as channel-scoped immutable `artifacts`, two SQLite partial unique indexes that correctly handle `project_id IS NULL`, composite ownership FKs, the `0001_animation_initial` origin, paid-consent provenance, writer/CAS rules, and legacy-database fail-closed behavior. C0 does not create production models or a migration.

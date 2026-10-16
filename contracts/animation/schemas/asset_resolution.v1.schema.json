@@ -1,0 +1,106 @@
+{
+  "$id": "https://contracts.2d-animation-studio.local/asset_resolution.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "channel_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "pins": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "approval_status": {
+            "const": "approved"
+          },
+          "asset_channel_id": {
+            "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+            "type": "string"
+          },
+          "asset_version_id": {
+            "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+            "type": "string"
+          },
+          "capability_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "actor",
+              "prop",
+              "location",
+              "background"
+            ]
+          },
+          "requirement_id": {
+            "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+            "type": "string"
+          },
+          "semantic_key": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "view": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "visual_style_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "requirement_id",
+          "asset_version_id",
+          "asset_channel_id",
+          "kind",
+          "semantic_key",
+          "view",
+          "visual_style_hash",
+          "capability_hash",
+          "approval_status"
+        ],
+        "type": "object"
+      },
+      "maxItems": 500,
+      "minItems": 1,
+      "type": "array"
+    },
+    "project_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "requirements_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "asset_resolution.v1"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "channel_id",
+    "project_id",
+    "revision",
+    "created_at",
+    "requirements_artifact_id",
+    "pins"
+  ],
+  "type": "object"
+}

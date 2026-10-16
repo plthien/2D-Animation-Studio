@@ -1,0 +1,93 @@
+{
+  "$id": "https://contracts.2d-animation-studio.local/asset_version.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "approval_status": {
+      "enum": [
+        "candidate",
+        "approved",
+        "rejected"
+      ]
+    },
+    "artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "asset_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "capability_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "channel_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "height": {
+      "maximum": 16384,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "kind": {
+      "enum": [
+        "actor",
+        "prop",
+        "location",
+        "background"
+      ]
+    },
+    "revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "asset_version.v1"
+    },
+    "semantic_key": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "source_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "view": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "visual_style_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "width": {
+      "maximum": 16384,
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "channel_id",
+    "revision",
+    "created_at",
+    "asset_id",
+    "kind",
+    "semantic_key",
+    "view",
+    "source_sha256",
+    "width",
+    "height",
+    "visual_style_hash",
+    "capability_hash",
+    "approval_status"
+  ],
+  "type": "object"
+}

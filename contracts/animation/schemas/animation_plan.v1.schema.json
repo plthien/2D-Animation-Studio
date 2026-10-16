@@ -1,0 +1,129 @@
+{
+  "$id": "https://contracts.2d-animation-studio.local/animation_plan.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "actions": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "idle",
+              "walk_to",
+              "look_at",
+              "reach_for",
+              "grab",
+              "carry_to",
+              "place_at",
+              "point_at",
+              "react"
+            ]
+          },
+          "action_id": {
+            "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+            "type": "string"
+          },
+          "actor_id": {
+            "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+            "type": "string"
+          },
+          "end_frame": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "hand": {
+            "enum": [
+              "left",
+              "right",
+              "none"
+            ]
+          },
+          "prop_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "shot_id": {
+            "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+            "type": "string"
+          },
+          "start_frame": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "target_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "action_id",
+          "shot_id",
+          "actor_id",
+          "action",
+          "start_frame",
+          "end_frame",
+          "target_id",
+          "prop_id",
+          "hand"
+        ],
+        "type": "object"
+      },
+      "maxItems": 10000,
+      "minItems": 0,
+      "type": "array"
+    },
+    "artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "channel_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "project_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "rig_profile_artifact_ids": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "schema_version": {
+      "const": "animation_plan.v1"
+    },
+    "shot_plan_artifact_id": {
+      "pattern": "^[a-z][a-z0-9_:-]{2,127}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "channel_id",
+    "project_id",
+    "revision",
+    "created_at",
+    "shot_plan_artifact_id",
+    "rig_profile_artifact_ids",
+    "actions"
+  ],
+  "type": "object"
+}
