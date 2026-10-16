@@ -1,0 +1,51 @@
+name: C2 animation-only Windows gates
+on:
+  push:
+    branches: [feat/c2-atomic-animation-cutover]
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'alembic/**'
+      - 'contracts/animation/**'
+      - 'src/**'
+      - 'tests/c2/**'
+      - 'package*.json'
+      - 'requirements.txt'
+      - '.github/workflows/c2-animation-cutover.yml'
+      - 'scripts/windows/**'
+      - 'start.bat'
+  workflow_dispatch:
+
+jobs:
+  c2:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install Python
+        run: python -m pip install -r requirements.txt
+      - name: Test animation C2 platform
+        env:
+          PYTHONPATH: .
+        run: python -m pytest -q tests/c2
+      - name: Verify exact OpenAPI and source reachability
+        run: python tools/check_c2_cutover.py
+      - name: Frontend dependency clean install
+        run: npm ci --ignore-scripts
+      - name: Frontend typecheck and build
+        run: npm run build
+      - name: Verify future API routes not registered
+        run: |
+          python -c "from app.main import app; print('C2 OpenAPI endpoints:',sum(len(v) for v in app.openapi()['paths'].values()))"
+      - name: Windows hosted runner disclosure
+        run: Write-Output "Windows-latest is Windows Server, not consumer Windows 11 evidence."
