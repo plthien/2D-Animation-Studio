@@ -142,6 +142,33 @@ def semantic_validate_bundle(bundle: dict[str, dict[str, Any]]) -> list[str]:
         shot_ids.add(shot["shot_id"]); shots[shot["shot_id"]] = shot
         if not 24 <= shot["duration_frames"] <= 720: err("shot duration outside 24..720")
         if not set(shot["actor_ids"]) <= actor_ids or not set(shot["prop_ids"]) <= prop_ids or shot["location_id"] not in location_ids: err("shot entity reference missing")
+        # C1 authority: every visible actor/prop is placed by the frozen shot,
+        # never by renderer defaults or mutable last-frame memory.
+        initial = shot["initial_world_state"]
+        actor_placements = initial["actors"]
+        prop_placements = initial["props"]
+        if {p["actor_id"] for p in actor_placements} != set(shot["actor_ids"]) or len(actor_placements) != len(shot["actor_ids"]):
+            err("initial world actor placement mismatch")
+        if {p["prop_id"] for p in prop_placements} != set(shot["prop_ids"]) or len(prop_placements) != len(shot["prop_ids"]):
+            err("initial world prop placement mismatch")
+        anchors = shot["spatial_anchors"]
+        anchor_ids = [a["anchor_id"] for a in anchors]
+        if len(anchor_ids) != len(set(anchor_ids)):
+            err("duplicate shot spatial anchor")
+        if set(anchor_ids) & (set(shot["actor_ids"]) | set(shot["prop_ids"])):
+            err("ambiguous shot spatial anchor identity")
+        for entity in actor_placements + prop_placements + anchors:
+            if any(isinstance(entity[coord], bool) or not isinstance(entity[coord], (int, float)) or not math.isfinite(entity[coord]) for coord in ("x", "y")):
+                err("non-finite initial spatial coordinates")
+        for prop in prop_placements:
+            holder = prop["held_by"]
+            if holder is not None:
+                parts = holder.rsplit(":", 1)
+                if len(parts) != 2 or parts[0] not in shot["actor_ids"] or parts[1] not in {"left", "right"}:
+                    err("invalid initial prop owner")
+        holders = [prop["held_by"] for prop in prop_placements if prop["held_by"] is not None]
+        if len(set(holders)) != len(holders):
+            err("one prop per initial hand violated")
         utterance = shot["utterance"]
         if utterance:
             start, end = utterance["script_start"], utterance["script_end"]
