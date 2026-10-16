@@ -62,3 +62,42 @@ At implementation SHA `eb03d87e3debb48bc35542ef1478e9c0b1f5ce87`, the dedicated 
 An inherited manifest refresh had initially changed legacy `MANIFEST.json` on the feature branch before branch-specific protections were installed. That generated change was reverted to byte-identical `main`, and both transitional manifest workflows now exclude this branch. It is not C1 product authority.
 
 **Provenance of these numbers:** exact code checkpoint above. Later changes (including browser bundling and independent FFprobe frame-count verification) require a fresh exact-HEAD Windows run. The final immutable SHA and CI links are recorded in PR #3's description, which can be updated without a new commit. No actual PNG, contact sheet or MP4 exists or is claimed.
+
+
+## 2026-10-16 targeted F01–F04 repair: exact evidence and remaining gate
+
+This section supersedes earlier historical statements above that no legal sample asset or real rendering attempt was available. The earlier implementation checkpoints are retained as audit history, **not** evidence on the current PR tip.
+
+| Finding | Implementation | Test / proof | Status |
+|---|---|---|---|
+| C1-F01 — fixed frame choreography | Small action schedule compiler; locomotion/reach/grip/release/pointing bound to approved intervals and exact scenario binding. Changed schedule cannot reuse stale frozen fingerprint. | Original plus remove-walk, remove-grab, shifted place release, changed interval and arbitrary-order state tests | **PASS (logic)** |
+| C1-F02 — entity/anchor collision | `prop_box` is only an entity; `anchor_drop` only an anchor, target-type and collision checks reject invalid references | ID collision, wrong target kind and unknown target negatives | **PASS (logic)** |
+| C1-F03 — rights scope | Distinct `private_local_evaluation`, `hosted_ci_evaluation`, `redistributable_product_asset`. Official sample permitted only for **noncommercial runtime evaluation**, never product distribution. Asset license notice and all SHA hashes verified in Windows. | [Official runtime README](https://github.com/EsotericSoftware/spine-runtimes#licensing), [Spineboy sample license](https://github.com/EsotericSoftware/spine-runtimes/blob/e7dc1435fa4a0083ab431f1b28e083c14a1f5c68/examples/spineboy/license.txt), F03 negative-scope test and preflight | **PASS for noncommercial evaluation only**; commercial integration **NOT AUTHORIZED** |
+| C1-F04 — official rig | Actual `spineboy-pro.json` (Spine 4.2.22) + `spineboy.atlas` + `spineboy.png` pinned at `e7dc1435fa4a0083ab431f1b28e083c14a1f5c68`. Real Spine/PixiJS GPU render and attachment follow evaluated bones. | Windows [real 240-frame evidence run](https://github.com/plthien/2D-Animation-Studio/actions/runs/38876431227) and ZIP [artifact 12035786667](https://github.com/plthien/2D-Animation-Studio/actions/runs/38876431227/artifacts/12035786667) | **Runtime technical proof PASS on historical SHA; visual review initially BLOCKED**, later grip-mapping repair requires new exact-head proof |
+| C1-MOTION-01 | Hand ownership, occupied-hand rejection, opposite-hand pointing; true rig grip test | C1 Node test plus real sampled Spine captures; verify visible correct hand after grip mapping | **LOGIC PASS; VISUAL pending recheck** |
+| C1-FIXTURE-02 | Static actor and unheld prop frozen without undeclared motion | C1 static tests, canonical C0 fixture regression | **PASS** |
+| C1-RUNTIME-03 | 240 frames, 24 FPS, 1280×720, SHA-manifest, independent renderer contexts, FFprobe 10-second H.264 MP4 | Real Windows Server run + artifact, but visual/target-OS gates separate | **TECHNICAL SERVER PROOF PASS (historical SHA); G1 NOT PASS** |
+
+### Official pinned evaluation asset hash record
+
+- Skeleton SHA-256: `488face411ddfad77ee3239b29431deb574d73f4feca7eca541452ad24bb6bfc`
+- Atlas SHA-256: `fc90c2a604c14bb3ae1a81f9c950660863a41654cb29c869423a86e127fa75ae`
+- Texture SHA-256: `071a6adec73378eebd802a047d274deefe11abee3ce689a1e71acb4cb41e331e`
+- Asset notice SHA-256: `08074c5f8c5f072626a0830250304fe3063d9d49f8f9b039e063bb238f2b993b`
+- Scope is noncommercial evaluation only. The images must accompany `license.txt` when shared; using this example in a commercial product, video or distribution is **not** permitted by its sample-image notice. No license credential is stored in the repository.
+
+### Real technical proof on previous code SHA `f5577c1fdcdffa694cf11c84f88aafcfb18dcc3d`
+
+[GitHub Actions](https://github.com/plthien/2D-Animation-Studio/actions/runs/38876431227) generated **240 real PNGs** (1280 × 720), PNG and pose SHA-256 arrays, deterministic repeated sampled captures in two independently initialized browser contexts, a **10.000s H264 MP4**, and FFprobe report confirming exactly 240 decoded frames, `24/1` fps. ZIP artifact SHA-256: `31a395d0cae9173504931feb232de10a79af2eef281aacc4a644580265c2065a`. Artifact retention expires **2026-10-30**, so this GitHub link may later cease to work.
+
+Key evidence:
+- MP4 SHA-256: `505f2fed6b60f32b5b637eca57f8fe7c61366f7c131c2602801434437b4af306`
+- Frozen input fingerprint: `840a23ccca4aad961c88a8da674a12aac8160d2bcb1e317a7d20a3063145f29e`
+- Exactly 178 distinct PNG hashes across 240 frames and 240 distinct state hashes.
+- Historical G1 frame sample SHA hashes are available in the artifact `manifest.json`.
+
+**Human visual review on downloaded artifact:** official Spineboy visibly walks with articulated limbs, but the initial version shows a default gun sprite and a box that appears to hang behind the torso during carry. That visual quality **does not pass** the G1 semantic grip/interaction gate. A targeted official-sample hand/attachment remap and gun-slot hiding repair is being verified; do not recycle historical 240-frame PASS as evidence for that latest visual repair.
+
+**WINDOWS_11_REAL_DEVICE = NOT_RUN.** The technical proof ran on GitHub Windows Server `win32` (OS build `10.0.26100`), Node `v22.23.3`, Chrome `155.0.8059.40`; it does not prove consumer Windows 11. Manual local visual sign-off remains mandatory even after a server job passes.
+
+**Remaining C1 owner tasks only:** visually approve the corrected licensed, noncommercial sample choreography, obtain real Windows 11 consumer run/evidence. Commercial product integration remains a separate editor/runtime licensing obligation before commercial release. Do not begin C2 or use the noncommercial sample as shipped product content.
