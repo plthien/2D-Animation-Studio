@@ -80,6 +80,12 @@ async function main() {
     if(!stream || stream.codec_name!=='h264' || stream.width!==1280 || stream.height!==720 ||
       stream.avg_frame_rate!=='24/1' || Math.abs(Number(stream.duration||ffprobe.format.duration)-10)>0.001 ||
       (stream.nb_frames&&Number(stream.nb_frames)!==240))throw Error('MP4_METADATA_INVALID');
+    const decodeCount=JSON.parse(verifyCode('ffprobe',[
+      '-v','error','-select_streams','v:0','-count_frames',
+      '-show_entries','stream=nb_read_frames','-of','json',mp4
+    ]));
+    if(Number(decodeCount.streams?.[0]?.nb_read_frames)!==240)
+      throw Error('MP4_DECODE_FRAME_COUNT_INVALID');
     verifyCode('ffmpeg',['-hide_banner','-loglevel','error','-i',mp4,'-f','null','-']);
     const report={gate:'G1_EVIDENCE_CANDIDATE_NEEDS_HUMAN_AND_WINDOWS11',
       frames:240,fps:24,width:1280,height:720,scenario:'g1-shot.json',
