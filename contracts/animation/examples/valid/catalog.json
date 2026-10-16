@@ -850,12 +850,40 @@
         ],
         "duration_frames": 48,
         "final_world_state": {
-          "actors": [],
-          "props": []
+          "actors": [
+            {
+              "actor_id": "actor_hero",
+              "x": 3,
+              "y": 0,
+              "facing": "right"
+            }
+          ],
+          "props": [
+            {
+              "prop_id": "prop_box",
+              "x": 4,
+              "y": 0,
+              "held_by": null
+            }
+          ]
         },
         "initial_world_state": {
-          "actors": [],
-          "props": []
+          "actors": [
+            {
+              "actor_id": "actor_hero",
+              "x": 0,
+              "y": 0,
+              "facing": "right"
+            }
+          ],
+          "props": [
+            {
+              "prop_id": "prop_box",
+              "x": 1,
+              "y": 0,
+              "held_by": null
+            }
+          ]
         },
         "location_id": "location_room",
         "prop_ids": [
@@ -866,7 +894,14 @@
           "script_end": 11,
           "script_start": 0,
           "text": "Hello world"
-        }
+        },
+        "spatial_anchors": [
+          {
+            "anchor_id": "anchor_drop",
+            "x": 4,
+            "y": 0
+          }
+        ]
       }
     ]
   },
