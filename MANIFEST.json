@@ -295,12 +295,17 @@
     "docs/65_DUAL_OFFICIAL_LLM_PHASE1_REPORT.md",
     "docs/67_SCENE_BREAKDOWN_VISUAL_MERGE_COMPLIANCE.md"
   ],
-  "package_file_count_excluding_manifest": 881,
+  "package_file_count_excluding_manifest": 883,
   "package_files": [
     {
       "path": ".github/workflows/c0-contract-audit.yml",
       "size_bytes": 2749,
       "sha256": "9cab8658c186aca9e275b6b38364c9af290184cb4fbe6040a8db248ceae49a5f"
+    },
+    {
+      "path": ".github/workflows/c1-lock-bootstrap.yml",
+      "size_bytes": 1096,
+      "sha256": "467e5aaf40510e1338b22e228aa2fd90cb57247ccdc1f8f2a7b8e3ccd1f4cc12"
     },
     {
       "path": ".github/workflows/refresh-release-manifest.yml",
@@ -2906,6 +2911,11 @@
       "path": "docs/qa/evidence/g0/manifest.json",
       "size_bytes": 4374,
       "sha256": "ea6efdcd7a6daf2fdff32df5b097dfe1fc6129841f6c5927cad2f13c546215b7"
+    },
+    {
+      "path": "experiments/spine-feasibility/package.json",
+      "size_bytes": 527,
+      "sha256": "1e62a5326f04f33859556e78f5a4766c85fb6742c1de6b68eba57ceb3d931b1a"
     },
     {
       "path": "index.html",
