@@ -92,7 +92,7 @@ try {
  await capture(page,'projects');
  for(const screen of ['Jobs','Artifacts','Settings']){
   await page.locator('nav button').filter({hasText:screen}).first().click();
-  await page.getByRole('heading',{name:screen==='Settings'?'Animation system':screen==='Artifacts'?'Immutable artifact metadata':'Jobs'}).waitFor();
+  await page.getByRole('heading',{level:2,name:screen==='Settings'?'Animation system':screen==='Artifacts'?'Immutable artifact metadata':'Jobs'}).waitFor();
   await capture(page,screen.toLowerCase());
  }
  await page.locator('nav button').filter({hasText:'Studio'}).first().click();
