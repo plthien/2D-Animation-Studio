@@ -134,13 +134,13 @@ jobs:
         run: Remove-Item runtime-openapi.yaml,voice-junit.xml,backend-junit.xml -ErrorAction SilentlyContinue
 
       - name: Generate deterministic release manifest
-        if: github.head_ref != 'feat/c0-clean-cutover-contracts'
+        if: github.head_ref != 'feat/c0-clean-cutover-contracts' && github.head_ref != 'feat/c1-spine-feasibility'
         run: |
           python tools/package_manifest.py generate
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Persist generated release manifest
-        if: github.head_ref != 'feat/c0-clean-cutover-contracts'
+        if: github.head_ref != 'feat/c0-clean-cutover-contracts' && github.head_ref != 'feat/c1-spine-feasibility'
         uses: actions/upload-artifact@v4
         with:
           name: generated-manifest
@@ -149,13 +149,13 @@ jobs:
           retention-days: 7
 
       - name: Verify committed release manifest
-        if: github.head_ref != 'feat/c0-clean-cutover-contracts'
+        if: github.head_ref != 'feat/c0-clean-cutover-contracts' && github.head_ref != 'feat/c1-spine-feasibility'
         run: |
           git diff --exit-code -- MANIFEST.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Record C0 manifest freeze
-        if: github.head_ref == 'feat/c0-clean-cutover-contracts'
+        if: github.head_ref == 'feat/c0-clean-cutover-contracts' || github.head_ref == 'feat/c1-spine-feasibility'
         run: echo "Legacy YTB package authority is transitional and intentionally not regenerated during C0."
 
       - name: Verify candidate source remained clean

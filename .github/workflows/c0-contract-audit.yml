@@ -54,7 +54,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python tools/check_g0_evidence.py | Tee-Object c0-reports/g0.txt
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python tools/check_c0_scope.py | Tee-Object c0-reports/scope.txt
+          if ($env:GITHUB_HEAD_REF -eq 'feat/c1-spine-feasibility') {
+            python tools/check_c1_scope.py | Tee-Object c0-reports/scope.txt
+          } else {
+            python tools/check_c0_scope.py | Tee-Object c0-reports/scope.txt
+          }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           git diff --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

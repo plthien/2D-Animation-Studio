@@ -1,0 +1,22 @@
+{
+  "name": "c1-spine-feasibility",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "c1:test": "node --test tests/*.test.mjs",
+    "dev": "vite --host 127.0.0.1",
+    "c1:render": "node scripts/render-frames.mjs",
+    "c1:verify": "node scripts/verify-output.mjs",
+    "c1:preflight": "node scripts/preflight.mjs",
+    "c1:acquire-example": "node scripts/acquire-official-example.mjs"
+  },
+  "dependencies": {
+    "@esotericsoftware/spine-pixi-v8": "4.2.120",
+    "pixi.js": "8.16.0"
+  },
+  "devDependencies": {
+    "vite": "6.3.5",
+    "playwright": "1.55.0"
+  }
+}

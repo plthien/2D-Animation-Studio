@@ -853,7 +853,7 @@
           "actors": [
             {
               "actor_id": "actor_hero",
-              "x": 3,
+              "x": 0,
               "y": 0,
               "facing": "right"
             }
@@ -861,7 +861,7 @@
           "props": [
             {
               "prop_id": "prop_box",
-              "x": 4,
+              "x": 1,
               "y": 0,
               "held_by": null
             }

@@ -1,0 +1,117 @@
+name: C1 Spine / PixiJS feasibility (Windows)
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  c1-core:
+    name: C1 deterministic logic (Windows Node 22)
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Verify exact HEAD
+        shell: pwsh
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if ((git rev-parse HEAD) -ne $env:EXPECTED_HEAD) { throw 'Wrong C1 HEAD' }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: experiments/spine-feasibility/package-lock.json
+      - name: Install exact pinned packages
+        working-directory: experiments/spine-feasibility
+        shell: pwsh
+        run: |
+          npm.cmd ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test pure deterministic evaluator and hand safety
+        working-directory: experiments/spine-feasibility
+        shell: pwsh
+        run: |
+          npm.cmd run c1:test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Bundle actual browser entrypoint against official Spine/PixiJS packages
+        working-directory: experiments/spine-feasibility
+        shell: pwsh
+        run: |
+          npm.cmd exec -- vite build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Validate C1-only change scope
+        shell: pwsh
+        run: |
+          python tools/check_c1_scope.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  c1-real-g1:
+    name: G1 official Spineboy evaluation render (Windows)
+    needs: c1-core
+    runs-on: windows-latest
+    timeout-minutes: 35
+    env:
+      C1_USAGE_SCOPE: hosted_ci_evaluation
+      C1_OFFICIAL_SAMPLE_EVAL: '1'
+      VITE_C1_SCOPE: hosted_ci_evaluation
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned official runtime and browser tooling
+        working-directory: experiments/spine-feasibility
+        shell: pwsh
+        run: |
+          npm.cmd ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Fetch pinned noncommercial official Spineboy example and license
+        working-directory: experiments/spine-feasibility
+        shell: pwsh
+        run: |
+          npm.cmd run c1:acquire-example
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Fail closed if Spine rights or approved rig are missing
+        working-directory: experiments/spine-feasibility
+        shell: pwsh
+        run: |
+          npm.cmd run c1:preflight
+          if ($LASTEXITCODE -ne 0) { Write-Error 'G1 BLOCKED: licensed rig/asset provenance is unavailable, not a runtime PASS'; exit $LASTEXITCODE }
+      - name: Verify real Windows media tools and Chrome
+        shell: pwsh
+        run: |
+          if (-not (Get-Command ffmpeg.exe -ErrorAction SilentlyContinue)) {
+            choco install ffmpeg -y --no-progress
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $env:PATH += ';C:\\ProgramData\\chocolatey\\bin'
+          }
+          ffmpeg -version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ffprobe -version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Get-Command chrome.exe -ErrorAction SilentlyContinue)) { Write-Host 'Chrome must be available to Playwright'; }
+      - name: Render 240 real Spine frames and encode MP4
+        working-directory: experiments/spine-feasibility
+        shell: pwsh
+        run: |
+          npm.cmd run c1:render
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm.cmd run c1:verify
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload reproducible G1 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c1-G1-evidence-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            experiments/spine-feasibility/output/
+          if-no-files-found: warn
+          retention-days: 14

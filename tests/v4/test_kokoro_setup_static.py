@@ -107,8 +107,8 @@ def test_release_manifest_refresh_targets_active_branch() -> None:
     assert set(parsed["jobs"]) == {"refresh-release-artifacts"}
     job = parsed["jobs"]["refresh-release-artifacts"]
     assert job["runs-on"] == "windows-latest"
-    assert job["if"] == "github.ref_name != 'feat/c0-clean-cutover-contracts'"
-    assert events["push"]["branches-ignore"] == ["feat/c0-clean-cutover-contracts"]
+    assert job["if"] == "github.ref_name != 'feat/c0-clean-cutover-contracts' && github.ref_name != 'feat/c1-spine-feasibility'"
+    assert events["push"]["branches-ignore"] == ["feat/c0-clean-cutover-contracts", "feat/c1-spine-feasibility"]
     assert job["steps"][0]["with"]["ref"] == "${{ github.ref }}"
     steps = {step["name"]: step for step in job["steps"] if "name" in step}
     scope_script = steps["Verify refresh scope"]["run"]
@@ -119,7 +119,7 @@ def test_release_manifest_refresh_targets_active_branch() -> None:
     assert "git push origin ('HEAD:' + $env:GITHUB_REF_NAME)" in commit_script
     assert "git push origin HEAD:main" not in commit_script
     assert "git push origin ('HEAD:main')" not in commit_script
-    assert "if ($env:GITHUB_REF_NAME -eq 'feat/c0-clean-cutover-contracts')" in commit_script
+    assert "if ($env:GITHUB_REF_NAME -in @('feat/c0-clean-cutover-contracts','feat/c1-spine-feasibility'))" in commit_script
     assert "git diff --quiet -- MANIFEST.json contracts/openapi/youtube_ai_studio_api.openapi.yaml" in commit_script
     assert "git add -- MANIFEST.json contracts/openapi/youtube_ai_studio_api.openapi.yaml" in commit_script
     assert "git diff --cached --name-only" in commit_script

@@ -1,0 +1,107 @@
+{
+  "scenario_id": "g1-one-shot",
+  "shot_id": "shot_g1",
+  "fps": 24,
+  "width": 1280,
+  "height": 720,
+  "duration_frames": 240,
+  "initial_world": {
+    "actor": {
+      "id": "actor_hero",
+      "x": 250,
+      "y": 575
+    },
+    "prop": {
+      "id": "prop_box",
+      "x": 580,
+      "y": 433,
+      "held_by": null
+    },
+    "camera": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  "spatial_anchors": [
+    {
+      "id": "anchor_drop",
+      "x": 900,
+      "y": 433
+    }
+  ],
+  "rig": {
+    "actor_id": "actor_hero",
+    "hand": "left",
+    "required_capabilities": [
+      "idle",
+      "walk_to",
+      "reach_for",
+      "grab",
+      "carry_to",
+      "place_at",
+      "react",
+      "point_at"
+    ],
+    "approach_root_offset_x": -45,
+    "release_root_offset_x": -45
+  },
+  "actions": [
+    {
+      "id": "act_idle",
+      "kind": "idle",
+      "start": 0,
+      "end": 24,
+      "hand": "none"
+    },
+    {
+      "id": "act_walk",
+      "kind": "walk_to",
+      "start": 24,
+      "end": 72,
+      "target": "prop_box",
+      "hand": "none"
+    },
+    {
+      "id": "act_reach",
+      "kind": "reach_for",
+      "start": 72,
+      "end": 96,
+      "target": "prop_box",
+      "hand": "left"
+    },
+    {
+      "id": "act_grab",
+      "kind": "grab",
+      "start": 96,
+      "end": 114,
+      "target": "prop_box",
+      "prop": "prop_box",
+      "hand": "left"
+    },
+    {
+      "id": "act_carry",
+      "kind": "carry_to",
+      "start": 114,
+      "end": 168,
+      "target": "anchor_drop",
+      "prop": "prop_box",
+      "hand": "left"
+    },
+    {
+      "id": "act_place",
+      "kind": "place_at",
+      "start": 168,
+      "end": 196,
+      "target": "anchor_drop",
+      "prop": "prop_box",
+      "hand": "left"
+    },
+    {
+      "id": "act_react",
+      "kind": "react",
+      "start": 196,
+      "end": 240,
+      "hand": "none"
+    }
+  ]
+}

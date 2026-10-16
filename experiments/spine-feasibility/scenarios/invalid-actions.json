@@ -1,0 +1,42 @@
+{
+  "description": "Test mutations, not a runnable shot",
+  "mutations": [
+    {
+      "name": "occupied-left-reach",
+      "op": "add",
+      "action": {
+        "id": "bad_reach",
+        "kind": "reach_for",
+        "start": 130,
+        "end": 145,
+        "target": "prop_box",
+        "hand": "left"
+      }
+    },
+    {
+      "name": "occupied-left-point",
+      "op": "add",
+      "action": {
+        "id": "bad_point",
+        "kind": "point_at",
+        "start": 130,
+        "end": 145,
+        "target": "anchor_drop",
+        "hand": "left"
+      }
+    },
+    {
+      "name": "second-grab",
+      "op": "add",
+      "action": {
+        "id": "bad_second_grab",
+        "kind": "grab",
+        "start": 135,
+        "end": 147,
+        "target": "prop_box",
+        "prop": "prop_box",
+        "hand": "right"
+      }
+    }
+  ]
+}
