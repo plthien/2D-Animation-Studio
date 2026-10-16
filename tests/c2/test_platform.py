@@ -288,3 +288,60 @@ def test_bounded_publication_prevents_unbounded_json_work(client):
         service.document_publish({"huge":"X"*1_048_576},relative,lambda *_:None)
     assert got.value.code=="IMPORT_TOO_LARGE"
     assert not service.bounded_path(relative).exists()
+
+
+def test_selective_dna_hash_domains_preserve_unaffected_stage_fingerprints(client):
+    ch=new_channel(client)
+    candidate=publish_dna(client,ch)
+    approve(client,ch,candidate)
+    pr=data(client.post("/api/v1/projects",json={
+        "channel_id":ch["channel_id"],"name":"Selective","slug":"selective"},
+        headers={"Idempotency-Key":"selective-project"}),201)
+    pid=pr["project_id"]
+    def fingerprints():
+        return {stage["stage_key"]:stage["computed_dependency_fingerprint"]
+                for stage in data(client.get(f"/api/v1/projects/{pid}/workflow"))["stages"]}
+    before=fingerprints()
+    previous=candidate
+    src=dna()
+    changes=[
+        ("visual",{"style":"A new uneven graphite contour and palette","palette":["#111111"]},
+         {"resolver","generation","rigging","director","motion","delivery"}),
+        ("performance",{"tone":"deliberate punchy timing","motion_density":"high"},
+         {"director","motion","delivery"}),
+        ("narration",{"language":"en","voice_character":"a new witty narrator"},
+         {"delivery"}),
+    ]
+    for domain, value, affected in changes:
+        src[domain]=value
+        revision=data(client.get(f"/api/v1/channels/{ch['channel_id']}/dna"))["head_revision"]
+        saved=service.save_dna(ch["channel_id"],src,revision,previous["artifact_id"],"key-"+domain)
+        service.approve_dna(ch["channel_id"],saved["artifact_id"],
+                            expected_revision=revision,expected_sha=saved["sha256"],
+                            actor="qa",reviewed_at="2026-10-16T00:00:00Z")
+        after=fingerprints()
+        assert {key for key in STAGES if before[key]!=after[key]}==affected,domain
+        previous=saved
+        before=after
+    with service.reader() as conn:
+        assert {row["approval_status"] for row in conn.execute(
+            "SELECT approval_status FROM project_stage_heads WHERE project_id=?",(pid,)
+        )}=={"draft"}
+
+
+def test_project_archive_repeat_safe_and_scoped(client):
+    ch=new_channel(client)
+    left=data(client.post("/api/v1/projects",json={
+        "channel_id":ch["channel_id"],"name":"A","slug":"a"},
+        headers={"Idempotency-Key":"one"}),201)
+    second=data(client.post("/api/v1/projects",json={
+        "channel_id":ch["channel_id"],"name":"B","slug":"b"},
+        headers={"Idempotency-Key":"two"}),201)
+    archived=data(client.request("DELETE",f"/api/v1/projects/{left['project_id']}",
+        json={"expected_updated_at":left["updated_at"]}))
+    assert archived["status"]=="archived"
+    assert data(client.request("DELETE",f"/api/v1/projects/{left['project_id']}",
+        json={"expected_updated_at":left["updated_at"]}))==archived
+    persisted=data(client.get("/api/v1/projects",params={"channel_id":ch["channel_id"]}))["items"]
+    assert len(persisted)==2
+    assert {item["status"] for item in persisted}=={"archived","active"}
