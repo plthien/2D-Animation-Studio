@@ -1,29 +1,28 @@
-# C1: genuine Spine 4.2 / PixiJS 8 feasibility (isolated)
+# C1 real Spine/PixiJS feasibility — isolated noncommercial experiment
 
-This is not an animation-product runtime. This repository intentionally ships **NO rig, atlas or texture**, because the owner's Spine Editor/runtime integration rights and an approved rig's redistribution rights have not been established. All real-runtime results are **BLOCKED until lawful assets and rights are supplied**. No fake skeleton, no static-PNG fallback and no pre-recorded frames.
+PR #3 is an isolated G1 technology proof, not C2 production. Uses official `@esotericsoftware/spine-pixi-v8@4.2.120`, `pixi.js@8.16.0`, pinned Vite/Playwright and Node 22. The default official candidate is **Spineboy Pro (Spine 4.2.22)**, an example with explicit *noncommercial* image rights; it cannot be used as a commercial product asset. See `assets/README.md` for pinned source URLs and legal restrictions. Neither npm installation nor a Spine Trial grants general commercial integration rights.
 
-## Windows PowerShell
+## Windows PowerShell reproduction
 
-Requires consumer Windows 11 x64, Node 22, Google Chrome/Chromium installed locally, Windows FFmpeg + FFprobe, a valid licensed 4.2 Spine export, and approved asset provenance. Runtime package pins: `@esotericsoftware/spine-pixi-v8 4.2.120`, `pixi.js 8.16.0`.
+Install Node 22, Chrome, Windows FFmpeg and FFprobe first. For official noncommercial **private evaluation**:
 
 ```powershell
 cd experiments/spine-feasibility
 npm.cmd ci
-npm.cmd run c1:test
-# Copy your authorized rig /atlas /png to public/assets and complete provenance.json
+$env:C1_OFFICIAL_SAMPLE_EVAL='1'
+$env:C1_USAGE_SCOPE='private_local_evaluation'
+$env:VITE_C1_SCOPE='private_local_evaluation'
+npm.cmd run c1:acquire-example
 npm.cmd run c1:preflight
+npm.cmd run c1:test
 npm.cmd run c1:render
 npm.cmd run c1:verify
 ```
 
-`npm.cmd run dev` can load the rig in a local test browser. The browser refuses startup without approved, SHA-matched local assets. A headless Chrome render is **NOT** accepted as consumer Windows 11 evidence. Record OS, browser, versions, license evidence, screenshots and human motion review separately.
+For another licensed 4.2 rig, provide private `public/assets/provenance.json` and SHA-matched skeleton/atlas/textures. Ensure the usage scope and legal notices match the actual permissions; do not fake license acknowledgements. The official sample is intentionally downloaded at runtime into a gitignored folder; it is not bundled. All official example screenshots/exports must accompany its noncommercial image-license notice.
 
-The official Spine 4.2 API is `Spine.from({skeleton, atlas,autoUpdate:false})`, not the 4.3 constructor API. Pixi WebGL required for full attachment operations. Actions are single-shot [start,end) at 24 FPS. The independent evaluator is order-independent, and the browser adapter applies real Spine bone rotations and derives prop position from a real hand bone. The exact rig needs mapping/calibration and a visual continuity review. Each of 240 `output/frames/000000.png...000239.png` must be an actual Pixi canvas capture. `output/` is ignored and reserved for real generated evidence.
+`npm.cmd run dev` loads the real rig using `Spine.from({skeleton, atlas, autoUpdate:false})` (4.2 API). The evaluator derives shot movement/grip from the approved actions and validates exact frozen action identity. Rendering uses actual Spine bone transforms and the hand bone for prop grip; no prerecorded footage or fallback fake rig.
 
-### Manual proof checks (mandatory)
-Verify locomotion through leg articulation/ground contact, visible arm reach, prop pickup without jump, hand-following throughout carry, correct drop position and no residual attachment. Compare sampled 0,48,97,143,239 and independently evaluated 143→0→143 before accepting pixel hashes. Check FFprobe 240 frames, 24fps, 1280×720, exactly 10s. Do not mark G1 PASS without Windows 11 consumer device proof.
+Successful G1 **requires** real 240 PNG captures at 1280×720, 24fps, deterministic frame/pixel hashes in independent contexts, 10.000s verified H264 MP4 with FFprobe frame decoding, visual review of all seven motion phases including continuous pickup/drop, AND real consumer Windows 11 evidence. GitHub `windows-latest` is Windows Server and does not prove Windows 11 compatibility.
 
-Official licenses: https://esotericsoftware.com/spine-runtimes-license and https://esotericsoftware.com/spine-editor-license. Runtime docs: https://esotericsoftware.com/spine-pixi.
-
-### What remains blocked
-The initial PR cannot produce a legal real frame or MP4 without licensed assets and runtime entitlement. A green isolated Node unit test proves only deterministic planning; it is not C1-RUNTIME-03 or G1 rendering acceptance.
+Scope excludes C2 cutover, automatic rigging (C6/C7), general C8 IK, C10 multi-shot and C11 voice. G1 cannot be marked PASS by unit tests or a green browser bundle alone. See `docs/qa/C1_SPINE_FEASIBILITY.md` for exact gate status and evidence.
