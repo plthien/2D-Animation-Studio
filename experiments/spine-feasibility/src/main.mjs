@@ -1,7 +1,8 @@
 import { Application, Assets, Graphics } from 'pixi.js';
 import { Spine } from '@esotericsoftware/spine-pixi-v8';
 import { evaluateFrame } from './frame-evaluator.mjs';
-import { ensure, finite2, validateScenario } from './validation.mjs';
+import { ensure, finite2, validateScenario, compileSchedule, sealScenario } from './validation.mjs';
+import {validateUsagePolicy} from './licensing.mjs';
 
 const safeJson = async (url) => {
   const r = await fetch(url,{cache:'no-store'});
@@ -9,10 +10,8 @@ const safeJson = async (url) => {
   return r.json();
 };
 const checkProvenance = (p) => {
-  ensure(p?.license?.operator_spine_license_verified === true &&
-    p?.license?.rig_redistribution_verified === true &&
-    p?.license?.rights_evidence &&
-    p?.license?.license_route !== 'trial', 'SPINE_LICENSE_UNVERIFIED');
+  const scope=import.meta.env.VITE_C1_SCOPE || 'private_local_evaluation';
+  validateUsagePolicy(p,scope);
   ensure(p.spine_data_version?.startsWith('4.2.'), 'SPINE_DATA_VERSION_MISMATCH');
   ensure([p.skeleton,p.atlas,p.texture].every(name=>typeof name==='string' && /^[A-Za-z0-9_.-]+$/.test(name) && name!=='..'), 'ASSET_FILENAME_UNSAFE');
   ensure(p.skeleton && p.atlas && p.texture && p.sha256?.skeleton && p.sha256?.atlas && p.sha256?.texture,
@@ -32,16 +31,19 @@ async function verifyByteHash(url,expected) {
 const main=async()=>{
   const ctx=await safeJson('/scenarios/g1-shot.json');
   validateScenario(ctx);
+  const schedule=compileSchedule(ctx);
   const p=await safeJson('/assets/provenance.json');checkProvenance(p);
   await Promise.all([
     verifyByteHash('/assets/'+p.skeleton,p.sha256.skeleton),
     verifyByteHash('/assets/'+p.atlas,p.sha256.atlas),
-    verifyByteHash('/assets/'+p.texture,p.sha256.texture)
+    verifyByteHash('/assets/'+p.texture,p.sha256.texture),
+    ...(p.license.asset_rights.route==='official_spineboy_example'?
+      [verifyByteHash('/assets/license.txt',p.license.asset_rights.notice_sha256)]:[])
   ]);
   ensure(p.spine_runtime==='4.2.120' && p.pixi_version==='8.16.0','PACKAGE_IDENTITY_MISMATCH');
   const fingerprint=await digestBuffer(new TextEncoder().encode(
     JSON.stringify({ctx,hashes:p.sha256,runtime:p.spine_runtime,pixi:p.pixi_version})));
-  ctx.fingerprint=fingerprint;
+  sealScenario(ctx,fingerprint);
   const app=new Application();
   await app.init({width:1280,height:720,background:0xd5ddc6,preference:'webgl',resolution:1,autoDensity:false});
   ensure(app.renderer.type !== undefined && app.renderer.canvas,'WEBGL_RENDERER_UNAVAILABLE');
@@ -82,10 +84,10 @@ const main=async()=>{
       : evaluated.prop.world;
     ensure(finite2(worldProp),'NONFINITE_PROP_WORLD');
     // No synthesized teleport at the two immutable ownership boundaries.
-    if (frameIndex === 114 || frameIndex === 195) {
-      const contactTarget=frameIndex===114
+    if (frameIndex === schedule.grab?.end || frameIndex === (schedule.place?.end - 1)) {
+      const contactTarget=frameIndex===schedule.grab?.end
         ? ctx.initial_world.prop
-        : ctx.spatial_anchors.find(a=>a.id==='anchor_drop');
+        : ctx.spatial_anchors.find(a=>a.id===schedule.place.target);
       const distance=Math.hypot(worldProp.x-contactTarget.x,worldProp.y-contactTarget.y);
       ensure(distance<=20,'PROP_CONTACT_DISCONTINUITY',
         'frame='+frameIndex+' distance='+Math.round(distance)+'px; align reviewed Spine rig/scale/hand offset');
