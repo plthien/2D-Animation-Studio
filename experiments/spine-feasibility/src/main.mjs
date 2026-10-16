@@ -14,6 +14,7 @@ const checkProvenance = (p) => {
     p?.license?.rights_evidence &&
     p?.license?.license_route !== 'trial', 'SPINE_LICENSE_UNVERIFIED');
   ensure(p.spine_data_version?.startsWith('4.2.'), 'SPINE_DATA_VERSION_MISMATCH');
+  ensure([p.skeleton,p.atlas,p.texture].every(name=>typeof name==='string' && /^[A-Za-z0-9_.-]+$/.test(name) && name!=='..'), 'ASSET_FILENAME_UNSAFE');
   ensure(p.skeleton && p.atlas && p.texture && p.sha256?.skeleton && p.sha256?.atlas && p.sha256?.texture,
     'APPROVED_ASSET_MANIFEST_INCOMPLETE');
   ensure(p.bones && Object.values(p.bones).every(x=>typeof x==='string'&&x), 'RIG_BONE_MAPPING_INCOMPLETE');
@@ -80,6 +81,15 @@ const main=async()=>{
       ? {x:handLocal.x+p.grip_offset.x,y:handLocal.y+p.grip_offset.y}
       : evaluated.prop.world;
     ensure(finite2(worldProp),'NONFINITE_PROP_WORLD');
+    // No synthesized teleport at the two immutable ownership boundaries.
+    if (frameIndex === 114 || frameIndex === 195) {
+      const contactTarget=frameIndex===114
+        ? ctx.initial_world.prop
+        : ctx.spatial_anchors.find(a=>a.id==='anchor_drop');
+      const distance=Math.hypot(worldProp.x-contactTarget.x,worldProp.y-contactTarget.y);
+      ensure(distance<=20,'PROP_CONTACT_DISCONTINUITY',
+        'frame='+frameIndex+' distance='+Math.round(distance)+'px; align reviewed Spine rig/scale/hand offset');
+    }
     prop.position.set(worldProp.x,worldProp.y);
     app.renderer.render({container:app.stage});
     const materialized={
