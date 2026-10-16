@@ -274,6 +274,31 @@
                 "type": "object"
               }
             ]
+          },
+          "spatial_anchors": {
+            "type": "array",
+            "maxItems": 30,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "anchor_id": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_:-]{2,127}$"
+                },
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "anchor_id",
+                "x",
+                "y"
+              ]
+            }
           }
         },
         "required": [
@@ -284,7 +309,8 @@
           "location_id",
           "utterance",
           "initial_world_state",
-          "final_world_state"
+          "final_world_state",
+          "spatial_anchors"
         ],
         "type": "object"
       },
