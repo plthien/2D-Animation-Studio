@@ -59,3 +59,35 @@ def test_unknown_database_rejected_without_clobber(tmp_path: Path):
     with pytest.raises(LegacyDatabaseUnsupported):
         guard_database("sqlite:///" + str(path).replace("\\", "/"))
     assert path.read_bytes() == before
+
+
+def test_migration_matches_every_frozen_create_sql(tmp_path: Path, monkeypatch):
+    """Every table and explicit index must match normative frozen DDL."""
+    import re
+    from app.animation.database import migrate
+    canonical_path = Path(__file__).resolve().parents[2] / "contracts/animation/animation_schema.sql"
+    normative = sqlite3.connect(":memory:")
+    try:
+        normative.executescript(canonical_path.read_text(encoding="utf-8"))
+        expected = {name: sql for name, sql in normative.execute(
+            "SELECT name,sql FROM sqlite_master WHERE type IN ('table','index') "
+            "AND name NOT LIKE 'sqlite_%' AND sql IS NOT NULL"
+        )}
+    finally:
+        normative.close()
+    url = "sqlite:///" + (tmp_path / "exact-ddl.sqlite").as_posix()
+    monkeypatch.setenv("DATABASE_URL", url)
+    migrate(url)
+    with sqlite3.connect(tmp_path / "exact-ddl.sqlite") as conn:
+        actual = {name: sql for name, sql in conn.execute(
+            "SELECT name,sql FROM sqlite_master WHERE type IN ('table','index') "
+            "AND name NOT LIKE 'sqlite_%' AND name!='alembic_version' AND sql IS NOT NULL"
+        )}
+        assert set(actual)==set(expected)
+        def normalize(sql):
+            return re.sub(r"\s+", " ", sql).strip().lower()
+        for name in expected:
+            assert normalize(expected[name])==normalize(actual[name]), name
+        for table in APPLICATION_TABLES:
+            assert conn.execute(f"PRAGMA table_info({table})").fetchall()
+            assert conn.execute(f"PRAGMA foreign_key_list({table})").fetchall() or table == "channels"
