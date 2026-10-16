@@ -30,10 +30,10 @@ jobs:
 
       - name: Record candidate SHA
         run: |
-          expected="${{ github.event.pull_request.head.sha || github.sha }}"
-          actual="$(git rev-parse HEAD)"
-          echo "CANDIDATE_SHA=$actual"
-          test "$actual" = "$expected"
+          $expected = "${{ github.event.pull_request.head.sha || github.sha }}"
+          $actual = git rev-parse HEAD
+          Write-Host "CANDIDATE_SHA=$actual"
+          if ($actual -ne $expected) { throw "Checkout SHA mismatch" }
           git status --short
 
       - name: Set up Python 3.12
@@ -151,10 +151,10 @@ jobs:
 
       - name: Record candidate SHA
         run: |
-          expected="${{ github.event.pull_request.head.sha || github.sha }}"
-          actual="$(git rev-parse HEAD)"
-          echo "CANDIDATE_SHA=$actual"
-          test "$actual" = "$expected"
+          $expected = "${{ github.event.pull_request.head.sha || github.sha }}"
+          $actual = git rev-parse HEAD
+          Write-Host "CANDIDATE_SHA=$actual"
+          if ($actual -ne $expected) { throw "Checkout SHA mismatch" }
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
