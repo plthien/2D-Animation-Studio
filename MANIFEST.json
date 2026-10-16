@@ -3224,13 +3224,13 @@
     },
     {
       "path": "src/features/channels/ChannelCardGrid.tsx",
-      "size_bytes": 4953,
-      "sha256": "e3c847958ec818775b9c2d1ad18f11e399d026ef231969d5be7657e21728d4c7"
+      "size_bytes": 2458,
+      "sha256": "493de9e0d43d7d94e25b02057b07b5e082c5d104d8e930143b8d2987a2307949"
     },
     {
       "path": "src/features/channels/ChannelDnaEditor.tsx",
-      "size_bytes": 8636,
-      "sha256": "b1164398090296b891264510f34ba70456d16b89d696df2283b2a31e9c39f1b6"
+      "size_bytes": 4233,
+      "sha256": "a307a35bfc28bf8237b54fb609700ab22f629caf28708e255b78faf5776a020a"
     },
     {
       "path": "src/features/channels/ChannelDnaNarrationFields.tsx",
@@ -3249,8 +3249,8 @@
     },
     {
       "path": "src/features/channels/CreateChannelModal.tsx",
-      "size_bytes": 8409,
-      "sha256": "462f8d467ddfb77087b9d0942642af8dafe6b45c47f00156dc40e16ba6b89f97"
+      "size_bytes": 1872,
+      "sha256": "305f2802985e42c47458d2d0458cb482f97cb8308d22a6fd8528b886594548d0"
     },
     {
       "path": "src/features/channels/LineArrayEditor.tsx",
@@ -3484,8 +3484,8 @@
     },
     {
       "path": "src/pages/ChannelsPage.tsx",
-      "size_bytes": 19785,
-      "sha256": "f049e0c39a47aaaf6bd3e85128597ec5fdeee129ee78a968b7a6f2645d652ede"
+      "size_bytes": 4498,
+      "sha256": "6d18d629861fa470ced320e5ccf8157dec3e19d94247fe202c4da64fb78bed08"
     },
     {
       "path": "src/pages/JobsPage.tsx",
