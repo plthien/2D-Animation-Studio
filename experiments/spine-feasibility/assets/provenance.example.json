@@ -7,8 +7,8 @@
   "texture": "spineboy.png",
   "scene_scale": 0.5,
   "grip_offset": {
-    "x": 14,
-    "y": 0
+    "x": 17,
+    "y": 13
   },
   "bones": {
     "root": "root",

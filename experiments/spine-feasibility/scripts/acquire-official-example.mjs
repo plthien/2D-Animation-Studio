@@ -41,7 +41,7 @@ async function main(){
     source:{repository:'EsotericSoftware/spine-runtimes',commit:rev,licenseFile:base+'license.txt'},
     spine_data_version:skeleton.skeleton.spine,spine_runtime:'4.2.120',pixi_version:'8.16.0',
     skeleton:'spineboy-ess.json',atlas:'spineboy.atlas',texture:'spineboy.png',
-    scene_scale:0.5,grip_offset:{x:14,y:0},
+    scene_scale:0.5,grip_offset:{x:17,y:13},
     bones:{root:'root',head:'head',leftUpperArm:'front-upper-arm',leftForearm:'front-bracer',
       leftHand:'front-fist',rightUpperArm:'rear-upper-arm',rightForearm:'rear-bracer',
       leftThigh:'front-thigh',rightThigh:'rear-thigh',leftShin:'front-shin',rightShin:'rear-shin'},

@@ -42,8 +42,8 @@
       "react",
       "point_at"
     ],
-    "approach_root_offset_x": -80,
-    "release_root_offset_x": -80
+    "approach_root_offset_x": -45,
+    "release_root_offset_x": -45
   },
   "actions": [
     {

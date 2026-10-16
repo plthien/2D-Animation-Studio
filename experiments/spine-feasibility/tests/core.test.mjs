@@ -130,7 +130,7 @@ test('C1 G1 approach stops before physical prop; contact persists until release'
   const lastPlace=evaluateFrame('shot_g1',195,g1);
   const released=evaluateFrame('shot_g1',196,g1);
   const afterRelease=evaluateFrame('shot_g1',220,g1);
-  assert.ok(approach.root.x <= g1.initial_world.prop.x-65);
+  assert.ok(approach.root.x <= g1.initial_world.prop.x-40);
   assert.ok(approach.handContactWeight>0.95&&approach.handContactWeight<1);
   assert.equal(preGrab.handContactWeight,1);
   assert.equal(firstCarry.handContactWeight,1);
