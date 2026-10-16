@@ -163,13 +163,13 @@ jobs:
           cache: npm
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm.cmd ci
 
       - name: Run frontend and architecture tests
-        run: npm test
+        run: npm.cmd test
 
       - name: Type-check and build frontend
-        run: npm run build
+        run: npm.cmd run build
 
   windows-render-gates:
     name: Windows Render review gates
