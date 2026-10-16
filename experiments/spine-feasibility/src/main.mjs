@@ -90,7 +90,7 @@ const main=async()=>{
         : ctx.spatial_anchors.find(a=>a.id===schedule.place.target);
       const distance=Math.hypot(worldProp.x-contactTarget.x,worldProp.y-contactTarget.y);
       ensure(distance<=20,'PROP_CONTACT_DISCONTINUITY',
-        'frame='+frameIndex+' distance='+Math.round(distance)+'px; align reviewed Spine rig/scale/hand offset');
+        'frame='+frameIndex+' hand=('+Math.round(worldProp.x)+','+Math.round(worldProp.y)+') target=('+Math.round(contactTarget.x)+','+Math.round(contactTarget.y)+') distance='+Math.round(distance)+'px; align rig contact');
     }
     prop.position.set(worldProp.x,worldProp.y);
     app.renderer.render({container:app.stage});
