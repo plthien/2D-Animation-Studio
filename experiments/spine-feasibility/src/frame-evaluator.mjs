@@ -22,14 +22,15 @@ export function evaluateFrame(shotId, frameIndex, frozenContext) {
   const phase=walking ? 2*Math.PI*(f%24)/24 : 0;
   const reach=!staticOnly?progress(f,72,96)*(1-progress(f,168,196)):0;
   const carrying=!staticOnly && f>=114 && f<196;
+  const pointing=ctx.actions.some(a=>a.kind==='point_at' && a.hand==='right' && a.start<=f && f<a.end);
   const released=!staticOnly && f>=196;
   const grippingHand=carrying?'left':null;
   const y=start.y;
   const delta={
     leftUpperArm:round(-53*reach),
     leftForearm:round(-26*reach),
-    rightUpperArm:round(walking?18*Math.sin(phase):0),
-    rightForearm:round(walking?-12*Math.sin(phase):0),
+    rightUpperArm:round(pointing?-55:(walking?18*Math.sin(phase):0)),
+    rightForearm:round(pointing?-18:(walking?-12*Math.sin(phase):0)),
     leftThigh:round(walking?27*Math.sin(phase):0),
     rightThigh:round(walking?-27*Math.sin(phase):0),
     leftShin:round(walking?Math.max(0,-36*Math.sin(phase)):0),
