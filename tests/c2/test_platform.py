@@ -159,6 +159,9 @@ def test_archive_and_validation(client):
     res=data(client.request("DELETE", f"/api/v1/channels/{ch['channel_id']}",
                   json={"expected_updated_at":ch["updated_at"]}))
     assert res["status"]=="archived"
+    repeated=data(client.request("DELETE",f"/api/v1/channels/{ch['channel_id']}",
+                    json={"expected_updated_at":ch["updated_at"]}))
+    assert repeated["status"]=="archived"
     error(client.post("/api/v1/projects",json={"channel_id":ch["channel_id"],
                       "name":"x","slug":"x"},headers={"Idempotency-Key":"x"}),409,"OWNERSHIP_CONFLICT")
 
@@ -276,3 +279,12 @@ def test_failed_publish_rolls_back_owned_file(client):
     assert not service.bounded_path(relative).exists()
     with service.reader() as con:
         assert not con.execute("SELECT 1 FROM artifacts WHERE artifact_id=?",(aid,)).fetchone()
+
+
+def test_bounded_publication_prevents_unbounded_json_work(client):
+    ch=new_channel(client)
+    relative=f"channels/{ch['channel_id']}/oversized.json"
+    with pytest.raises(service.DomainError) as got:
+        service.document_publish({"huge":"X"*1_048_576},relative,lambda *_:None)
+    assert got.value.code=="IMPORT_TOO_LARGE"
+    assert not service.bounded_path(relative).exists()

@@ -171,12 +171,15 @@ def document_publish(
     bounded_path(relative)  # recheck after directory creation
     staging = bounded_path("_staging")
     staging.mkdir(exist_ok=True)
+    serialized = canon(document)
+    if len(serialized) > 1_048_576:
+        error("IMPORT_TOO_LARGE", "C2 JSON metadata exceeds 1 MiB transaction-safe limit", 413)
     fd, scratch = tempfile.mkstemp(prefix="publish-", suffix=".tmp", dir=staging)
     scratch = Path(scratch)
     created = False
     try:
         with os.fdopen(fd, "wb") as f:
-            f.write(canon(document))
+            f.write(serialized)
             f.flush()
             os.fsync(f.fileno())
         checksum, size = filehash(scratch)
@@ -299,10 +302,10 @@ def archive_channel(cid: str, expected: str) -> dict[str, Any]:
     rel = f"channels/{cid}/archive/{rel_aid}.json"
     def transaction(con: sqlite3.Connection, digest: str, size: int):
         current = channel_row(con, cid)
-        if current["updated_at"] != expected:
-            error("STALE_HEAD", "Channel changed", current_updated_at=current["updated_at"])
         if current["status"] == "archived":
             return current
+        if current["updated_at"] != expected:
+            error("STALE_HEAD", "Channel changed", current_updated_at=current["updated_at"])
         if con.execute("SELECT 1 FROM projects WHERE channel_id=? LIMIT 1", (cid,)).fetchone():
             error("OWNERSHIP_CONFLICT", "Channel owns projects and cannot be archived")
         add_artifact(con, aid=rel_aid, channel_id=cid, project_id=None,
