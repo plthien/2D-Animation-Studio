@@ -46,21 +46,13 @@ jobs:
         run: python tools/package_manifest.py generate
 
       - name: Verify refresh scope
-        shell: bash
+        shell: pwsh
         run: |
-          changed="$(git diff --name-only)"
-          if [ -z "$changed" ]; then
-            echo "Generated release artifacts are already current."
-            exit 0
-          fi
-          unexpected="$(printf '%s\n' "$changed" | grep -v -E '^(MANIFEST\.json|contracts/openapi/youtube_ai_studio_api\.openapi\.yaml)$' || true)"
-          if [ -n "$unexpected" ]; then
-            echo "Unexpected generated changes:"
-            printf '%s\n' "$unexpected"
-            exit 1
-          fi
-          test -z "$(git status --short -- app src tests)"
-
+          $allowed = @('MANIFEST.json','contracts/openapi/youtube_ai_studio_api.openapi.yaml')
+          $changed = @(git diff --name-only)
+          $unexpected = @($changed | Where-Object { $_ -notin $allowed })
+          if ($unexpected.Count -gt 0) { throw "Unexpected generated paths" }
+          if (git status --porcelain -- app src tests) { throw "Source modified" }
       - name: Commit refreshed release artifacts
         run: |
           if git diff --quiet -- MANIFEST.json contracts/openapi/youtube_ai_studio_api.openapi.yaml; then
