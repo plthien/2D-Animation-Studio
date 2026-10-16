@@ -21,3 +21,13 @@ C0 validates only schema/contract prerequisites and does not fabricate runtime t
 ## Windows-only execution gate (future C1, not implemented)
 
 Use Windows 11 x64 on a real supported local target in addition to the Windows Server GitHub Actions runner. Pin Python 3.12, Node 22, actual Windows Chrome/Chromium, FFmpeg and FFprobe, and the official version-matched Spine/PixiJS runtime with recorded license rights. If Windows 10 x64 is declared supported, run separate compatibility evidence. Reject ambiguous/undeclared spatial targets, missing frozen initial actor/prop transforms, two hands/actors owning one prop, unsupported handoffs and compiled action-list mismatches. C0 JSON contract tests are not C1 visual/runtime evidence.
+
+## Frozen handoff from C0 (NOT_STARTED)
+
+These are **C1-only** obligations from the phase-owner register in `docs/plans/2D_ANIMATION_STUDIO_CLEAN_CUTOVER_IMPLEMENTATION_PLAN_v3.md`. They are not new C0 gates:
+
+- **C1-MOTION-01 — carrying hand occupancy:** show one real valid grab/carry sequence, one rejected overlapping reach/point by the *occupied same hand*, and one functioning opposite-hand action when the rig supports it. Capture evaluated poses/frames and a clear rejected-plan result. No new action type or runtime simulator in C0.
+- **C1-FIXTURE-02 — static/idle world-state:** reconcile the illustrative idle-only fixture so the frozen initial and final actor root and unheld prop coordinates match. At frame samples in arbitrary evaluation order, prove idle root and unattached stationary prop remain unchanged. Do not insert motion to justify previously inconsistent example coordinates.
+- **C1-RUNTIME-03 — official Spine/PixiJS proof:** version-pinned, licensed official runtime and manually reviewed rig with actual bone articulation and walk → reach → grab → carry → place. Render **240 real independent frames at 24 FPS, 1280×720**, deterministic random-access state/pixel hashes, and one inspected 10-second Windows FFmpeg MP4 with FFprobe report. Include runtime/assets hashes, visual proof and real consumer Windows 11 evidence in addition to Windows Server CI.
+
+**Status for all three:** DEFERRED / NOT_STARTED; not C0 blockers. If C1 cannot provide the actual rig, license, supported poses or verified video, C1 itself remains BLOCKED; never present C0 schema tests as C1 completion.
