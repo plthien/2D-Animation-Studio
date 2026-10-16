@@ -61,7 +61,7 @@ const main=async()=>{
     bones[key]=bone;
   }
   const bg=new Graphics().rect(0,575,1280,145).fill(0x9eaa7d);
-  const supports=new Graphics().rect(540,452,80,12).fill(0x71684e).rect(880,452,80,12).fill(0x71684e).rect(552,464,10,112).fill(0x71684e).rect(940,464,10,112).fill(0x71684e);
+  const supports=new Graphics().rect(540,452,80,12).fill(0x71684e).rect(880,474,80,12).fill(0x71684e).rect(552,464,10,112).fill(0x71684e).rect(940,486,10,90).fill(0x71684e);
   const prop=new Graphics().roundRect(-18,-18,36,36,4).fill(0xb4794a).stroke({color:0x4e3b30,width:3});
   app.stage.addChild(bg,supports,spine,prop);
   spine.scale.set(p.scene_scale);
