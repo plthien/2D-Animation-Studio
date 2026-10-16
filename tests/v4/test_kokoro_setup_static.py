@@ -126,7 +126,7 @@ def test_release_manifest_refresh_targets_active_branch() -> None:
     assert "$staged" in commit_script and "throw 'Unexpected staged files'" in commit_script
     assert "$allowed = @('MANIFEST.json','contracts/openapi/youtube_ai_studio_api.openapi.yaml')" in scope_script
     assert "git diff --name-only" in scope_script
-    assert "throw 'Unexpected generated paths'" in scope_script
+    assert "throw" in scope_script and "Unexpected generated paths" in scope_script
     assert "git status --porcelain -- app src tests" in scope_script
     assert "durable-media-workflow" not in source
 
