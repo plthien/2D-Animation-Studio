@@ -50,12 +50,18 @@ jobs:
           npx playwright install chromium
       - name: Real Chromium Channel DNA Project restart & screenshots
         run: node tools/c2_browser.mjs
+      - name: Compare ten G0 and C2 screenshots
+        run: |
+          python -m pip install Pillow==12.3.0
+          python tools/c2_g0_compare.py
       - name: Preserve Windows browser screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: c2-cockpit-screenshots
-          path: artifacts/c2/*.png
+          path: |
+            artifacts/c2/*.png
+            artifacts/c2/*.json
           if-no-files-found: warn
       - name: Python security audit (reported separately)
         continue-on-error: true

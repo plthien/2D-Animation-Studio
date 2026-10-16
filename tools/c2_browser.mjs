@@ -76,6 +76,7 @@ try {
  await capture(page,'channels');
  await page.locator('nav button').filter({hasText:'Projects'}).first().click();
  await page.getByTestId('new-project-button').click();
+ await capture(page,'project-create-modal');
  const createProject=page.getByTestId('create-project-modal');
  await createProject.locator('input').nth(0).fill('C2 Browser Pilot');
  await createProject.locator('input').nth(1).fill('c2-browser-pilot');
