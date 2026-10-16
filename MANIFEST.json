@@ -295,7 +295,7 @@
     "docs/65_DUAL_OFFICIAL_LLM_PHASE1_REPORT.md",
     "docs/67_SCENE_BREAKDOWN_VISUAL_MERGE_COMPLIANCE.md"
   ],
-  "package_file_count_excluding_manifest": 910,
+  "package_file_count_excluding_manifest": 911,
   "package_files": [
     {
       "path": ".github/workflows/c0-contract-audit.yml",
@@ -2871,6 +2871,11 @@
       "path": "docs/qa/PHASE_C0_REVIEW.md",
       "size_bytes": 20153,
       "sha256": "7a67624e41000801e635cb3ba82cc854f1877d6b252e581cbf0f4fac22e69cfd"
+    },
+    {
+      "path": "docs/qa/PHASE_C2_REVIEW.md",
+      "size_bytes": 2832,
+      "sha256": "e0b68f081f6b2bf583a14489cce77cded69f0b66c2a6770c1c3935cb489189f2"
     },
     {
       "path": "docs/qa/WINDOWS_ONLY_TEST_POLICY.md",
