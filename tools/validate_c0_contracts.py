@@ -282,23 +282,54 @@ def semantic_validate_bundle(bundle: dict[str, dict[str, Any]]) -> list[str]:
         spans.sort()
         if any(spans[i][0] < spans[i - 1][1] for i in range(1, len(spans))):
             err(f"conflicting motion channel: {key[2]}")
-    for key, events in grip_events.items():
-        events.sort(key=lambda item: (item["start_frame"], item["end_frame"], item["action_id"]))
-        held_prop: str | None = None
-        for event in events:
-            if event["action"] == "grab":
-                if held_prop is not None:
+    # C1 permits exactly one owner per prop, even across actors and hands.
+    # Ownership begins when grab completes and ends when place completes;
+    # no implicit two-hand grip, handoff or same-frame owner transfer.
+    for shot in plan["shots"]:
+        sid = shot["shot_id"]
+        owner_by_prop: dict[str, str | None] = {
+            prop["prop_id"]: prop["held_by"] for prop in shot["initial_world_state"]["props"]
+        }
+        prop_by_hand: dict[str, str] = {
+            holder: pid for pid, holder in owner_by_prop.items() if holder is not None
+        }
+        events: list[tuple[int, int, str, dict[str, Any]]] = []
+        for action in actions:
+            if action["shot_id"] != sid:
+                continue
+            if action["action"] == "grab":
+                events.append((action["end_frame"], 0, "grab", action))
+            elif action["action"] == "carry_to":
+                events.append((action["start_frame"], 2, "carry", action))
+            elif action["action"] == "place_at":
+                events.append((action["start_frame"], 2, "place_check", action))
+                events.append((action["end_frame"], 1, "place_release", action))
+        events.sort(key=lambda row: (row[0], row[1], row[3]["action_id"]))
+        touched_at_frame: set[tuple[int, str]] = set()
+        for frame, _, operation, action in events:
+            pid = action["prop_id"]
+            holder = f'{action["actor_id"]}:{action["hand"]}'
+            if operation in {"grab", "place_release"}:
+                if (frame, pid) in touched_at_frame:
+                    err("ambiguous same-frame prop transfer")
+                touched_at_frame.add((frame, pid))
+            if operation == "grab":
+                if owner_by_prop.get(pid) is not None:
+                    err("prop already owned by another hand or actor")
+                elif holder in prop_by_hand:
                     err("one prop per hand violated")
                 else:
-                    held_prop = event["prop_id"]
-            elif event["action"] == "carry_to":
-                if held_prop != event["prop_id"]:
-                    err("carry without matching grip")
-            elif event["action"] == "place_at":
-                if held_prop != event["prop_id"]:
+                    owner_by_prop[pid] = holder
+                    prop_by_hand[holder] = pid
+            elif operation in {"carry", "place_check"}:
+                if owner_by_prop.get(pid) != holder or prop_by_hand.get(holder) != pid:
+                    err("carry without matching grip" if operation == "carry" else "release without matching grip")
+            elif operation == "place_release":
+                if owner_by_prop.get(pid) != holder or prop_by_hand.get(holder) != pid:
                     err("release without matching grip")
                 else:
-                    held_prop = None
+                    owner_by_prop[pid] = None
+                    del prop_by_hand[holder]
 
     compiled=bundle["compiled_film.v1"]
     if compiled["animation_plan_artifact_id"]!=bundle["animation_plan.v1"]["artifact_id"]: err("compiled animation lineage mismatch")
