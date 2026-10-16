@@ -44,6 +44,27 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Frontend typecheck and build
         run: npm run build
+      - name: Install pinned Playwright browser tooling (test only)
+        run: |
+          npm install --no-save --package-lock=false playwright@1.57.0
+          npx playwright install chromium
+      - name: Real Chromium Channel DNA Project restart & screenshots
+        run: node tools/c2_browser.mjs
+      - name: Preserve Windows browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-cockpit-screenshots
+          path: artifacts/c2/*.png
+          if-no-files-found: warn
+      - name: Python security audit (reported separately)
+        continue-on-error: true
+        run: |
+          python -m pip install pip-audit==2.9.0
+          python -m pip_audit -r requirements.txt
+      - name: Node production dependency audit (reported separately)
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
       - name: Verify future API routes not registered
         run: |
           python -c "from app.main import app; print('C2 OpenAPI endpoints:',sum(len(v) for v in app.openapi()['paths'].values()))"
