@@ -1,10 +1,10 @@
 {
-  "spine_data_version": "4.2.0",
+  "spine_data_version": "4.2.22",
   "spine_runtime": "4.2.120",
   "pixi_version": "8.16.0",
-  "skeleton": "rig.json",
-  "atlas": "rig.atlas",
-  "texture": "rig.png",
+  "skeleton": "spineboy-pro.json",
+  "atlas": "spineboy.atlas",
+  "texture": "spineboy.png",
   "scene_scale": 0.5,
   "grip_offset": {
     "x": 0,
@@ -13,15 +13,15 @@
   "bones": {
     "root": "root",
     "head": "head",
-    "leftUpperArm": "left_upper_arm",
-    "leftForearm": "left_lower_arm",
-    "leftHand": "left_hand",
-    "rightUpperArm": "right_upper_arm",
-    "rightForearm": "right_lower_arm",
-    "leftThigh": "left_thigh",
-    "rightThigh": "right_thigh",
-    "leftShin": "left_shin",
-    "rightShin": "right_shin"
+    "leftUpperArm": "front-upper-arm",
+    "leftForearm": "front-bracer",
+    "leftHand": "front-fist",
+    "rightUpperArm": "rear-upper-arm",
+    "rightForearm": "rear-bracer",
+    "leftThigh": "front-thigh",
+    "rightThigh": "rear-thigh",
+    "leftShin": "front-shin",
+    "rightShin": "rear-shin"
   },
   "sha256": {
     "skeleton": "",
@@ -29,10 +29,19 @@
     "texture": ""
   },
   "license": {
-    "operator_spine_license_verified": false,
-    "rig_redistribution_verified": false,
-    "license_route": "UNVERIFIED",
-    "rights_evidence": "",
-    "rights_owner": ""
+    "usage_scope": "private_local_evaluation",
+    "purpose": "noncommercial_runtime_feasibility_only",
+    "runtime_rights": {
+      "route": "official_example_evaluation",
+      "evidence": "https://github.com/EsotericSoftware/spine-runtimes#licensing"
+    },
+    "asset_rights": {
+      "route": "official_spineboy_example",
+      "noncommercial_only": true,
+      "evidence": "https://github.com/EsotericSoftware/spine-runtimes/blob/4.2/examples/spineboy/license.txt",
+      "notice_file": "license.txt",
+      "notice_sha256": "",
+      "ci_redistribution_with_notice": false
+    }
   }
 }
