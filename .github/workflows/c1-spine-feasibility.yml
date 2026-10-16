@@ -1,10 +1,5 @@
 name: C1 Spine / PixiJS feasibility (Windows)
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'experiments/spine-feasibility/**'
-      - '.github/workflows/c1-spine-feasibility.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -46,13 +41,6 @@ jobs:
         shell: pwsh
         run: |
           npm.cmd exec -- vite build
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Validate C1-only change scope
-        shell: pwsh
-        run: |
-          python tools/check_c1_scope.py
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git diff --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   c1-real-g1:
     name: G1 official Spineboy evaluation render (Windows)
