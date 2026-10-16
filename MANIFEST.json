@@ -344,8 +344,8 @@
     },
     {
       "path": "alembic.ini",
-      "size_bytes": 586,
-      "sha256": "c4575348ef9a145167522e03ad524c63e58388c8a706942b2adb13d17f8a9798"
+      "size_bytes": 578,
+      "sha256": "f5fe6ef76ffaa1d6efc0caecae305cbcb2008199eaf3ed124fbd883be561b0d7"
     },
     {
       "path": "alembic/README.md",
@@ -919,8 +919,8 @@
     },
     {
       "path": "app/main.py",
-      "size_bytes": 5619,
-      "sha256": "b2f5bac12351514da3fa5c1cb4c18d58db67a474cab2dedfc90f56578896c6c9"
+      "size_bytes": 8667,
+      "sha256": "787ccfe45652e9fc944847ed127ebf818939a0116d9e66a9b603f1818477d0b2"
     },
     {
       "path": "app/modules/__init__.py",
@@ -1924,8 +1924,8 @@
     },
     {
       "path": "contracts/openapi/youtube_ai_studio_api.openapi.yaml",
-      "size_bytes": 351465,
-      "sha256": "4cd1145cf4c5821b590240573968d88b0b8d82974e3bfb15bfa69f9de213ea7c"
+      "size_bytes": 16891,
+      "sha256": "07330dcce5a6e1fae11a21c798c978d55c7a9729841f8a9854f5ed36559c93c1"
     },
     {
       "path": "contracts/prompts/platform/generate_script_and_analysis/system.md",
