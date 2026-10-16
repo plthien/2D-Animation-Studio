@@ -107,6 +107,9 @@ const main=async()=>{
     bones.leftUpperArm.rotation=neutralUpper+upper;
     bones.leftForearm.rotation=neutralForearm+forearm;
     spine.update(0);
+    // Pixi's worldTransform is only current after a render/update pass.
+    // Coordinate conversion before this pass mistakenly drops rig scale/root.
+    app.renderer.render({container:app.stage});
     const fist=handWorld();
     return {upper,forearm,error:Math.hypot(fist.x-contactGoal.x,fist.y-contactGoal.y),fist};
   }
@@ -148,6 +151,7 @@ const main=async()=>{
     const fistClosed=frameIndex>=Math.floor((grab.start+grab.end)/2)&&frameIndex<place.end;
     spine.skeleton.setAttachment('front-fist',fistClosed?'front-fist-closed':'front-fist-open');
     spine.update(0);
+    app.renderer.render({container:app.stage});
     const fist=handWorld();
     const worldProp=evaluated.prop.attachment==='spine_hand_bone'
       ? {x:fist.x+p.grip_offset.x,y:fist.y+p.grip_offset.y}
