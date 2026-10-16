@@ -553,16 +553,12 @@ def workflow(pid: str) -> dict[str, Any]:
             computed = style_fingerprint(stage, ch)
             if pr["status"] == "archived":
                 status, blockers = "blocked", ["PROJECT_ARCHIVED"]
-            elif stage != "authoring":
-                status, blockers = "blocked", [f"REQUIRES_{PHASE[stage]}"]
-            elif ch["current_dna_artifact_id"] is None:
+            elif stage == "authoring" and ch["current_dna_artifact_id"] is None:
                 status, blockers = "blocked", ["CHANNEL_DNA_NOT_APPROVED"]
-            elif head["artifact_id"] and computed != head["dependency_fingerprint"]:
-                status, blockers = "stale", ["DEPENDENCY_FINGERPRINT_CHANGED"]
-            elif head["artifact_id"]:
-                status, blockers = ("approved" if head["approval_status"] == "approved" else "draft"), []
+            elif stage == "authoring":
+                status, blockers = "blocked", ["REQUIRES_C3_AUTHORING"]
             else:
-                status, blockers = "ready", ["C3_AUTHORING_NOT_IMPLEMENTED"]
+                status, blockers = "blocked", [f"REQUIRES_{PHASE[stage]}"]
             stages.append({
                 "stage_key": stage, "approval_status": head["approval_status"],
                 "readiness": status, "head_artifact_id": head["artifact_id"],
@@ -587,9 +583,10 @@ def jobs(pid: str, limit: int, cursor: str | None) -> dict[str, Any]:
                 "next_cursor": results[limit-1]["job_id"] if len(results)>limit else None}
 
 
-def job(jid: str) -> dict[str, Any]:
+def job(jid: str, pid: str) -> dict[str, Any]:
     with reader() as con:
-        row = con.execute("SELECT * FROM jobs WHERE job_id=?", (jid,)).fetchone()
+        project_row(con, pid)
+        row = con.execute("SELECT * FROM jobs WHERE job_id=? AND project_id=?", (jid, pid)).fetchone()
         if not row:
             error("NOT_FOUND", "Job not found", 404)
         return rowdict(row)

@@ -112,7 +112,8 @@ def test_channel_dna_project_restart_and_replay(client):
     wf=data(client.get(f"/api/v1/projects/{project['project_id']}/workflow"))
     assert tuple(s["stage_key"] for s in wf["stages"])==STAGES
     assert len(wf["stages"])==7
-    assert wf["stages"][0]["readiness"]=="ready"
+    assert wf["stages"][0]["readiness"]=="blocked"
+    assert "REQUIRES_C3_AUTHORING" in wf["stages"][0]["blocker_codes"]
     for stage in wf["stages"][1:]:
         assert stage["readiness"]=="blocked" and stage["blocker_codes"]
     assert all(s["head_revision"]==0 for s in wf["stages"])
@@ -122,7 +123,7 @@ def test_channel_dna_project_restart_and_replay(client):
     assert data(client.get(f"/api/v1/projects/{project['project_id']}"))==project
     assert data(client.get("/api/v1/projects",params={"channel_id":ch["channel_id"]}))["items"]==[project]
     assert data(client.get("/api/v1/jobs",params={"project_id":project["project_id"]}))["items"]==[]
-    error(client.get("/api/v1/jobs/nonexistent"),404,"NOT_FOUND")
+    error(client.get("/api/v1/jobs/nonexistent",params={"project_id":project["project_id"]}),404,"NOT_FOUND")
     meta=data(client.get(f"/api/v1/artifacts/{candidate['artifact_id']}",params={"channel_id":ch["channel_id"]}))
     assert meta["sha256"]==candidate["sha256"]
     error(client.get(f"/api/v1/artifacts/{candidate['artifact_id']}",params={"channel_id":"ch_another"}),404,"NOT_FOUND")
@@ -143,8 +144,8 @@ def test_stale_approval_and_candidate_immutability(client):
     error(client.post(f"/api/v1/channels/{ch['channel_id']}/dna/{draft2['artifact_id']}/approve",
         json={"expected_head_revision":None,"expected_sha256":draft2["sha256"],
               "actor":"qa","reviewed_at":"2026-10-16T00:00:00Z"}),409,"STALE_HEAD")
-    assert data(client.get(f"/api/v1/artifacts/{draft2['artifact_id']}"))["approval_status"]=="draft"
-    assert data(client.get(f"/api/v1/artifacts/{draft1['artifact_id']}"))["approval_status"]=="approved"
+    assert data(client.get(f"/api/v1/artifacts/{draft2['artifact_id']}",params={"channel_id":ch["channel_id"]}))["approval_status"]=="draft"
+    assert data(client.get(f"/api/v1/artifacts/{draft1['artifact_id']}",params={"channel_id":ch["channel_id"]}))["approval_status"]=="approved"
 
 
 def test_archive_and_validation(client):
@@ -178,9 +179,10 @@ def test_preflushed_sqlalchemy_transaction_conflict(client, tmp_path):
         session.flush()
         assert session.in_transaction()
         with pytest.raises(service.DomainError) as got:
-            service.forbid_nested_session(session)
+            service.document_publish({"test":True},"transaction-owner-attempt.json",lambda *_: None,session=session)
         assert got.value.code=="TRANSACTION_OWNERSHIP_CONFLICT"
     eng.dispose()
+    assert not (service.artifact_root() / "transaction-owner-attempt.json").exists()
 
 
 def test_artifact_path_rejects_traversal_and_symlinks(client,tmp_path):
@@ -196,3 +198,81 @@ def test_artifact_path_rejects_traversal_and_symlinks(client,tmp_path):
     except (OSError,NotImplementedError):pytest.skip("Symlink privilege unavailable")
     with pytest.raises(service.DomainError):
         service.bounded_path("link/escape.json")
+
+
+def test_scope_required_for_artifact_and_job(client):
+    ch = new_channel(client)
+    candidate = publish_dna(client, ch)
+    error(client.get(f"/api/v1/artifacts/{candidate['artifact_id']}"),422,"VALIDATION_FAILED")
+    error(client.get("/api/v1/jobs/example"),422,"VALIDATION_FAILED")
+    error(client.get(f"/api/v1/artifacts/{candidate['artifact_id']}",
+                     params={"channel_id":"ch_other"}),404,"NOT_FOUND")
+
+
+def test_independent_connection_approval_cas_winner_and_loser(client):
+    from concurrent.futures import ThreadPoolExecutor
+    ch = new_channel(client)
+    first=publish_dna(client,ch,key="first")
+    second=publish_dna(client,ch,key="second")
+    def try_approve(candidate):
+        try:
+            return service.approve_dna(
+                ch["channel_id"],candidate["artifact_id"],expected_revision=None,
+                expected_sha=candidate["sha256"],actor="qa",reviewed_at="2026-10-16T00:00:00Z")
+        except service.DomainError as exc:
+            return exc.code
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results=list(executor.map(try_approve,[first,second]))
+    assert sum(isinstance(r,dict) for r in results)==1
+    assert results.count("STALE_HEAD")==1
+    head=data(client.get(f"/api/v1/channels/{ch['channel_id']}/dna"))
+    assert head["head_artifact_id"] in {first["artifact_id"],second["artifact_id"]}
+    loser_id=next(x["artifact_id"] for x in (first,second) if x["artifact_id"]!=head["head_artifact_id"])
+    loser=data(client.get(f"/api/v1/artifacts/{loser_id}",
+                          params={"channel_id":ch["channel_id"]}))
+    assert loser["approval_status"]=="draft"
+    # Both attempts' immutable draft bytes remain intact, no loser deleted winner.
+    for item in (first,second):
+        path=service.bounded_path(item["relative_artifact_handle"])
+        assert service.filehash(path)==(item["sha256"],item["byte_size"])
+
+
+def test_db_cross_channel_composite_ownership_fk(client):
+    import sqlite3
+    left = new_channel(client, name="Left",slug="left",key="left")
+    right = new_channel(client,name="Right",slug="right",key="right")
+    project=data(client.post("/api/v1/projects",json={
+        "channel_id":left["channel_id"],"name":"Foreign Key Project","slug":"fk-test"},
+        headers={"Idempotency-Key":"fk-project"}),201)
+    with pytest.raises(sqlite3.IntegrityError):
+        with service.writer() as con:
+            service.add_artifact(
+                con,aid=service.uid("ar"),channel_id=right["channel_id"],
+                project_id=project["project_id"],kind="test.ownership.v1",
+                schema="test.ownership.v1",logical="cross-channel",
+                revision=1,status="draft",checksum="0"*64,size=0,
+                relative="test/cross-channel.json",metadata={})
+    with service.reader() as con:
+        assert con.execute("PRAGMA foreign_key_check").fetchall()==[]
+        assert con.execute(
+            "SELECT COUNT(*) FROM artifacts WHERE logical_key='cross-channel'"
+        ).fetchone()[0]==0
+
+
+def test_failed_publish_rolls_back_owned_file(client):
+    ch = new_channel(client)
+    aid = service.uid("ar")
+    relative=f"channels/{ch['channel_id']}/failure/{aid}.json"
+    def callback(con, checksum, size):
+        service.add_artifact(
+            con,aid=aid,channel_id=ch["channel_id"],project_id=None,
+            kind="platform.test.v1",schema="platform.test.v1",
+            logical="rollback",revision=1,status="draft",
+            checksum=checksum,size=size,relative=relative,metadata={})
+        # Force a database constraint error after the metadata insert.
+        con.execute("INSERT INTO channels (channel_id) VALUES ('bad')")
+    with pytest.raises(Exception):
+        service.document_publish({"hello":"world"},relative,callback)
+    assert not service.bounded_path(relative).exists()
+    with service.reader() as con:
+        assert not con.execute("SELECT 1 FROM artifacts WHERE artifact_id=?",(aid,)).fetchone()

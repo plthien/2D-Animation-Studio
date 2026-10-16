@@ -25,8 +25,16 @@ async def lifespan(app: FastAPI):
             migrate()
         else:
             # Schema readiness must still be proven rather than assumed.
-            from app.animation.database import guard_database
-            guard_database()
+            from app.animation.database import guard_database, connect, APPLICATION_TABLES
+            from pathlib import Path
+            import sqlite3
+            db_path = guard_database()
+            if not db_path.is_file():
+                raise RuntimeError("NOT_READY: animation database not initialized")
+            with connect() as conn:
+                actual = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")}
+                if actual != APPLICATION_TABLES | {"alembic_version"}:
+                    raise RuntimeError("NOT_READY: animation schema differs from frozen contract")
         app.state.ready = True
     except LegacyDatabaseUnsupported as exc:
         app.state.startup_error = str(exc)
@@ -235,10 +243,10 @@ def jobs(request: Request, project_id: str, limit: Limit = 50, cursor: str | Non
 
 
 @app.get("/api/v1/jobs/{job_id}")
-def job(request: Request, job_id: str):
-    return enveloped(request, svc.job(job_id))
+def job(request: Request, job_id: str, project_id: str):
+    return enveloped(request, svc.job(job_id, project_id))
 
 
 @app.get("/api/v1/artifacts/{artifact_id}")
-def artifact(request: Request, artifact_id: str, channel_id: str | None = None):
+def artifact(request: Request, artifact_id: str, channel_id: str):
     return enveloped(request, svc.artifact(artifact_id, channel_id))
