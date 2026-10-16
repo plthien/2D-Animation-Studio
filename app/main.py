@@ -1,119 +1,244 @@
+"""Only supported 2D Animation Studio API. No legacy routes or workers."""
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+import os
+import uuid
 from contextlib import asynccontextmanager
+from typing import Any, Annotated
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, Query, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field
 
-from app.api.errors import register_exception_handlers
-from app.api.routes.artifacts import router as artifacts_router
-from app.api.routes.jobs import router as jobs_router
-from app.api.routes.settings import router as settings_router
-from app.api.routes.voice_pacing_calibration import router as voice_pacing_calibration_router
-from app.api.routes.voice_pacing_acceptance import router as voice_pacing_acceptance_router
-from app.api.routes.system import router as system_router
-from app.api.routes.platform import router as platform_router
-from app.api.routes.visual_references_canonical_v2 import router as visual_references_canonical_v2_router
-from app.api.routes.scene_breakdown_two_step import router as scene_breakdown_two_step_router
-from app.api.routes.v4 import router as v4_router
-from app.api.routes.scene_assets_v2 import router as scene_assets_v2_router
-from app.api.routes.scene_assets_workspace_v2 import router as scene_assets_workspace_v2_router
-from app.api.routes.scene_assets_section_approval_v2 import router as scene_assets_section_approval_v2_router
-from app.api.routes.visual_references_v2 import router as visual_references_v2_router
-from app.api.routes.visual_reference_publication_v2 import router as visual_reference_publication_v2_router
-from app.api.routes.production_v4 import router as production_v4_router
-from app.core.config import get_settings
-from app.core.version import APP_VERSION
-from app.db import scene_asset_working_models as _scene_asset_working_models  # noqa: F401
-from app.db import visual_reference_working_models as _visual_reference_working_models  # noqa: F401
-from app.db.migrations import upgrade_database
-from app.db.session import build_session_factory
-from app.modules.media.media_ownership_recovery import recover_media_ownership
-from app.modules.media.visual_reference_v2_recovery import recover_visual_reference_v2_media_ownership
-
-
-_LEGACY_COMBINED_SCENE_AUTHORING_ROUTES = frozenset(
-    {
-        "get_pending_scene_breakdown_prompt_v4",
-        "build_scene_breakdown_prompt_v4",
-        "validate_scene_breakdown_import_v4",
-        "import_scene_breakdown_v4",
-    }
-)
+from app.animation import service as svc
+from app.animation.database import LegacyDatabaseUnsupported, migrate
 
 
 @asynccontextmanager
-async def app_lifespan(_: FastAPI) -> AsyncIterator[None]:
-    settings = get_settings()
-    if settings.auto_apply_migrations:
-        upgrade_database(settings)
-    session_factory = build_session_factory(settings)
-    # Visual Reference V2 owns its durable workflow graph. Release provider
-    # transport slots whose exact durable owner is gone before generic media
-    # recovery examines the remaining transport records.
-    recover_visual_reference_v2_media_ownership(session_factory)
-    recover_media_ownership(session_factory, settings)
+async def lifespan(app: FastAPI):
+    app.state.ready = False
+    app.state.startup_error = None
+    try:
+        if os.environ.get("AUTO_APPLY_MIGRATIONS", "true").lower() in ("true", "1", "yes"):
+            migrate()
+        else:
+            # Schema readiness must still be proven rather than assumed.
+            from app.animation.database import guard_database
+            guard_database()
+        app.state.ready = True
+    except LegacyDatabaseUnsupported as exc:
+        app.state.startup_error = str(exc)
+        raise
     yield
 
 
-def _disable_legacy_combined_scene_authoring() -> None:
-    """Hard-cut over Scene Breakdown authoring to the two-step flow.
+app = FastAPI(title="2D Animation Studio", version="0.2.0-c2", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Content-Type", "Idempotency-Key"],
+)
 
-    Canonical Scene Breakdown read/review/approval routes remain mounted. Only
-    the superseded combined external prompt/import surface is removed from the
-    runtime and generated OpenAPI document.
-    """
-
-    v4_router.routes[:] = [
-        route
-        for route in v4_router.routes
-        if getattr(route, "name", None) not in _LEGACY_COMBINED_SCENE_AUTHORING_ROUTES
-    ]
+ALLOWED_HOSTS = {"127.0.0.1", "localhost", "testserver"}
+ALLOWED_ORIGINS = {"http://127.0.0.1:5173", "http://localhost:5173"}
 
 
-def create_app() -> FastAPI:
-    settings = get_settings()
-    app = FastAPI(title="YouTube AI Studio V3 Platform API", version=APP_VERSION, lifespan=app_lifespan)
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=list(settings.cors_allow_origins),
-        allow_origin_regex=settings.cors_allow_origin_regex,
-        allow_credentials=False,
-        allow_methods=["*"],
-        allow_headers=["*"],
+def request_id(request: Request) -> str:
+    return getattr(request.state, "request_id", "req_unknown")
+
+
+def enveloped(request: Request, data: Any, status: int = 200) -> JSONResponse:
+    return JSONResponse(
+        {"data": data, "meta": {"request_id": request_id(request), "schema_version": "api.v1"}},
+        status_code=status,
     )
 
-    register_exception_handlers(app)
-    app.include_router(system_router)
-    app.include_router(settings_router)
-    app.include_router(voice_pacing_calibration_router)
-    app.include_router(voice_pacing_acceptance_router)
-    app.include_router(jobs_router)
-    app.include_router(artifacts_router)
-    app.include_router(platform_router)
-    # Hard cutover: canonical Visual Reference paths are owned by the durable
-    # V2 runtime. Register this router before the historical V4 router because
-    # FastAPI resolves duplicate path/method combinations in registration order.
-    app.include_router(visual_references_canonical_v2_router)
-    # Scene Breakdown stays one Studio stage, but external authoring is now
-    # split into semantic Scene/Beat lock and Visual Plan authoring routes.
-    app.include_router(scene_breakdown_two_step_router)
-    _disable_legacy_combined_scene_authoring()
-    app.include_router(v4_router)
-    # Explicit V2 diagnostic/targeted-read endpoints stay available alongside
-    # canonical paths and share the same durable working-state authority.
-    app.include_router(visual_references_v2_router)
-    app.include_router(visual_reference_publication_v2_router)
-    # Scene Assets V2 runtime and workspace routers are registered before the
-    # legacy Production V4 router. FastAPI resolves overlapping path/method
-    # combinations in registration order, so all live Scene Asset execution,
-    # workspace, upload, review, cancel, and publication traffic is owned by V2.
-    app.include_router(scene_assets_workspace_v2_router)
-    app.include_router(scene_assets_section_approval_v2_router)
-    app.include_router(scene_assets_v2_router)
-    app.include_router(production_v4_router)
-    return app
+
+def err_json(request: Request, code: str, message: str,
+             status: int, details: Any | None = None) -> JSONResponse:
+    return JSONResponse(
+        {"error": {"code": code, "message": message, "details": details or {},
+                   "request_id": request_id(request)}},
+        status_code=status,
+    )
 
 
-app = create_app()
+@app.middleware("http")
+async def local_only(request: Request, next_handler):
+    request.state.request_id = "req_" + uuid.uuid4().hex
+    ip = request.client.host if request.client else ""
+    hostname = request.headers.get("host", "").split(":")[0].lower()
+    origin = request.headers.get("origin")
+    if ip not in ("127.0.0.1", "::1", "testclient") or hostname not in ALLOWED_HOSTS:
+        return err_json(request, "LOCAL_ONLY", "This service accepts loopback requests only", 403)
+    if origin is not None and origin not in ALLOWED_ORIGINS:
+        return err_json(request, "ORIGIN_REJECTED", "Origin not allowed", 403)
+    return await next_handler(request)
+
+
+@app.exception_handler(svc.DomainError)
+async def domain_error(request: Request, exc: svc.DomainError):
+    return err_json(request, exc.code, exc.message, exc.status, exc.details)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, exc: RequestValidationError):
+    return err_json(request, "VALIDATION_FAILED", "Request validation failed", 422,
+                    {"issues": [{"path": "/".join(map(str, problem.get("loc", []))),
+                                 "message": str(problem.get("msg", ""))} for problem in exc.errors()]})
+
+
+class Payload(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+
+class ChannelCreate(Payload):
+    name: str
+    slug: str
+
+
+class ChannelUpdate(Payload):
+    expected_updated_at: str
+    name: str | None = None
+    slug: str | None = None
+
+
+class Archive(Payload):
+    expected_updated_at: str
+
+
+class ProjectCreate(Payload):
+    channel_id: str
+    name: str
+    slug: str
+
+
+class DnaRevision(Payload):
+    channel_dna: dict[str, Any]
+    expected_head_revision: int | None = None
+    expected_head_artifact_id: str | None = None
+
+
+class DnaApproval(Payload):
+    expected_head_revision: int | None
+    expected_sha256: str
+    actor: str = Field(min_length=1, max_length=200)
+    reviewed_at: str = Field(min_length=1, max_length=80)
+
+
+Limit = Annotated[int, Query(ge=1, le=100)]
+Idempotency = Annotated[str, Header(alias="Idempotency-Key", min_length=1, max_length=128)]
+
+
+@app.get("/health")
+def health(request: Request):
+    if not request.app.state.ready:
+        return err_json(request, "NOT_READY", "Animation database not ready", 503)
+    return enveloped(request, {"status": "ok", "product": "2D Animation Studio"})
+
+
+@app.get("/api/v1/system")
+def system(request: Request):
+    if not request.app.state.ready:
+        return err_json(request, "NOT_READY", "Animation database not ready", 503)
+    return enveloped(request, {
+        "product": "2D Animation Studio", "api_schema_version": "api.v1",
+        "database_revision": "0001_animation_initial",
+        "stages": list(svc.STAGES), "animation_generation_ready": False,
+        "disabled_phases": ["C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12"],
+    })
+
+
+@app.get("/api/v1/channels")
+def channels(request: Request, limit: Limit = 50, cursor: str | None = None):
+    return enveloped(request, svc.list_channels(limit, cursor))
+
+
+@app.post("/api/v1/channels")
+def create_channel(request: Request, body: ChannelCreate, idem: Idempotency):
+    return enveloped(request, svc.create_channel(body.model_dump(), idem), 201)
+
+
+@app.get("/api/v1/channels/{channel_id}")
+def channel(request: Request, channel_id: str):
+    return enveloped(request, svc.get_channel(channel_id))
+
+
+@app.patch("/api/v1/channels/{channel_id}")
+def update_channel(request: Request, channel_id: str, body: ChannelUpdate):
+    return enveloped(request, svc.update_channel(
+        channel_id, body.expected_updated_at, body.model_dump(exclude_none=True)))
+
+
+@app.delete("/api/v1/channels/{channel_id}")
+def archive_channel(request: Request, channel_id: str, body: Archive):
+    return enveloped(request, svc.archive_channel(channel_id, body.expected_updated_at))
+
+
+@app.get("/api/v1/channels/{channel_id}/dna")
+def dna(request: Request, channel_id: str):
+    return enveloped(request, svc.dna_head(channel_id))
+
+
+@app.put("/api/v1/channels/{channel_id}/dna")
+def save_dna(request: Request, channel_id: str, body: DnaRevision, idem: Idempotency):
+    return enveloped(request, svc.save_dna(
+        channel_id, body.channel_dna, body.expected_head_revision,
+        body.expected_head_artifact_id, idem), 201)
+
+
+@app.post("/api/v1/channels/{channel_id}/dna/{artifact_id}/approve")
+def approve_dna(request: Request, channel_id: str, artifact_id: str, body: DnaApproval):
+    return enveloped(request, svc.approve_dna(
+        channel_id, artifact_id, expected_revision=body.expected_head_revision,
+        expected_sha=body.expected_sha256, actor=body.actor, reviewed_at=body.reviewed_at))
+
+
+@app.get("/api/v1/projects")
+def projects(request: Request, channel_id: str, limit: Limit = 50, cursor: str | None = None):
+    return enveloped(request, svc.list_projects(channel_id, limit, cursor))
+
+
+@app.post("/api/v1/projects")
+def create_project(request: Request, body: ProjectCreate, idem: Idempotency):
+    return enveloped(request, svc.create_project(body.model_dump(), idem), 201)
+
+
+@app.get("/api/v1/projects/{project_id}")
+def project(request: Request, project_id: str):
+    return enveloped(request, svc.get_project(project_id))
+
+
+@app.patch("/api/v1/projects/{project_id}")
+def update_project(request: Request, project_id: str, body: ChannelUpdate):
+    return enveloped(request, svc.update_project(
+        project_id, body.expected_updated_at, body.model_dump(exclude_none=True)))
+
+
+@app.delete("/api/v1/projects/{project_id}")
+def archive_project(request: Request, project_id: str, body: Archive):
+    return enveloped(request, svc.update_project(project_id, body.expected_updated_at, {}, archive=True))
+
+
+@app.get("/api/v1/projects/{project_id}/workflow")
+def workflow(request: Request, project_id: str):
+    return enveloped(request, svc.workflow(project_id))
+
+
+@app.get("/api/v1/jobs")
+def jobs(request: Request, project_id: str, limit: Limit = 50, cursor: str | None = None):
+    return enveloped(request, svc.jobs(project_id, limit, cursor))
+
+
+@app.get("/api/v1/jobs/{job_id}")
+def job(request: Request, job_id: str):
+    return enveloped(request, svc.job(job_id))
+
+
+@app.get("/api/v1/artifacts/{artifact_id}")
+def artifact(request: Request, artifact_id: str, channel_id: str | None = None):
+    return enveloped(request, svc.artifact(artifact_id, channel_id))
