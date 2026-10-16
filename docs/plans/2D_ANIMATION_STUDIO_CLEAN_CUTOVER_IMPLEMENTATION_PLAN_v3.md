@@ -283,9 +283,13 @@ At C6/C7 use two visually distinct real generated or user-owned images; segmenta
 
 ### C1 — Engine proof G1 (isolated technical spike)
 
+**Deferred phase-owner IDs:** C1-MOTION-01, C1-FIXTURE-02, C1-RUNTIME-03; acceptance/evidence in the phase handoff register below. C0 is not blocked by this unimplemented functionality.
+
 **Deliver** licensed `experiments/spine-feasibility/`, minimal reviewed rig and manually prepared sprites, deterministic frame evaluator, 240-frame MP4/manifest/FFprobe/screenshots, test code and QA report `docs/qa/C1_SPINE_FEASIBILITY.md`. This is not a production service, no user DB, no LLM/G-Labs cost. **Gate:** G1 pass with real articulation, otherwise stop before changing the application.
 
 ### C2 — ATOMIC CLEAN CUTOVER (the only disruptive platform PR)
+
+**Deferred phase-owner IDs:** C2-CUTOVER-01; acceptance/evidence in the phase handoff register below. C0 is not blocked by this unimplemented functionality.
 
 **Prerequisites:** C0 + C1 accepted and G1 PASS. **This phase is a single coherent PR**; avoid dozens of half-migrated intermediate PRs. It must leave the branch running as ONE animation product and drop old source code.
 
@@ -303,43 +307,86 @@ At C6/C7 use two visually distinct real generated or user-owned images; segmenta
 
 ### C3 — Native animation authoring
 
+**Deferred phase-owner IDs:** C3-AUTHORING-01; acceptance/evidence in the phase handoff register below. C0 is not blocked by this unimplemented functionality.
+
 **Reuse/adapt** neutral Topic Ideas + Script + Script Analysis/continuity authoring from YTB; new exact domain contracts; new `shot_plan.v1` builder/import/approve; reserve artifact IDs and source hash; strict duplicate-key parser and schema bundler; no old Scene/Beat authoring. UI adapt existing TopicIdeasPanel, ScriptPanel and PromptImportWorkspace, add ShotPlanPanel. **Tests:** 1 channel/2 projects, stale import, 10 MB limit, invalid quotation spans, silent shot, actor/prop references, 24..720 shot span, cross-project spoof, reject impossible world continuity. **Gate:** external Topic→Script→ShotPlan flow really works with persisted provenance; no voice required before ShotPlan.
 
 ### C4 — Deterministic asset requirements & registry
+
+**Deferred phase-owner IDs:** C4-ASSETS-01; acceptance/evidence in the phase handoff register below. C0 is not blocked by this unimplemented functionality.
 
 **Deliver** channel-scoped logical asset + immutable versions, project bindings, deterministic resolver from ShotPlan (actor/prop/location/background/views), rig-capability preflight, source fingerprint pinning. UI reuses YTB card/detail components. **Tests:** same-channel project reuse, cross-channel rejection, wrong view/style/capability, unchanged approved version pin when newer generated, unchanged results across repeat runs. **Gate:** requirements resolved without guessing assets or paying for images.
 
 ### C5 — G-Labs generation/review, real durable operations
 
+**Deferred phase-owner IDs:** C5-OPS-01; acceptance/evidence in the phase handoff register below. C0 is not blocked by this unimplemented functionality.
+
 **Reuse** GLabsWebhookClient and secure transport; adapt neutral coordinator to new operation tables, per-asset candidate/approval workflow, explicit paid submission and consent record, ambiguous submission recovery, cancellation, lease loss fencing, image format/dimension/decoded-size checks, approved immutable versions. No old Beat/Anchor execution. **Gate:** mocked failure/unknown/cancel tests, and one **explicitly approved** live provider request if available; no auto-spend, no duplicate paid submit.
 
 ### C6 — Native parts extraction + Rig Workshop; G2 begins
+
+**Deferred phase-owner IDs:** C6-C7-RIG-01 (parts); acceptance/evidence in the phase handoff register below. C0 is not blocked by this unimplemented functionality.
 
 **NEW** image decomposition, masks, missing-limb flags, transparent sprites, pivot inference, layer order, manual correction, sprite atlas, PartsManifest candidate; reuse YTB panel UX. **Tests:** two distinct real character images, occlusion/parts QA, edits persist, immutable reviewed versions, no fabricated transparent parts. **Gate:** editable accurate 14-part output; otherwise label manual-repair requirement, do not silently accept unriggable input.
 
 ### C7 — Reviewed rigging, Spine 4.2 export and capability
 
+**Deferred phase-owner IDs:** C6-C7-RIG-01 (rig); acceptance/evidence in the phase handoff register below. C0 is not blocked by this unimplemented functionality.
+
 **NEW** skeleton builder with 16 semantic roles, optional reviewed extras, 14 sprite attachments, joint constraints and five pose checks; export valid Spine 4.2 JSON/atlas, load through exact matched official runtime; saved approved rig versions channel-scoped and immutable. **Gate:** both G2 examples load and animate, stable attachment/pivots, no missing bones or incompatible atlas; report measured automatic/manual effort separately.
 
 ### C8 — Deterministic motion compiler, world state, interactions
+
+**Deferred phase-owner IDs:** C8-MOTION-01, C8-WORLD-02; acceptance/evidence in the phase handoff register below. C0 is not blocked by this unimplemented functionality.
 
 **NEW** declarative nine-action DSL; fixed frame tick, half-open action spans, deterministic gait, two-bone IK, look/reach/grab/carry/place/react, joint limits, hand ownership and prop attachment/detachment with world-coordinate invariants, collision/ground constraints. Reject unsupported actions and conflicts rather than idle fallback. **Gate:** deterministic exact per-frame action state from arbitrary seek, no prop teleport/slipping, repeatable results and robust error cases.
 
 ### C9 — External Animation Director
 
+**Deferred phase-owner IDs:** C9-DIRECTOR-01; acceptance/evidence in the phase handoff register below. C0 is not blocked by this unimplemented functionality.
+
 **NEW** prompt builder from *approved ShotPlan + approved rigs + capabilities + world bounds*, strict external `animation_plan.v1` import/revision CAS/approval; no hidden model call. **Gate:** rejects unsupported/missing actors, invalid prop ownership, frame overlap, stale rig versions and unsafe choreography; repeatable plan→compile.
 
 ### C10 — Multi-shot renderer and preview operations
+
+**Deferred phase-owner IDs:** C10-RENDER-01; acceptance/evidence in the phase handoff register below. C0 is not blocked by this unimplemented functionality.
 
 **NEW** `runtime/spine/` official runtime integration and deterministic frame-driver; background/camera, multi-actor shot isolation and multi-shot continuity, frame export, immutable render manifests, supervised Windows process tree, cancellation/retry resume with owner fencing, QC on frame count/size/SHA. FFmpeg only assembles actual rendered **Spine frames**, never synthesizes motion from still images. **Gate:** 3+ shots produce 1280x720/24fps previews with verified frame hashes and crash/restart behavior.
 
 ### C11 — Voice-LAST, sample/frame reconcile, final MP4
 
+**Deferred phase-owner IDs:** C11-VOICE-01; acceptance/evidence in the phase handoff register below. C0 is not blocked by this unimplemented functionality.
+
 **EXTRACT/ADAPT** Kokoro/ElevenLabs provider and ElevenLabs forced-alignment, calibration identity and security, not Voice-first service/control plane. After approved rendered shot timeline, synthesize voice; freeze provider/runtime/voice identity, validate final paced 48k mono PCM; align exact text; reconcile timing with maximum 48 safe terminal hold frames/shot and selective rerender. Silence allowed, no fabricated alignment for silent shots. If unschedulable return `VOICE_TIMING_UNRESOLVABLE`, not truncation. **Reuse/EXTRACT** safe FFmpeg subprocess/progress/cancel and H.264/AAC encoding, not Ken Burns/Beat filter graph. **Gate:** real audible 720p/24fps MP4, 2000 samples/frame exact canonical intermediate, source hashes, FFprobe QC, truthful provider attribution.
 
 ### C12 — Full product quality + release acceptance
 
+**Deferred phase-owner IDs:** C12-RELEASE-01; acceptance/evidence in the phase handoff register below. C0 is not blocked by this unimplemented functionality.
+
 **Real deliverables:** two distinct 30–60s animated films, each 3+ shots and real bone motion/prop actions, at least one explicitly approved real G-Labs generation where credentials/consent allow, two distinct character rigs, actual voice, shot/render manifests and final MP4. Verify cold Windows setup and restart recovery, project isolation, UI screenshots matched to G0, access/path safety, credentials redaction, paid-operation fencing and legal/licensing. Any unavailable licensed/provider gate is `BLOCKED/NOT_RUN`, never PASS. **Gate:** zero BLOCKER/HIGH, CI at exact head, human visual review and explicit user merge approval.
+
+### Deferred issue ownership register — phase handoff (C0 scope frozen)
+
+All entries are **DEFERRED / NOT_STARTED**, **not C0 blockers**. Each becomes an acceptance obligation only when its owning phase implements the relevant behavior. Historical C0 JSON-contract results are not runtime or film proof. No new phase, stage, or executable test is introduced here.
+
+| Issue ID | Owning phase | Required correction | Phase acceptance condition | Tests / evidence required | Status |
+|---|---|---|---|---|---|
+| C1-MOTION-01 | C1 | Prevent occupied carrying hand from independently reaching/pointing; allow capable opposite hand | One grip/carry success, same-hand conflict rejected, opposite-hand composition works | Actual Spine pose/frame sequence plus accepted/rejected action cases | DEFERRED / NOT_STARTED — not C0 blocker |
+| C1-FIXTURE-02 | C1 | Align idle-only proof fixture initial and final actor/prop placements | Static actor root and unheld prop do not move at any frame | Evaluate arbitrary frame indices in shuffled order and compare frozen poses | DEFERRED / NOT_STARTED — not C0 blocker |
+| C1-RUNTIME-03 | C1 | Real licensed and version-pinned Spine/PixiJS articulated G1 shot | Walk/reach/grab/carry/place; 240 frames at 24 FPS, 1280×720; valid 10s MP4 and deterministic seeks on Windows 11 | Rig/license/runtime/version hashes, pixel hashes, visual articulation, Windows FFmpeg/FFprobe | DEFERRED / NOT_STARTED — not C0 blocker |
+| C2-CUTOVER-01 | C2 | Delete YTB CI/manifest/migrations/models/Scene–Beat/voice-first/Ken Burns authority; rebuild single animation-only API/DB/launcher while preserving audited infrastructure and Cockpit | Fresh DB; no obsolete routes/workers or compatibility mode; working Windows app and G0 UI parity | Windows fresh-install/launch/API/DB/import/worker deletion tests and browser parity capture | DEFERRED / NOT_STARTED — not C0 blocker |
+| C3-AUTHORING-01 | C3 | Implement Topic→Script→ShotPlan external authoring/import/review with explicit actors/props/anchors and exact lineage | Persisted approved ShotPlan; reject unknown IDs, invented coordinates, stale artifacts | Windows import/approval/project-isolation and invalid-target tests | DEFERRED / NOT_STARTED — not C0 blocker |
+| C4-ASSETS-01 | C4 | Deterministic channel-scoped immutable asset versions, approved pins, views/style/capability checks and reuse | Same-channel reuse deterministic; cross-channel and incorrect asset matches rejected without hidden generation | Windows resolver repeatability/pinning/ownership tests | DEFERRED / NOT_STARTED — not C0 blocker |
+| C5-OPS-01 | C5 | Guard G-Labs paid attempts with consent/cost limit, fenced durable ownership, cancellation, uncertain-result reconciliation and safe provider IO | No unauthorized/duplicate payment; durable retry and candidate approval correct | Windows mocks for failure/cancel/ambiguous result; live evidence only with explicit user consent | DEFERRED / NOT_STARTED — not C0 blocker |
+| C6-C7-RIG-01 | C6 parts; C7 rig | Real decomposition into 14 reviewed transparent sprites and 16 mandatory bones, correct pivots/occlusion, manual repair, Spine export/capabilities | Two distinct images yield reviewed parts and compatible loaded rigs, honest measured manual effort | Real input images, masks/atlas/pivots, official runtime load and pose checks on Windows | DEFERRED / NOT_STARTED — not C0 blocker |
+| C8-MOTION-01 | C8 | Deterministic motion scheduler, hand/prop occupancy, reach/grab/carry/place, IK, joint/contact constraints, arbitrary seeks | Compatible poses reproducible; conflicts rejected, no unsupported silent fallback | Windows deterministic pose/grip/IK/channel conflict tests and frame evidence | DEFERRED / NOT_STARTED — not C0 blocker |
+| C8-WORLD-02 | C8 | Execute actions from frozen initial to verified final world state, preserving idle/static entities and contact/attachment | No unexplained actor motion, prop teleport, lost grip or invalid final position | Windows initial/executed/final state comparisons and arbitrary-frame regression | DEFERRED / NOT_STARTED — not C0 blocker |
+| C9-DIRECTOR-01 | C9 | Review/import immutable AnimationPlan against approved rig abilities, target IDs and shot timing | Supported choreography compiles; unsupported/stale plans fail clearly | Windows negative target/capability/ownership and lineage/approval tests | DEFERRED / NOT_STARTED — not C0 blocker |
+| C10-RENDER-01 | C10 | Deterministic multi-shot Spine frame driver, shot/frame ownership and continuity, supervised Windows render and restart/cancel | At least three articulated shots with repeatable 1280×720 at 24 FPS and correct frame hashes | Windows render manifest integrity, crash/restart/cancel plus visual frames; Remotion remains optional, never motion authority | DEFERRED / NOT_STARTED — not C0 blocker |
+| C11-VOICE-01 | C11 | Voice-last Kokoro/ElevenLabs/forced alignment after animation, 48 kHz mono PCM, 2000 samples/frame, safe holds and Windows mux | Real audible correctly synchronized MP4 without fabricated alignment or truncation | Windows provider identity, timing/alignment, FFmpeg/FFprobe and media QC evidence | DEFERRED / NOT_STARTED — not C0 blocker |
+| C12-RELEASE-01 | C12 | Real Windows 11 consumer install/recovery/UI/SQLite/security/license acceptance, Windows 10 only if advertised | Two distinct complete animated films; secure cold-start and persistent projects; zero blocker/high | Real OS install/cold-start/output/QA recordings, two final videos and compatibility report | DEFERRED / NOT_STARTED — not C0 blocker |
+
+For `C6-C7-RIG-01`, C6 owns decomposition/review and C7 owns rig export/runtime verification; neither may be reported complete from the other's evidence. For `C1-RUNTIME-03`, CI on Windows Server must be supplemented by an actual consumer Windows 11 proof. `C2-CUTOVER-01` removes transitional YTB workflows and package manifest entirely. Remotion is optional only during later assembly; it must not replace canonical motion evaluation.
 
 ## 9. Mandatory QA: CLEAN means deletion is VERIFIED
 
