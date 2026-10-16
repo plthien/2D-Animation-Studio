@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {createHash} from 'node:crypto';
 import {evaluateFrame} from '../src/frame-evaluator.mjs';
-import {validateScenario} from '../src/validation.mjs';
+import {validateScenario,sealScenario} from '../src/validation.mjs';
 const g1=JSON.parse(fs.readFileSync(new URL('../scenarios/g1-shot.json',import.meta.url),'utf8'));
 const idle=JSON.parse(fs.readFileSync(new URL('../scenarios/static-shot.json',import.meta.url),'utf8'));
-for (const ctx of [g1,idle]) ctx.fingerprint=createHash('sha256').update(JSON.stringify(ctx)).digest('hex');
+const reseal=(ctx)=>sealScenario(ctx,createHash('sha256').update(JSON.stringify({start:ctx.initial_world,actions:ctx.actions,anchors:ctx.spatial_anchors,rig:ctx.rig})).digest('hex'));
+for (const ctx of [g1,idle]) reseal(ctx);
 const clone = (x)=>structuredClone(x);
 const hash=(x)=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 test('frozen full-shot and static scenarios validate',()=>{assert.equal(validateScenario(g1),true);assert.equal(validateScenario(idle),true);});
@@ -28,7 +29,7 @@ test('C1-MOTION-01 occupied hand blocks reach/point and second grab',()=>{
   for (const kind of ['reach_for','point_at','grab']) {
     const modified=clone(g1);
     modified.actions.push({id:'bad_action',kind,start:130,end:145,hand:'left',target:kind==='point_at'?'anchor_drop':'prop_box',...(kind==='grab'?{prop:'prop_box'}:{})});
-    assert.throws(()=>validateScenario(modified),/OCCUPIED_HAND_CONFLICT|PROP_ALREADY_OWNED/);
+    assert.throws(()=>validateScenario(modified),/OCCUPIED_HAND_CONFLICT|PROP_ALREADY_OWNED|ARM_CHANNEL_CONFLICT/);
   }
   const opposite=clone(g1);
   opposite.actions.push({id:'right_point',kind:'point_at',start:130,end:145,hand:'right',target:'anchor_drop'});
@@ -58,8 +59,46 @@ test('compatible occupied-left carry plus right pointing changes right bone only
   const opposite=clone(g1);
   opposite.actions.push({id:'right_point',kind:'point_at',start:130,end:145,hand:'right',target:'anchor_drop'});
   assert.equal(validateScenario(opposite),true);
+  reseal(opposite);
   const orig=evaluateFrame('shot_g1',143,g1),newState=evaluateFrame('shot_g1',143,opposite);
   assert.notEqual(newState.bones.rightUpperArm,orig.bones.rightUpperArm);
   assert.equal(newState.bones.leftUpperArm,orig.bones.leftUpperArm);
   assert.equal(newState.prop.owner,'actor_hero:left');
+});
+
+test('F01 action removal cannot generate phantom walk or carry',()=>{
+ const noWalk=clone(g1); noWalk.actions=noWalk.actions.filter(a=>a.kind!=='walk_to');reseal(noWalk);
+ assert.equal(validateScenario(noWalk),true);
+ assert.equal(evaluateFrame('shot_g1',48,noWalk).root.x,noWalk.initial_world.actor.x);
+ const noGrab=clone(g1);noGrab.actions=noGrab.actions.filter(a=>a.kind!=='grab');
+ assert.throws(()=>validateScenario(noGrab),/GRIP_RELEASE_MISSING/);
+ const noCarry=clone(g1);noCarry.actions=noCarry.actions.filter(a=>a.kind!=='carry_to');reseal(noCarry);
+ assert.equal(validateScenario(noCarry),true);
+ assert.equal(evaluateFrame('shot_g1',143,noCarry).root.x,evaluateFrame('shot_g1',113,noCarry).root.x);
+});
+test('F01 changed approved interval shifts motion, release and identity',()=>{
+ const delayed=clone(g1);
+ delayed.actions.find(a=>a.kind==='walk_to').start=36;
+ reseal(delayed);
+ assert.equal(evaluateFrame('shot_g1',30,delayed).root.x,250);
+ assert.notEqual(evaluateFrame('shot_g1',48,delayed).root.x,evaluateFrame('shot_g1',48,g1).root.x);
+ const shifted=clone(g1);
+ shifted.actions.find(a=>a.kind==='place_at').end=208;
+ shifted.actions.find(a=>a.kind==='react').start=208;
+ reseal(shifted);
+ assert.equal(validateScenario(shifted),true);
+ assert.notEqual(evaluateFrame('shot_g1',202,shifted).prop.owner,null);
+ assert.equal(evaluateFrame('shot_g1',208,shifted).prop.owner,null);
+ const stale=clone(g1);stale.actions.find(a=>a.kind==='walk_to').end=64;
+ assert.throws(()=>evaluateFrame('shot_g1',48,stale),/FROZEN_SCENARIO_IDENTITY_MISMATCH/);
+});
+test('F02 identity and target categories are isolated',()=>{
+ const collision=clone(g1);collision.spatial_anchors.push({id:'prop_box',x:580,y:570});
+ assert.throws(()=>validateScenario(collision),/ANCHOR_ID_COLLISION_OR_INVALID/);
+ const wrong=clone(g1);wrong.actions.find(a=>a.kind==='grab').target='anchor_drop';
+ assert.throws(()=>validateScenario(wrong),/ACTION_TARGET_TYPE_INVALID/);
+ const foreign=clone(g1);foreign.actions.find(a=>a.kind==='carry_to').target='ghost_anchor';
+ assert.throws(()=>validateScenario(foreign),/ACTION_TARGET_UNKNOWN_OR_AMBIGUOUS/);
+ const nan=clone(g1);nan.spatial_anchors[0].x=Infinity;
+ assert.throws(()=>validateScenario(nan),/ANCHOR_ID_COLLISION_OR_INVALID/);
 });
