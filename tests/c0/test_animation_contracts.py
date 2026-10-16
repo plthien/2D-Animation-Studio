@@ -166,3 +166,86 @@ def test_schema_validation_rejects_python_nonfinite_coordinates(valid_bundle) ->
     parts = copy.deepcopy(valid_bundle["parts_manifest.v1"])
     parts["parts"][0]["pivot"]["x"] = float("inf")
     assert "non-finite" in " ".join(schema_errors(schemas["parts_manifest.v1"], parts))
+
+
+def _with_approved_actions(valid_bundle, actions: list[dict]) -> dict:
+    bundle = copy.deepcopy(valid_bundle)
+    bundle["animation_plan.v1"]["actions"] = actions
+    for compiled in bundle["compiled_film.v1"]["shots"]:
+        approved = [a for a in actions if a["shot_id"] == compiled["shot_id"]]
+        compiled["action_ids"] = [
+            a["action_id"] for a in sorted(approved, key=lambda a: (a["start_frame"], a["end_frame"], a["action_id"]))
+        ]
+    return bundle
+
+
+def _action(valid_bundle, kind: str, ident: str, start: int, end: int,
+            *, hand: str = "none", target: str = "prop_box", prop: str | None = None,
+            actor: str = "actor_hero") -> dict:
+    action = copy.deepcopy(valid_bundle["animation_plan.v1"]["actions"][0])
+    action.update(action_id=ident, action=kind, actor_id=actor,
+                  start_frame=start, end_frame=end, hand=hand,
+                  target_id=target, prop_id=prop)
+    return action
+
+
+def test_target_resolution_accepts_declared_and_rejects_unknown_or_incompatible(valid_bundle) -> None:
+    action = _action(valid_bundle, "walk_to", "walk", 0, 12)
+    assert semantic_validate_bundle(_with_approved_actions(valid_bundle, [action])) == []
+    unknown = copy.deepcopy(action)
+    unknown["target_id"] = "anchor_not_declared"
+    assert "action target unknown or outside frozen shot scope" in semantic_validate_bundle(
+        _with_approved_actions(valid_bundle, [unknown]))
+    incompatible = _action(valid_bundle, "grab", "grab", 0, 6,
+                           hand="left", target="anchor_drop", prop="prop_box")
+    assert "action target incompatible type" in semantic_validate_bundle(
+        _with_approved_actions(valid_bundle, [incompatible]))
+
+
+def test_frozen_initial_world_requires_exact_actor_prop_and_finite_coordinates(valid_bundle) -> None:
+    assert semantic_validate_bundle(copy.deepcopy(valid_bundle)) == []
+    for key, expected in (("actors", "initial world actor placement mismatch"),
+                          ("props", "initial world prop placement mismatch")):
+        bundle = copy.deepcopy(valid_bundle)
+        bundle["shot_plan.v1"]["shots"][0]["initial_world_state"][key].clear()
+        assert expected in semantic_validate_bundle(bundle)
+    bundle = copy.deepcopy(valid_bundle)
+    bundle["shot_plan.v1"]["shots"][0]["initial_world_state"]["props"][0]["x"] = float("nan")
+    assert "non-finite initial spatial coordinates" in semantic_validate_bundle(bundle)
+
+
+def test_global_prop_ownership_and_grip_transitions(valid_bundle) -> None:
+    grab = _action(valid_bundle, "grab", "grab", 0, 6,
+                   hand="left", prop="prop_box")
+    carry = _action(valid_bundle, "carry_to", "carry", 6, 18,
+                    hand="left", target="anchor_drop", prop="prop_box")
+    place = _action(valid_bundle, "place_at", "place", 18, 24,
+                    hand="left", target="anchor_drop", prop="prop_box")
+    assert semantic_validate_bundle(_with_approved_actions(valid_bundle, [grab, carry, place])) == []
+    other_hand = _action(valid_bundle, "grab", "grab_other", 0, 7,
+                         hand="right", prop="prop_box")
+    assert "prop already owned by another hand or actor" in semantic_validate_bundle(
+        _with_approved_actions(valid_bundle, [grab, other_hand]))
+    for orphan, reason in ((carry, "carry without matching grip"),
+                           (place, "release without matching grip")):
+        assert reason in semantic_validate_bundle(_with_approved_actions(valid_bundle, [orphan]))
+
+    two_actor = _with_approved_actions(valid_bundle, [
+        grab, _action(valid_bundle, "grab", "grab_second_actor", 0, 7,
+                      hand="right", prop="prop_box", actor="actor_friend")
+    ])
+    two_actor["shot_plan.v1"]["actor_ids"].append("actor_friend")
+    shot = two_actor["shot_plan.v1"]["shots"][0]
+    shot["actor_ids"].append("actor_friend")
+    shot["initial_world_state"]["actors"].append(
+        {"actor_id": "actor_friend", "x": -1, "y": 0, "facing": "right"})
+    assert "prop already owned by another hand or actor" in semantic_validate_bundle(two_actor)
+
+
+def test_compiled_action_list_must_equal_approved_action_ids(valid_bundle) -> None:
+    bundle = copy.deepcopy(valid_bundle)
+    assert semantic_validate_bundle(bundle) == []
+    bundle["compiled_film.v1"]["shots"][0]["action_ids"] = []
+    assert "compiled action identity/order mismatch" in semantic_validate_bundle(bundle)
+    bundle["compiled_film.v1"]["shots"][0]["action_ids"] = ["fabricated_action"]
+    assert "compiled action identity/order mismatch" in semantic_validate_bundle(bundle)
