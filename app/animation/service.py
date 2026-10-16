@@ -182,6 +182,10 @@ def document_publish(
         checksum, size = filehash(scratch)
         with writer() as con:
             result = callback(con, checksum, size)
+            # An idempotent retry may return an earlier artifact without
+            # inserting a new one. Never finalize attempt-only orphan bytes.
+            if not con.execute("SELECT 1 FROM artifacts WHERE relative_path=?", (relative,)).fetchone():
+                return result
             if filehash(scratch) != (checksum, size):
                 error("LINEAGE_MISMATCH", "Staging changed during publication", 422)
             # Each successful revision gets a UUID-named file. If a retry had
@@ -519,10 +523,12 @@ def get_project(pid: str) -> dict[str, Any]:
 def update_project(pid: str, expected: str, payload: dict[str, Any], *, archive: bool = False) -> dict[str, Any]:
     with writer() as con:
         old = project_row(con, pid)
+        if old["status"] == "archived" and archive:
+            return old
         if old["updated_at"] != expected:
             error("STALE_HEAD", "Project changed", current_updated_at=old["updated_at"])
         if old["status"] == "archived":
-            return old if archive else error("OWNERSHIP_CONFLICT", "Project archived")
+            error("OWNERSHIP_CONFLICT", "Project archived")
         n = name(payload["name"]) if payload.get("name") is not None else old["name"]
         s = slug(payload["slug"]) if payload.get("slug") is not None else old["slug"]
         try:

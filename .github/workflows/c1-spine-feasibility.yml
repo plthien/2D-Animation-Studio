@@ -2,6 +2,9 @@ name: C1 Spine / PixiJS feasibility (Windows)
 on:
   pull_request:
     branches: [main]
+    paths:
+      - 'experiments/spine-feasibility/**'
+      - '.github/workflows/c1-spine-feasibility.yml'
   workflow_dispatch:
 permissions:
   contents: read

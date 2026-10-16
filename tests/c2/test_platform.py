@@ -155,7 +155,7 @@ def test_archive_and_validation(client):
                       headers={"Idempotency-Key":"bad"}),422,"VALIDATION_FAILED")
     error(client.post("/api/v1/channels",json={"name":"x","slug":"x"},
                       headers={}),422,"VALIDATION_FAILED")
-    res=data(client.delete(f"/api/v1/channels/{ch['channel_id']}",
+    res=data(client.request("DELETE", f"/api/v1/channels/{ch['channel_id']}",
                   json={"expected_updated_at":ch["updated_at"]}))
     assert res["status"]=="archived"
     error(client.post("/api/v1/projects",json={"channel_id":ch["channel_id"],

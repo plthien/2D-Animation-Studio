@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.api.errors import AppError
+from app.animation.provider_errors import ProviderTransportError
 
 
 PROVIDER_ERROR_MAP = {
@@ -12,9 +12,9 @@ PROVIDER_ERROR_MAP = {
 }
 
 
-def normalize_provider_failure(provider_error_code: int | None, error: str | None, error_detail: str | None) -> AppError:
+def normalize_provider_failure(provider_error_code: int | None, error: str | None, error_detail: str | None) -> ProviderTransportError:
     code = PROVIDER_ERROR_MAP.get(provider_error_code or 0, "MEDIA_PROVIDER_ENVIRONMENT_ERROR")
-    return AppError(
+    return ProviderTransportError(
         code,
         "Media provider task failed.",
         502,
