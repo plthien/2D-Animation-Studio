@@ -86,6 +86,16 @@ try {
    'Missing animation stage: '+label);
  }
  await capture(page,'studio');
+ await page.locator('nav button').filter({hasText:'Projects'}).first().click();
+ await page.getByTestId('project-card-grid').getByText('C2 Browser Pilot').waitFor();
+ await capture(page,'projects');
+ for(const screen of ['Jobs','Artifacts','Settings']){
+  await page.locator('nav button').filter({hasText:screen}).first().click();
+  await page.getByRole('heading',{name:screen==='Settings'?'Animation system':screen==='Artifacts'?'Immutable artifact metadata':'Jobs'}).waitFor();
+  await capture(page,screen.toLowerCase());
+ }
+ await page.locator('nav button').filter({hasText:'Studio'}).first().click();
+ await page.getByTestId('animation-studio').waitFor();
  await page.reload({waitUntil:'networkidle'});
  await page.getByTestId('animation-studio').waitFor();
  assert((await page.getByText('C2 Browser Pilot').count())>0,'Project did not survive browser refresh');
