@@ -76,6 +76,16 @@ const main=async()=>{
       bones[key].rotation=bones[key].data.rotation+delta;
     }
     spine.update(0);
+    // The official Spineboy example equips a gun by default. This is a
+    // noncommercial prop-handling evaluation, not a gun animation.
+    // The "gun" bone is the existing forearm grip point, but the gun sprite
+    // must never obscure the test prop.
+    if (p.license.asset_rights.route==='official_spineboy_example') {
+      const gunSlot=spine.skeleton.findSlot('gun');
+      ensure(gunSlot,'OFFICIAL_SAMPLE_GUN_SLOT_MISSING');
+      gunSlot.setAttachment(null);
+      spine.update(0);
+    }
     app.renderer.render({container:app.stage});
     const handBone=bones.leftHand;
     const handLocal={x:handBone.worldX,y:handBone.worldY};
