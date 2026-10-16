@@ -129,7 +129,7 @@ const main=async()=>{
     }
   }
   ensure(fit.error<=6,'VISIBLE_FRONT_FIST_CONTACT_UNREACHABLE',
-    'real front-fist error='+fit.error.toFixed(2)+'px at approach root '+approachX);
+    'real front-fist error='+fit.error.toFixed(2)+'px at approach root '+approachX+' fist='+JSON.stringify(fit.fist)+' angles='+fit.upper+','+fit.forearm+' neutral='+JSON.stringify(measureContact(0,0).fist));
   const contactPose={upper:fit.upper,forearm:fit.forearm,error:fit.error,approachX};
   const {grab,place,reach,reaction}=schedule;
   ensure(grab&&place&&reach&&reaction,'G1_INTERACTION_ACTIONS_MISSING');
