@@ -54,14 +54,18 @@ jobs:
           if ($unexpected.Count -gt 0) { throw "Unexpected generated paths" }
           if (git status --porcelain -- app src tests) { throw "Source modified" }
       - name: Commit refreshed release artifacts
+        shell: pwsh
         run: |
-          if git diff --quiet -- MANIFEST.json contracts/openapi/youtube_ai_studio_api.openapi.yaml; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add MANIFEST.json contracts/openapi/youtube_ai_studio_api.openapi.yaml
-          unexpected="$(git diff --cached --name-only | grep -v -E '^(MANIFEST\.json|contracts/openapi/youtube_ai_studio_api\.openapi\.yaml)$' || true)"
-          test -z "$unexpected"
-          git commit -m "chore: refresh deterministic release artifacts"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          if ($env:GITHUB_REF_NAME -eq 'feat/c0-clean-cutover-contracts') { throw 'Protected C0 branch' }
+          git diff --quiet -- MANIFEST.json contracts/openapi/youtube_ai_studio_api.openapi.yaml
+          if ($LASTEXITCODE -eq 0) { exit 0 }
+          if ($LASTEXITCODE -ne 1) { exit $LASTEXITCODE }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- MANIFEST.json contracts/openapi/youtube_ai_studio_api.openapi.yaml
+          $staged = @(git diff --cached --name-only)
+          if (@($staged | Where-Object { $_ -notin @('MANIFEST.json','contracts/openapi/youtube_ai_studio_api.openapi.yaml') }).Count -gt 0) { throw 'Unexpected staged files' }
+          git commit -m 'chore: refresh deterministic release artifacts'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git push origin ('HEAD:' + $env:GITHUB_REF_NAME)
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
