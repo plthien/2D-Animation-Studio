@@ -37,7 +37,7 @@ jobs:
       - name: Test animation C2 platform
         env:
           PYTHONPATH: .
-        run: python -m pytest -q tests/c2
+        run: python -m pytest -q tests/c2 tests/c0/test_animation_contracts.py tests/c0/test_api_contract_docs.py tests/c0/test_database_contract.py tests/c0/test_g0_evidence.py
       - name: Verify exact OpenAPI and source reachability
         run: python tools/check_c2_cutover.py
       - name: Frontend dependency clean install
