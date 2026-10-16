@@ -3134,13 +3134,13 @@
     },
     {
       "path": "src/App.tsx",
-      "size_bytes": 12452,
-      "sha256": "c8b8cbdd745f73edfd5b9861b21d17ce0ce17b9172f78f57be76514a596f95b5"
+      "size_bytes": 6151,
+      "sha256": "6037ba48cd7adb457810d4778496c0c93c7c6aa0795e4da0f848b7351d384fcb"
     },
     {
       "path": "src/api/client.ts",
-      "size_bytes": 88407,
-      "sha256": "5376ca2136dc6d486a69f0e59c58f98b18b8ef7ebd406d5ccb33db957cb58821"
+      "size_bytes": 5850,
+      "sha256": "d11c806d010a14d3aa677beebaf66771085778ce83ce2ef6f995d8affaef0986"
     },
     {
       "path": "src/api/elevenLabsCredentials.ts",
@@ -3169,8 +3169,8 @@
     },
     {
       "path": "src/app/workspace.ts",
-      "size_bytes": 3756,
-      "sha256": "4d3e72f4ae3d9687737186735a517a0a2f5f55ecae4a7fc51fd823d1b5ea47a3"
+      "size_bytes": 810,
+      "sha256": "3518b0eca15988b6233a2b1d419c15446688170a4f8f5da07f4de1a7f1892dae"
     },
     {
       "path": "src/components/ui/CardGrid.tsx",
@@ -3454,8 +3454,8 @@
     },
     {
       "path": "src/layout/GlobalSidebar.tsx",
-      "size_bytes": 3629,
-      "sha256": "3cf17bbeeac295bc7c01eeb65f9712001fda2f6cf6026d9608a3e440d72a0971"
+      "size_bytes": 3638,
+      "sha256": "7a28028352a24cab484ca5ec79c408737297f62e03913dd875285950fa45b233"
     },
     {
       "path": "src/layout/PageHeader.tsx",
@@ -3464,8 +3464,8 @@
     },
     {
       "path": "src/layout/PipelineStepper.tsx",
-      "size_bytes": 4459,
-      "sha256": "fbce5af08a46e2c78fa6412b4fe5a0a3eda77b6fbd90c87e24bb4f12ae893f0e"
+      "size_bytes": 4457,
+      "sha256": "14ac96f7dd7ebab63b4c9eec297111dede014fc2fb1bf467251c1bcd15c4b858"
     },
     {
       "path": "src/lib/cx.ts",
