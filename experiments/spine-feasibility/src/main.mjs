@@ -160,7 +160,7 @@ const main=async()=>{
     const contactAt=frameIndex===reach.end-1||frameIndex===grab.end-1||
       frameIndex===grab.end||frameIndex===place.end-1;
     if(contactAt){
-      const target=frameIndex<grab.end?ctx.initial_world.prop:
+      const target=frameIndex<=grab.end?ctx.initial_world.prop:
         ctx.spatial_anchors.find(a=>a.id===place.target);
       const error=Math.hypot(fist.x+p.grip_offset.x-target.x,
         fist.y+p.grip_offset.y-target.y);
