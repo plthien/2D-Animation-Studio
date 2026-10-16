@@ -15,3 +15,9 @@ Normative authority, highest first:
 5. Executable C0 tests, which verify—but cannot silently redefine—the authorities above.
 
 Any conflict is a blocker until it is recorded and resolved in `docs/architecture/DECISION_REGISTER.md`. Only decisions marked `ACCEPTED` may be described as frozen. A change to table count, seven-stage authority, contract schema, ID semantics, or paid-operation fence requires an explicit decision entry and corresponding tests. Legacy `README.md`, `MANIFEST.json`, V3 schemas, migrations, and tests are temporary source evidence only; they are never animation-product authority.
+
+## Frozen C0 exit and deferred-issue ownership
+
+**C0 acceptance is frozen.** A finding concerning functionality owned by C1–C12 must be recorded under its owning phase in the deferred-issue register of plan v3; it is **not** a new PR #1 blocker unless it demonstrably violates an existing C0 normative contract, baseline integrity, essential security/ownership requirement, prohibited production scope, or mandatory Windows CI gate.
+
+Test each phase only after that phase implements the behavior being verified. C0 does not require real Spine/IK/multi-shot production functionality. Future-phase issues must neither be silently discarded nor used to keep C0 open indefinitely; the phase ownership, acceptance condition and required evidence in the existing v3 plan are the authoritative handoff. C1 remains NOT_STARTED. The narrowly approved C0-EXIT-01 edit of a pre-existing Windows/Bash-coupled legacy regression test is governed by `tools/check_c0_scope.py`; it does not authorize other legacy source or test changes. D-010 Windows-only policy remains binding.
