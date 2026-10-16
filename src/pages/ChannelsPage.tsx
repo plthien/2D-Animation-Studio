@@ -18,7 +18,7 @@ export function ChannelsPage({workspace,onNavigate}:{workspace:WorkspaceContext;
  const dna=useQuery({queryKey:['dna',workspace.selectedChannelId],
   queryFn:()=>apiClient.dnaHead(workspace.selectedChannelId),enabled:Boolean(workspace.selectedChannelId)});
  useEffect(()=>{setDraft(draftFromHead(dna.data??null,workspace.selectedChannel?.name??''));setCandidate(null);},
-  [workspace.selectedChannelId,dna.data?.head_artifact_id,dna.data?.channel_dna?.revision]);
+  [workspace.selectedChannelId,workspace.selectedChannel?.name,dna.data?.head_artifact_id,dna.data?.channel_dna?.revision]);
  function select(id:string){workspace.setSelectedChannelId(id);setError('');}
  async function create(){
   setBusy(true);setError('');
