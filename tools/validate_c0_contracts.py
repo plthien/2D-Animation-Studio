@@ -211,7 +211,41 @@ def semantic_validate_bundle(bundle: dict[str, dict[str, Any]]) -> list[str]:
         if action["actor_id"] not in shot["actor_ids"]: err("action actor not in shot")
         if not 0 <= action["start_frame"] < action["end_frame"] <= shot["duration_frames"]: err("action outside shot bounds")
         if action["action"] not in capabilities: err("rig capability mismatch")
-        if action["action"] in TARGET_REQUIRED and not (action["target_id"] or action["prop_id"]): err("action target required")
+        if action["action"] in TARGET_REQUIRED:
+            target_id = action["target_id"]
+            if not target_id:
+                err("action target required")
+            else:
+                matches: list[tuple[str, dict[str, Any]]] = []
+                state = shot["initial_world_state"]
+                matches += [("actor", obj) for obj in state["actors"] if obj["actor_id"] == target_id]
+                matches += [("prop", obj) for obj in state["props"] if obj["prop_id"] == target_id]
+                matches += [("anchor", obj) for obj in shot["spatial_anchors"] if obj["anchor_id"] == target_id]
+                if not matches:
+                    err("action target unknown or outside frozen shot scope")
+                elif len(matches) != 1:
+                    err("action target ambiguous")
+                else:
+                    target_type, target = matches[0]
+                    permitted = {
+                        "walk_to": {"actor", "prop", "anchor"},
+                        "look_at": {"actor", "prop", "anchor"},
+                        "reach_for": {"prop"},
+                        "grab": {"prop"},
+                        "carry_to": {"anchor"},
+                        "place_at": {"anchor"},
+                        "point_at": {"actor", "prop", "anchor"},
+                    }[action["action"]]
+                    if target_type not in permitted:
+                        err("action target incompatible type")
+                    if not all(isinstance(target.get(axis), (int, float)) and
+                               not isinstance(target.get(axis), bool) and
+                               math.isfinite(target[axis]) for axis in ("x", "y")):
+                        err("action target missing finite spatial coordinates")
+                    if action["action"] == "grab" and target_id != action["prop_id"]:
+                        err("grab target must match owned prop")
+                    if action["action"] == "reach_for" and action["prop_id"] and target_id != action["prop_id"]:
+                        err("reach target prop mismatch")
         if action["prop_id"] and action["prop_id"] not in shot["prop_ids"]: err("action prop not in shot")
         if action["action_id"] in seen_action_ids:
             err("duplicate action_id")
