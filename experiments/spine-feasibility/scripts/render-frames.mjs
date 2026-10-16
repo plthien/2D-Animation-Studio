@@ -46,6 +46,12 @@ async function freshPage(browser) {
 async function main() {
   const p=approvedAssetPreflight();
   fs.rmSync(output,{force:true,recursive:true});fs.mkdirSync(framesDir,{recursive:true});
+  if(p.license?.asset_rights?.route==='official_spineboy_example') {
+    fs.copyFileSync(path.join(root,'public','assets','license.txt'),path.join(output,'LICENSE_spineboy.txt'));
+    fs.writeFileSync(path.join(output,'ASSET_ATTRIBUTION.txt'),
+      'Noncommercial runtime evaluation example: Esoteric Software Spineboy, pinned git commit '+p.source.commit+
+      '\\nSee LICENSE_spineboy.txt. This evidence is NOT licensed for commercial reuse.\\n');
+  }
   const viteScript=path.join(root,'node_modules','vite','bin','vite.js');
   const server=spawn(process.execPath,[viteScript,'--host','127.0.0.1','--port','4271','--strictPort'],{
     cwd:root,stdio:['ignore','pipe','pipe'],windowsHide:true});
