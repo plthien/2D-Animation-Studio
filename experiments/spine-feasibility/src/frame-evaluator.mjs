@@ -6,6 +6,7 @@ const freeze=(v)=>{if (v && typeof v === 'object') {Object.values(v).forEach(fre
 export function evaluateFrame(shotId, frameIndex, frozenContext) {
   validateScenario(frozenContext);
   assertFrame(frozenContext,shotId,frameIndex);
+  ensure(/^[0-9a-f]{64}$/.test(frozenContext.fingerprint ?? ''),'FROZEN_INPUT_FINGERPRINT_MISSING');
   const ctx=frozenContext, f=frameIndex;
   const staticOnly=ctx.actions.every(a=>a.kind==='idle');
   const start=ctx.initial_world.actor;
@@ -48,7 +49,7 @@ export function evaluateFrame(shotId, frameIndex, frozenContext) {
     },
     camera:{...ctx.initial_world.camera},
     background:'flat_matte',
-    frozenInputFingerprint:ctx.fingerprint ?? 'unverified-input-fingerprint'
+    frozenInputFingerprint:ctx.fingerprint
   };
   ensure(finite2(state.root) && (!state.prop.world || finite2(state.prop.world)) &&
     Object.values(state.bones).every(Number.isFinite),'NONFINITE_FRAME_STATE');
