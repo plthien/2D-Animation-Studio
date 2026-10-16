@@ -26,7 +26,7 @@
     {
       "id": "anchor_drop",
       "x": 900,
-      "y": 455
+      "y": 438
     }
   ],
   "rig": {
@@ -43,7 +43,7 @@
       "point_at"
     ],
     "approach_root_offset_x": 24,
-    "release_root_offset_x": 17
+    "release_root_offset_x": -19
   },
   "actions": [
     {
