@@ -66,7 +66,7 @@ def approve(client, channel, candidate, expected_revision=None):
               "actor":"qa", "reviewed_at":"2026-10-16T00:00:00Z"}))
 
 
-def test_openapi_exact_19_and_no_legacy(client):
+def test_openapi_preserves_exact_19_c2_and_registers_only_implemented_c3(client):
     import json
     from pathlib import Path
     registry=json.loads((Path(__file__).resolve().parents[2]/
@@ -74,7 +74,10 @@ def test_openapi_exact_19_and_no_legacy(client):
     accepted={(row["method"],row["path"]) for row in registry if row["contract_status"]=="ACCEPTED"}
     actual={(method.upper(),path) for path,definition in app.openapi()["paths"].items()
             for method in definition if method.lower() in {"get","post","put","patch","delete"}}
-    assert len(accepted)==19
+    c2={(row["method"],row["path"]) for row in registry
+        if row["phase"]=="C2" and row["contract_status"]=="ACCEPTED"}
+    assert len(c2)==19
+    assert c2.issubset(actual)
     assert actual==accepted
     for row in registry:
         if row["contract_status"]=="PROPOSED":
