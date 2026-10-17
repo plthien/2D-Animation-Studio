@@ -445,3 +445,7 @@ def glabs_advance(request:Request,project_id:str,operation_id:str):
 @app.post("/api/v1/projects/{project_id}/generation/operations/{operation_id}/cancel")
 def glabs_cancel(request:Request,project_id:str,operation_id:str):
     return enveloped(request,glabs.cancel(project_id,operation_id),202)
+
+@app.get("/api/v1/projects/{project_id}/generation/operations")
+def glabs_operations(request:Request,project_id:str):
+    return enveloped(request,glabs.list_operations(project_id))
