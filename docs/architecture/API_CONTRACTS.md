@@ -43,3 +43,7 @@ Voice is always downstream of an approved render. It cannot invalidate ShotPlan,
 ## OpenAPI and availability
 
 C2 OpenAPI contains only the `ACCEPTED` register rows. Historical Scene/Beat/Visual Reference/Voice-first/Assembly/static-render paths are absent and have no side effects. Future `PROPOSED` rows are disabled in UI by readiness/blocker state and absent from routing; they never return fake success or generic placeholder completion.
+
+## 2026-10-17 five-phase execution ownership amendment (D-011)
+
+All **19 C2 ACCEPTED** rows and their DTO/method/path statuses stay unchanged. The **18 future PROPOSED** rows retain their drafted semantics and are remapped by work ownership only (old C3/C4/C5 → new C3; old C6/C7 → new C4; old C8/C9 → new C5; old C10/C11 → new C6; old C12 → new C7). A PROPOSED row is not a permitted runtime route until its new owner phase implements and tests it. This metadata change is not a new endpoint, new schema version or user-facing stage. See the active [v4 fast-track plan](../plans/2D_ANIMATION_STUDIO_FAST_TRACK_PLAN_v4.md). Runtime `owner_phase` projections must be synchronized at the start of C3; never change the seven stage keys.

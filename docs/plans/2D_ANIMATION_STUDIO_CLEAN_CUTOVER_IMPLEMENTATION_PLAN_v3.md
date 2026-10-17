@@ -1,5 +1,7 @@
 # 2D Animation Studio — Clean-Cutover Implementation Plan v3
 
+> **ACTIVE EXECUTION PLAN UPDATED:** [Fast-track v4 — exactly five implementation phases C3–C7](./2D_ANIMATION_STUDIO_FAST_TRACK_PLAN_v4.md). This v3 document is retained for frozen C0–C2 contracts, detailed historical C3–C12 worklists and original issue identifiers only. Future implementation-phase scheduling and PR acceptance are governed by v4, approved 2026-10-17.
+
 **2026-10-16 ACCEPTED product amendment — WINDOWS_ONLY_TEST_POLICY (D-010):** This is a Windows-only app. All active C0–C12 CI must use Windows/PowerShell; refer to `docs/qa/WINDOWS_ONLY_TEST_POLICY.md` for phase-specific testing, rather than repeating the policy here. Primary release target is Windows 11 x64; Windows 10 x64 requires separate consumer-OS evidence. `windows-latest` GitHub Actions (Windows Server) does not prove either consumer target. Prior Ubuntu runs are historical YTB evidence, not required animation gates. C1 and C12 must include actual-target evidence. C2 deletes the legacy YTB CI/workflows and replaces them with animation-only Windows gates. No C2–C12 test suite is added in C0.
 
 **Status:** REVIEWED IMPLEMENTATION BLUEPRINT — not implemented; every production gate still requires evidence.  
