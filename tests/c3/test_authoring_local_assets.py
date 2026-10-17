@@ -368,3 +368,16 @@ def test_cancel_during_ambiguous_submit_remains_cancelled(client,monkeypatch):
     after=generation.advance(pid,op["operation_id"],client=CancelThenTimeout())
     assert after["status"]=="cancelled"
     assert generation.status(pid,op["operation_id"])["status"]=="cancelled"
+
+
+def test_paid_provider_identity_change_blocks_submission(client,monkeypatch):
+    from app.animation import generation
+    pid,req,quote,op=_seed_g(client,monkeypatch,"providerchange")
+    monkeypatch.setenv("GLABS_API_KEY","different-fake-provider-identity")
+    class Forbidden:
+        def submit_image(self,payload):
+            raise AssertionError("A different provider cannot spend a frozen prior consent")
+    with pytest.raises(s.DomainError) as caught:
+        generation.advance(pid,op["operation_id"],client=Forbidden())
+    assert caught.value.code=="CONSENT_INVALID"
+    assert generation.status(pid,op["operation_id"])["status"]=="queued"
