@@ -247,3 +247,71 @@ def test_cancel_queued_and_orphan_submitted_fence(client,monkeypatch):
         con.execute("UPDATE operation_tasks SET status='submitted' WHERE operation_id=?",(op2["operation_id"],))
         con.execute("UPDATE operations SET status='running' WHERE operation_id=?",(op2["operation_id"],))
     assert generation.advance(pid2,op2["operation_id"],client=Never())["status"]=="unknown"
+
+
+def test_image_publish_failure_cleans_only_uncommitted_files(client,monkeypatch):
+    from app.animation import local_assets
+    ch=channel(client,"orphan")
+    pid=project(client,ch,"story")["project_id"]
+    png=io.BytesIO()
+    Image.new("RGB",(32,32),(10,20,30)).save(png,format="PNG")
+    original=s.add_artifact
+    def failing(con,**kwargs):
+        if kwargs["kind"]=="asset_version.v1":
+            raise RuntimeError("injected metadata transaction failure")
+        return original(con,**kwargs)
+    monkeypatch.setattr(s,"add_artifact",failing)
+    with pytest.raises(RuntimeError,match="injected"):
+        local_assets.ingest(pid,"actor","actor_one","front",png.getvalue(),"test.png")
+    with s.reader() as con:
+        assert con.execute("SELECT COUNT(*) FROM asset_versions").fetchone()[0]==0
+        assert con.execute("SELECT COUNT(*) FROM assets").fetchone()[0]==0
+        assert con.execute("SELECT COUNT(*) FROM artifacts WHERE kind='asset_source_image.v1'").fetchone()[0]==0
+    image_root=s.artifact_root()/"channels"/ch["channel_id"]
+    assert list(image_root.glob("images/**/*.*"))==[]
+    assert list(image_root.glob("asset_versions/*.json"))==[]
+
+
+def test_newer_asset_version_does_not_replace_existing_pin(client):
+    ch=channel(client,"pins")
+    pid=project(client,ch,"story")["project_id"]
+    build_story(client,pid)
+    current=ok(client.get(f"/api/v1/projects/{pid}/resolver/resolution"))
+    actor=next(x["requirement"] for x in current["requirements"] if x["requirement"]["kind"]=="actor")
+    pic=io.BytesIO()
+    Image.new("RGB",(32,32),(10,20,30)).save(pic,format="PNG")
+    versions=[]
+    for index in range(2):
+        candidate=ok(client.post(f"/api/v1/projects/{pid}/images/import",
+            files={"file":("test.png",pic.getvalue(),"image/png")},
+            data={"kind":"actor","semantic_key":"actor_one","view":"front"}),201)
+        ok(client.post(f"/api/v1/projects/{pid}/assets/{candidate['asset_version_id']}/review",
+                       json={"decision":"approved"}))
+        versions.append(candidate["asset_version_id"])
+    assert versions[0]!=versions[1]
+    ok(client.post(f"/api/v1/projects/{pid}/asset-bindings",
+        json={"requirement_id":actor["requirement_id"],"asset_version_id":versions[0],
+              "expected_fingerprint":current["requirements_fingerprint"]}))
+    persisted=ok(client.get(f"/api/v1/projects/{pid}/resolver/resolution"))
+    selected=next(x for x in persisted["requirements"] if x["requirement"]["kind"]=="actor")
+    assert selected["binding"]["asset_version_id"]==versions[0]
+    rejected=client.post(f"/api/v1/projects/{pid}/asset-bindings",
+        json={"requirement_id":actor["requirement_id"],"asset_version_id":versions[1],
+              "expected_fingerprint":current["requirements_fingerprint"]})
+    assert rejected.status_code==409
+
+
+def test_resolver_unknown_rig_capability_is_not_approved(client):
+    from app.animation.resolver import compatible
+    ch=channel(client,"capability")
+    pid=project(client,ch,"story")["project_id"]
+    build_story(client,pid)
+    state=ok(client.get(f"/api/v1/projects/{pid}/resolver/resolution"))
+    assert state["rig_capability_status"]=="pending_c4_rig_validation"
+    actor=next(x["requirement"] for x in state["requirements"] if x["requirement"]["kind"]=="actor")
+    version={"status":"approved","kind":"actor","semantic_key":"actor_one","view_key":"front",
+             "visual_style_hash":"a"*64,"capability_hash":s.sha([])}
+    assert compatible(actor,version,"a"*64)
+    assert not compatible({**actor,"required_capabilities":["grab"]},version,"a"*64)
+    assert not compatible(actor,{**version,"view_key":"left"},"a"*64)
+    assert not compatible(actor,version,"b"*64)
