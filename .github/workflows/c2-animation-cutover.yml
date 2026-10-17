@@ -22,6 +22,12 @@ on:
       - 'start.bat'
   workflow_dispatch:
 
+# Cancel only obsolete runs of the SAME event lane. Push and PR events have
+# independent identities so neither masks the other's exact-head evidence.
+concurrency:
+  group: c2-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   c2-platform:
     runs-on: windows-latest
