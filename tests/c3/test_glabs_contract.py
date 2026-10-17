@@ -48,3 +48,12 @@ def test_donor_rejects_invalid_task_and_remote_download_url():
         client.normalize_task_id("INVALID-TASK-IDENTITY")
     with pytest.raises(AppError):
         client.validate_result_url("https://malicious.example/file.png")
+
+
+def test_provider_error_diagnostics_redact_keys():
+    from app.animation.provider.redaction import sanitize_diagnostic_value
+    safe=sanitize_diagnostic_value({"Authorization":"Bearer secret",
+                                   "error":"authorization: private-token"})
+    assert safe["Authorization"]=="[REDACTED]"
+    assert "private-token" not in safe["error"]
+    assert "[REDACTED]" in safe["error"]
