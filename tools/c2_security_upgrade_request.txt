@@ -1,1 +1,2 @@
 One-time C2 security patch candidate. No PR or main writes. CI publishes upgrades only after npm audit, build, browser, G0 acceptance.
+Retry Windows candidate after line ending normalization; do not bypass build or security checks.
