@@ -51,6 +51,38 @@ def _complete(client,tag):
     return pid,state,versions
 
 
+def _complete_unpublished_resolution(client, tag):
+    """Produce real compatible approved pins without the API auto-publication side effect."""
+    ch=channel(client,tag)
+    pid=project(client,ch,"story")["project_id"]
+    build_story(client,pid)
+    starting=resolver.resolution(pid)
+    assert starting["total_count"]>0
+    versions={}
+    for entry in starting["requirements"]:
+        req=entry["requirement"]
+        version=_version(client,pid,req)
+        versions[req["requirement_id"]]=version
+        # Domain binding is authoritative; API binding would auto-publish prematurely.
+        resolver.bind(pid,req["requirement_id"],version,starting["requirements_fingerprint"])
+    current=resolver.resolution(pid)
+    assert current["total_count"]>0
+    assert current["resolved_count"]==current["total_count"], "Unpublished fixture pins incomplete"
+    assert current["requirements_fingerprint"]==starting["requirements_fingerprint"]
+    exact={entry["requirement"]["requirement_id"]:entry["binding"]["asset_version_id"]
+           for entry in current["requirements"]}
+    assert exact==versions
+    with s.reader() as con:
+        artifacts=con.execute("""SELECT COUNT(*) FROM artifacts
+            WHERE project_id=? AND kind='asset_resolution.v1'""",(pid,)).fetchone()[0]
+        assert artifacts==0, "Fixture accidentally reused/published a resolution artifact"
+        head=s.rowdict(con.execute("""SELECT * FROM project_stage_heads
+            WHERE project_id=? AND stage_key='resolver'""",(pid,)).fetchone())
+    assert head["artifact_id"] is None, "Resolver head must be unpublished"
+    assert list((s.artifact_root()/f"projects/{pid}/resolver/resolutions").glob("*.json"))==[]
+    return pid,current,versions,head,exact
+
+
 def test_h1_cancel_before_submitted_never_spends(client,monkeypatch):
     pid,_,_,op=_seed_g(client,monkeypatch,"h1before")
     oid=op["operation_id"]
@@ -206,30 +238,51 @@ def test_h2_crash_after_materialization_recovers_without_new_candidate(client,mo
 
 
 def test_m1_pin_swap_during_file_publication_rejected_atomic(client,monkeypatch):
-    pid,state,versions=_complete(client,"m1swap")
+    pid,state,versions,prior_head,original_pins=_complete_unpublished_resolution(client,"m1swap")
     req=state["requirements"][0]["requirement"]
     original=versions[req["requirement_id"]]
     replacement=_version(client,pid,req,(9,8,7))
+    assert replacement!=original
+    assert resolver.resolution(pid)["resolved_count"]==state["total_count"]
+    executed=[]
     original_publish=s.document_publish
+
     def swap_during_publish(document,relative,callback,**kwargs):
         if "/resolutions/" not in relative:
             return original_publish(document,relative,callback,**kwargs)
         def wrapped(con,digest,size):
-            # Exactly same pin COUNT. Mutation and snapshot check share writer.
-            con.execute("""UPDATE project_asset_bindings SET asset_version_id=?
-              WHERE project_id=? AND usage_key=?""",(replacement,pid,req["requirement_id"]))
+            executed.append("new-resolution-publication")
+            # Mutate the existing asset's version under the SAME writer transaction.
+            changed=con.execute("""UPDATE project_asset_bindings SET asset_version_id=?
+                WHERE project_id=? AND usage_key=?""",
+                (replacement,pid,req["requirement_id"]))
+            assert changed.rowcount==1
+            rows=con.execute("""SELECT usage_key,asset_version_id FROM project_asset_bindings
+                WHERE project_id=?""",(pid,)).fetchall()
+            mutated={row["usage_key"]:row["asset_version_id"] for row in rows}
+            assert len(mutated)==state["total_count"]  # same count, different identities
+            assert mutated[req["requirement_id"]]==replacement
             return callback(con,digest,size)
         return original_publish(document,relative,wrapped,**kwargs)
+
     monkeypatch.setattr(s,"document_publish",swap_during_publish)
     with pytest.raises(s.DomainError) as err:
         resolver.publish_resolution(pid)
+    assert executed==["new-resolution-publication"], "M1 fixture did not exercise new-publication callback"
     assert err.value.code=="STALE_HEAD"
     with s.reader() as con:
         assert con.execute("""SELECT COUNT(*) FROM artifacts
-                    WHERE project_id=? AND kind='asset_resolution.v1'""",(pid,)).fetchone()[0]==0
-        pin=con.execute("""SELECT asset_version_id FROM project_asset_bindings
-            WHERE project_id=? AND usage_key=?""",(pid,req["requirement_id"])).fetchone()[0]
-        assert pin==original
+            WHERE project_id=? AND kind='asset_resolution.v1'
+            AND approval_status='approved'""",(pid,)).fetchone()[0]==0
+        rows=con.execute("""SELECT usage_key,asset_version_id FROM project_asset_bindings
+            WHERE project_id=?""",(pid,)).fetchall()
+        committed={row["usage_key"]:row["asset_version_id"] for row in rows}
+        head=s.rowdict(con.execute("""SELECT * FROM project_stage_heads
+            WHERE project_id=? AND stage_key='resolver'""",(pid,)).fetchone())
+    assert committed==original_pins, "Injected pin swap must roll back atomically"
+    assert head==prior_head, "Rejected publication must not advance resolver head"
+    assert list((s.artifact_root()/f"projects/{pid}/resolver/resolutions").glob("*.json"))==[]
+
 
 
 def test_h4_restore_A_B_A_reuses_artifact_and_activates_monotonic_head(client):
@@ -345,26 +398,41 @@ def test_h2_crash_after_image_download_recovers_by_get_only(client,monkeypatch):
 
 
 def test_m1_approval_changes_during_resolution_publication(client,monkeypatch):
-    pid,state,versions=_complete(client,"m1approval")
+    pid,state,versions,prior_head,original_pins=_complete_unpublished_resolution(client,"m1approval")
     chosen=next(iter(versions.values()))
+    executed=[]
     original_publish=s.document_publish
     def invalidate(document,relative,callback,**kwargs):
         if "/resolutions/" not in relative:
             return original_publish(document,relative,callback,**kwargs)
         def wrapped(con,digest,size):
-            con.execute("UPDATE asset_versions SET status='rejected' WHERE asset_version_id=?",
-                        (chosen,))
+            executed.append("new-resolution-publication")
+            changed=con.execute("""UPDATE asset_versions SET status='rejected'
+                WHERE asset_version_id=? AND status='approved'""",(chosen,))
+            assert changed.rowcount==1
+            assert con.execute("SELECT status FROM asset_versions WHERE asset_version_id=?",
+                               (chosen,)).fetchone()[0]=="rejected"
             return callback(con,digest,size)
         return original_publish(document,relative,wrapped,**kwargs)
     monkeypatch.setattr(s,"document_publish",invalidate)
     with pytest.raises(s.DomainError) as exc:
         resolver.publish_resolution(pid)
+    assert executed==["new-resolution-publication"], "M1 fixture bypassed new-publication callback"
     assert exc.value.code=="STALE_HEAD"
     with s.reader() as con:
         assert con.execute("SELECT status FROM asset_versions WHERE asset_version_id=?",
                            (chosen,)).fetchone()[0]=="approved"
-        assert con.execute("SELECT COUNT(*) FROM artifacts WHERE project_id=? AND kind='asset_resolution.v1'",
+        assert con.execute("""SELECT COUNT(*) FROM artifacts WHERE project_id=?
+            AND kind='asset_resolution.v1' AND approval_status='approved'""",
                            (pid,)).fetchone()[0]==0
+        rows=con.execute("""SELECT usage_key,asset_version_id FROM project_asset_bindings
+            WHERE project_id=?""",(pid,)).fetchall()
+        head=s.rowdict(con.execute("""SELECT * FROM project_stage_heads
+            WHERE project_id=? AND stage_key='resolver'""",(pid,)).fetchone())
+    assert {x["usage_key"]:x["asset_version_id"] for x in rows}==original_pins
+    assert head==prior_head
+    assert list((s.artifact_root()/f"projects/{pid}/resolver/resolutions").glob("*.json"))==[]
+
 
 
 def test_h3_stale_optional_analysis_excluded_from_copy_prompt(client):
