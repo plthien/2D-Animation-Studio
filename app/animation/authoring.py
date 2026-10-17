@@ -212,17 +212,63 @@ def prompt(pid: str, kind: str) -> dict:
         dna_ref = s.artifact_view(dna)
     prior_json = verified_doc(prior) if prior else None
     dna_json = verified_doc(dna)
-    return {"reservation_id": res_id, "reserved_artifact_id": reserved, "revision": revision,
-            "expires_at": expiry, "source_fingerprint": fingerprint, "schema": SCHEMAS[kind],
-            "source": prior_json, "channel_dna": dna_json,
-            "instructions": ("Return ONLY valid JSON matching the attached schema and assigned server identities. "
-                             "Use the exact project, channel, artifact, revision and current timestamp. "
-                             "Preserve existing IDs, referenced artifact hashes, quotes and world states. "
-                             "No hidden LLM call occurs in this application."),
-            "reserved_fields": {"schema_version": KINDS[kind], "artifact_id": reserved,
-                                "project_id": pid, "channel_id": pr["channel_id"],
-                                "revision": revision, "created_at": t},
-            "source_metadata": source_ref, "dna_metadata": dna_ref, "source_inputs": inputs}
+    analysis_ref = None
+    analysis_doc = None
+    if kind == "shot-plan" and inputs.get("analysis_id"):
+        with s.reader() as con:
+            analysis = con.execute(
+                """SELECT * FROM artifacts WHERE artifact_id=? AND project_id=?
+                   AND kind='script_analysis.v1' AND approval_status='approved'""",
+                (inputs["analysis_id"], pid),
+            ).fetchone()
+            if analysis and analysis["sha256"] == inputs["analysis_sha256"]:
+                analysis_ref = s.artifact_view(analysis)
+                analysis_doc = verified_doc(analysis)
+    reserved_fields = {"schema_version": KINDS[kind], "artifact_id": reserved,
+                       "project_id": pid, "channel_id": pr["channel_id"],
+                       "revision": revision, "created_at": t}
+    package = {
+        "reservation_id": res_id,
+        "source_fingerprint": fingerprint,
+        "reserved_fields": reserved_fields,
+        "source_inputs": inputs,
+        "source_metadata": source_ref,
+        "dna_metadata": dna_ref,
+        "source": prior_json,
+        "channel_dna": dna_json,
+        "analysis_metadata": analysis_ref,
+        "analysis": analysis_doc,
+        "schema": SCHEMAS[kind],
+    }
+    guidance = {
+        "topic-ideas": "Include channel_dna_artifact_id and channel_dna_hash exactly as supplied in dna_metadata.artifact_id and dna_metadata.sha256.",
+        "script": "Choose a selected_idea_id present in approved source. Set topic_ideas_artifact_id to source_metadata.artifact_id; preserve IDs.",
+        "script-analysis": "Reference source_metadata.artifact_id as script_artifact_id. Identify actors, props, locations and continuity without inventing source identity.",
+        "shot-plan": ("Set script_artifact_id and script_sha256 from source_metadata.artifact_id/sha256. "
+                      "Every utterance must match exact half-open character spans in source.full_text; silent shots use null utterance. "
+                      "Use 1..30 shots, 24..720 frames each, no more than 2 actors and 3 props per shot. "
+                      "Declare actor/prop/location IDs, consistent participant world states and spatial anchors. "
+                      "Preserve world-state continuity and source/analysis identity; do not invent source SHA values."),
+    }
+    instructions = (
+        "Return ONLY valid JSON conforming to schema, with reserved_fields copied exactly. "
+        "Do not recalculate any ID, SHA, timestamp, reservation identity, source reference or revision. "
+        "These are authoritative backend data, not suggestions. External authoring only; no hidden LLM calls. "
+        + guidance[kind]
+    )
+    prompt_text = (instructions + "\n\n=== BEGIN AUTHORING PACKAGE JSON ===\n"
+                   + json.dumps(package, sort_keys=True, ensure_ascii=False, indent=2)
+                   + "\n=== END AUTHORING PACKAGE JSON ===")
+    return {
+        "reservation_id": res_id, "reserved_artifact_id": reserved,
+        "revision": revision, "expires_at": expiry, "source_fingerprint": fingerprint,
+        "instructions": instructions, "prompt_text": prompt_text,
+        "reserved_fields": reserved_fields, "source_metadata": source_ref,
+        "dna_metadata": dna_ref, "source_inputs": inputs,
+        "source": prior_json, "channel_dna": dna_json,
+        "analysis_metadata": analysis_ref, "analysis": analysis_doc,
+        "schema": SCHEMAS[kind],
+    }
 
 
 def import_revision(pid: str, kind: str, reservation_id: str, document: dict) -> dict:
