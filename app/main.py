@@ -6,15 +6,17 @@ import uuid
 from contextlib import asynccontextmanager
 from typing import Any, Annotated
 
-from fastapi import FastAPI, Header, Query, Request
+from fastapi import FastAPI, Header, Query, Request, UploadFile, File, Form
 from fastapi.routing import APIRoute
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.animation import service as svc
 from app.animation import authoring as auth
+from app.animation import resolver as assets
+from app.animation import local_assets as localimages
 from app.animation.strict_json import parse_strict_document
 from app.animation.database import LegacyDatabaseUnsupported, migrate
 
@@ -60,6 +62,8 @@ class StrictC2JSONRoute(APIRoute):
         handler = super().get_route_handler()
 
         async def validated(request: Request):
+            if request.url.path.endswith("/images/import") and request.method=="POST":
+                return await handler(request)
             if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
                 media = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
                 if media != "application/json":
@@ -341,3 +345,56 @@ def authoring_history(request: Request, project_id: str, artifact_kind: str, lim
 @app.get("/api/v1/projects/{project_id}/authoring/revisions/{artifact_id}")
 def authoring_document(request: Request, project_id: str, artifact_id: str):
     return enveloped(request, auth.document(project_id, artifact_id))
+
+
+# C3 Resolver / local image production. Upload is multipart and explicitly bounded.
+class AssetBind(Payload):
+    requirement_id: str
+    asset_version_id: str
+    expected_fingerprint: str
+
+class AssetUnbind(Payload):
+    expected_fingerprint: str
+
+class ReviewAsset(Payload):
+    decision: str
+
+@app.get("/api/v1/projects/{project_id}/resolver/requirements")
+def resolver_requirements(request:Request,project_id:str):
+    return enveloped(request, assets.requirements(project_id))
+
+@app.get("/api/v1/projects/{project_id}/resolver/resolution")
+def resolver_resolution(request:Request,project_id:str):
+    return enveloped(request, assets.resolution(project_id))
+
+@app.get("/api/v1/channels/{channel_id}/assets")
+def list_asset_versions(request:Request,channel_id:str,limit:Limit=50):
+    return enveloped(request,assets.versions(channel_id,limit))
+
+@app.get("/api/v1/projects/{project_id}/asset-bindings")
+def list_project_bindings(request:Request,project_id:str):
+    return enveloped(request,{"items":assets.bindings(project_id),"next_cursor":None})
+
+@app.post("/api/v1/projects/{project_id}/asset-bindings")
+def bind_asset(request:Request,project_id:str,body:AssetBind):
+    return enveloped(request,assets.bind(project_id,body.requirement_id,
+                                         body.asset_version_id,body.expected_fingerprint))
+
+@app.delete("/api/v1/projects/{project_id}/asset-bindings/{binding_id}")
+def unbind_asset(request:Request,project_id:str,binding_id:str,body:AssetUnbind):
+    return enveloped(request,assets.unbind(project_id,binding_id,body.expected_fingerprint))
+
+@app.post("/api/v1/projects/{project_id}/images/import")
+async def import_local_image(request:Request,project_id:str,
+        file:UploadFile=File(...),kind:str=Form(...),semantic_key:str=Form(...),view:str=Form(...)):
+    body=await file.read(localimages.MAX_BYTES+1)
+    return enveloped(request,localimages.ingest(project_id,kind,semantic_key,view,body,file.filename or "image"),201)
+
+@app.post("/api/v1/projects/{project_id}/assets/{version_id}/review")
+def review_local_image(request:Request,project_id:str,version_id:str,body:ReviewAsset):
+    return enveloped(request,localimages.review(project_id,version_id,body.decision))
+
+@app.get("/api/v1/projects/{project_id}/assets/{version_id}/image")
+def local_image_preview(request:Request,project_id:str,version_id:str):
+    path,mime=localimages.read_image(project_id,version_id)
+    return FileResponse(path,media_type=mime)
