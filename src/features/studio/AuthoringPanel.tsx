@@ -67,6 +67,7 @@ export function AuthoringPanel({projectId,headRevision,onCommitted}:{projectId:s
     try{await navigator.clipboard.writeText(pkg.prompt_text);setCopyResult('Complete prompt copied');}
     catch{setCopyResult('Clipboard write failed. Check browser permissions and try again.');}
    })()}>Copy complete prompt</button>
+   {copyResult&&<p role="status" className="text-xs text-slate-300">{copyResult}</p>}
   </div>}
   <label className="block text-sm text-slate-300">External JSON response
    <textarea value={json} onChange={e=>{setJson(e.target.value);setReport(null);}} rows={12}
