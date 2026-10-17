@@ -318,6 +318,11 @@ def advance(pid,oid,client=None):
                 if submit:_submit_unknown(pid,oid)
                 s.error(exc.code,exc.message,exc.status)
         if submit:
+            with s.reader() as con:
+                current=con.execute("SELECT status,lease_token FROM operations WHERE operation_id=? AND project_id=?",
+                                    (oid,pid)).fetchone()
+                if not current or current["status"]!="running" or current["lease_token"]!=token:
+                    return status(pid,oid)
             try:
                 p=quote["payload"]
                 provider_prompt=p["prompt"].strip()
