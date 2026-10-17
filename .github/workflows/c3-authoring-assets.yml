@@ -6,6 +6,9 @@ on:
     paths:
       - 'app/animation/**'
       - 'app/main.py'
+      - 'tools/**'
+      - 'contracts/animation/api/**'
+      - 'docs/qa/**'
       - 'src/**'
       - 'tests/c3/**'
       - 'requirements.txt'
@@ -45,5 +48,20 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Frontend typecheck build
         run: npm run build
+      - name: Registered C3 API / immutable C2 core checker
+        run: python tools/check_c2_cutover.py
+      - name: Install Chromium tooling
+        run: |
+          npm install --no-save --package-lock=false playwright@1.57.0
+          npx playwright install chromium
+      - name: Real C3 Chromium Studio -> backend -> SQLite -> restart smoke
+        run: node tools/c3_browser.mjs
+      - name: C3 screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-browser-evidence
+          path: artifacts/c3/*.png
+          if-no-files-found: warn
       - name: Note Windows test scope
         run: Write-Host "Hosted Windows runner != owner Windows 11 consumer acceptance"
