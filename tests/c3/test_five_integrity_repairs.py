@@ -299,3 +299,94 @@ def test_h3_authoritative_copied_prompt_holds_source_and_analysis(client):
     assert copied["analysis_metadata"]["artifact_id"]==analysis["artifact_id"]
     assert copied["reserved_fields"]==shot["reserved_fields"]
     assert copied["source_metadata"]["sha256"]==script["sha256"]
+
+
+
+def test_h2_expired_submitted_lease_is_unknown_never_second_post(client,monkeypatch):
+    pid,_,_,op=_seed_g(client,monkeypatch,"h2expired")
+    oid=op["operation_id"]
+    with s.writer() as con:
+        con.execute("""UPDATE operations SET status='running',lease_owner='crashed-owner',
+            lease_token='abandoned',lease_expires_at='2000-01-01T00:00:00Z'
+            WHERE operation_id=?""",(oid,))
+        con.execute("""UPDATE operation_tasks SET status='submitted',claim_token='abandoned'
+            WHERE operation_id=?""",(oid,))
+    class Forbidden:
+        def submit_image(self,*_):pytest.fail("Expired claim is not paid retry authority")
+    result=generation.advance(pid,oid,client=Forbidden())
+    assert result["status"]=="unknown"
+    assert result["error"]["code"]=="SUBMIT_ACK_UNKNOWN"
+    assert result["task"]["provider_handle_json"] is None
+
+
+def test_h2_crash_after_image_download_recovers_by_get_only(client,monkeypatch):
+    pid,_,_,op=_seed_g(client,monkeypatch,"h2download")
+    oid=op["operation_id"]
+    class Fake:
+        submits=0
+        downloads=0
+        def submit_image(self,p):self.submits+=1;return {"task_id":"caaf1234","status":"pending"}
+        def get_status(self,tid):return {"status":"completed"}
+        def get_result(self,tid):return {"results":["http://127.0.0.1:8765/files/out.png"]}
+        def download_file(self,url,path,max_bytes):
+            self.downloads+=1
+            path.write_bytes(png())
+            if self.downloads==1:
+                raise SystemExit("forced power cut after download but before durable ingestion")
+    fake=Fake()
+    with pytest.raises(SystemExit):
+        generation.advance(pid,oid,client=fake)
+    resumed=generation.advance(pid,oid,client=fake)
+    assert resumed["status"]=="completed"
+    assert fake.downloads==2 and fake.submits==1
+    with s.reader() as con:
+        assert con.execute("""SELECT COUNT(*) FROM artifacts WHERE kind='asset_version.v1'
+            AND json_extract(metadata_json,'$.operation_id')=?""",(oid,)).fetchone()[0]==1
+
+
+def test_m1_approval_changes_during_resolution_publication(client,monkeypatch):
+    pid,state,versions=_complete(client,"m1approval")
+    chosen=next(iter(versions.values()))
+    original_publish=s.document_publish
+    def invalidate(document,relative,callback,**kwargs):
+        if "/resolutions/" not in relative:
+            return original_publish(document,relative,callback,**kwargs)
+        def wrapped(con,digest,size):
+            con.execute("UPDATE asset_versions SET status='rejected' WHERE asset_version_id=?",
+                        (chosen,))
+            return callback(con,digest,size)
+        return original_publish(document,relative,wrapped,**kwargs)
+    monkeypatch.setattr(s,"document_publish",invalidate)
+    with pytest.raises(s.DomainError) as exc:
+        resolver.publish_resolution(pid)
+    assert exc.value.code=="STALE_HEAD"
+    with s.reader() as con:
+        assert con.execute("SELECT status FROM asset_versions WHERE asset_version_id=?",
+                           (chosen,)).fetchone()[0]=="approved"
+        assert con.execute("SELECT COUNT(*) FROM artifacts WHERE project_id=? AND kind='asset_resolution.v1'",
+                           (pid,)).fetchone()[0]==0
+
+
+def test_h3_stale_optional_analysis_excluded_from_copy_prompt(client):
+    ch=channel(client,"h3staleanalysis")
+    pid=project(client,ch,"story")["project_id"]
+    ideas,_=reserved(client,pid,"topic-ideas",
+        lambda p:{"channel_dna_artifact_id":p["dna_metadata"]["artifact_id"],
+                  "channel_dna_hash":p["dna_metadata"]["sha256"],
+                  "ideas":[{"idea_id":"idea_one","title":"Test","premise":"An event"}]})
+    first,_=reserved(client,pid,"script",
+        lambda p:{"topic_ideas_artifact_id":ideas["artifact_id"],"selected_idea_id":"idea_one",
+                  "full_text":"First.","sections":[{"section_id":"section_one","start_char":0,
+                                                   "end_char":6,"text":"First."}]})
+    reserved(client,pid,"script-analysis",
+        lambda p:{"script_artifact_id":first["artifact_id"],"entities":[],"continuity_notes":[]})
+    updated,_=reserved(client,pid,"script",
+        lambda p:{"topic_ideas_artifact_id":ideas["artifact_id"],"selected_idea_id":"idea_one",
+                  "full_text":"Second.","sections":[{"section_id":"section_two","start_char":0,
+                                                   "end_char":7,"text":"Second."}]})
+    pkg=ok(client.post(f"/api/v1/projects/{pid}/authoring/shot-plan/prompt",json={}),201)
+    copied=json.loads(pkg["prompt_text"].split("=== BEGIN AUTHORING PACKAGE JSON ===")[1]
+                      .split("=== END AUTHORING PACKAGE JSON ===")[0])
+    assert copied["source_metadata"]["artifact_id"]==updated["artifact_id"]
+    assert copied["analysis"] is None and copied["analysis_metadata"] is None
+    assert copied["source_inputs"].get("analysis_id") is None
