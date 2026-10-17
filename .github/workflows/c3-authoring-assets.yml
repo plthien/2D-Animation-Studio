@@ -1,0 +1,48 @@
+name: C3 focused Windows authoring and assets
+on:
+  push:
+    branches: [feat/c3-authoring-assets]
+  pull_request:
+    paths:
+      - 'app/animation/**'
+      - 'app/main.py'
+      - 'src/**'
+      - 'tests/c3/**'
+      - 'requirements.txt'
+      - 'package.json'
+      - '.github/workflows/c3-authoring-assets.yml'
+  workflow_dispatch:
+jobs:
+  c3-focused:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify exact HEAD
+        run: |
+          $target = "${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
+          if ((git rev-parse HEAD).Trim() -ne $target) { throw "C3_SHA_MISMATCH" }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install backend dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Focused C3 API SQLite and immutable asset tests
+        env:
+          PYTHONPATH: .
+        run: python -m pytest -q tests/c3
+      - name: Frontend clean install
+        run: npm ci --ignore-scripts
+      - name: Frontend typecheck build
+        run: npm run build
+      - name: Note Windows test scope
+        run: Write-Host "Hosted Windows runner != owner Windows 11 consumer acceptance"
