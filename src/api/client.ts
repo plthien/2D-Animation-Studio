@@ -114,7 +114,7 @@ export const apiClient = {
 };
 
 export type ValidationReport={valid:boolean;issues:Array<{path:string;message:string}>;source_fingerprint:string};
-export type AuthoringPackage={reservation_id:string;reserved_artifact_id:string;revision:number;expires_at:string;source_fingerprint:string;schema:Record<string,unknown>;source:unknown;channel_dna:unknown;instructions:string;reserved_fields:Record<string,unknown>;source_inputs:Record<string,unknown>};
+export type AuthoringPackage={prompt_text:string;source_metadata:Artifact|null;dna_metadata:Artifact;source_inputs:Record<string,unknown>;analysis_metadata:Artifact|null;analysis:Record<string,unknown>|null;reservation_id:string;reserved_artifact_id:string;revision:number;expires_at:string;source_fingerprint:string;schema:Record<string,unknown>;source:unknown;channel_dna:unknown;instructions:string;reserved_fields:Record<string,unknown>;source_inputs:Record<string,unknown>};
 
 export type AssetRequirement={requirement_id:string;kind:'actor'|'prop'|'location'|'background';semantic_key:string;view:string;shot_ids:string[];required_capabilities:string[]};
 export type AssetRequirements={project_id:string;channel_id:string;fingerprint:string;requirements:AssetRequirement[]};
