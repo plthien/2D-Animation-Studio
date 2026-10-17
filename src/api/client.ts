@@ -82,5 +82,14 @@ export const apiClient = {
   workflow:(pid:string)=>request<Workflow>('GET',`/api/v1/projects/${pid}/workflow`),
   jobs:(pid:string)=>request<Page<Job>>('GET','/api/v1/jobs'+query({project_id:pid})),
   job:(jid:string)=>request<Job>('GET',`/api/v1/jobs/${jid}`),
+  authoringPrompt:(pid:string,kind:string)=>request<AuthoringPackage>('POST',`/api/v1/projects/${pid}/authoring/${kind}/prompt`,{}),
+  authoringValidate:(pid:string,kind:string,reservation_id:string,document:Record<string,unknown>)=>request<ValidationReport>('POST',`/api/v1/projects/${pid}/authoring/${kind}/validate`,{reservation_id,document}),
+  authoringImport:(pid:string,kind:string,reservation_id:string,document:Record<string,unknown>)=>request<Artifact>('POST',`/api/v1/projects/${pid}/authoring/${kind}/import`,{reservation_id,document}),
+  authoringApprove:(pid:string,kind:string,aid:string,expected_head_revision:number,expected_sha256:string)=>request<{artifact_id:string;revision:number;sha256:string}>('POST',`/api/v1/projects/${pid}/authoring/${kind}/${aid}/approve`,{expected_head_revision,expected_sha256}),
+  authoringHistory:(pid:string,kind:string)=>request<Page<Artifact>>('GET',`/api/v1/projects/${pid}/authoring/${kind}/history`),
+  authoringDocument:(pid:string,aid:string)=>request<{artifact:Artifact;document:Record<string,unknown>}>('GET',`/api/v1/projects/${pid}/authoring/revisions/${aid}`),
   artifact:(aid:string,cid?:string)=>request<Artifact>('GET',`/api/v1/artifacts/${aid}`+query({channel_id:cid})),
 };
+
+export type ValidationReport={valid:boolean;issues:Array<{path:string;message:string}>;source_fingerprint:string};
+export type AuthoringPackage={reservation_id:string;reserved_artifact_id:string;revision:number;expires_at:string;source_fingerprint:string;schema:Record<string,unknown>;source:unknown;channel_dna:unknown;instructions:string;reserved_fields:Record<string,unknown>;source_inputs:Record<string,unknown>};
