@@ -40,12 +40,24 @@ jobs:
           cache: npm
       - name: Install backend dependencies
         run: python -m pip install -r requirements.txt
-      - name: Focused C3 API SQLite and immutable asset tests
+      - name: C3 API SQLite and immutable asset tests
         env:
           PYTHONPATH: .
         run: |
           python -m pytest -q tests/c3
-          python -m pytest -q tests/c2/test_platform.py::test_openapi_preserves_exact_19_c2_and_registers_only_implemented_c3 tests/c2/test_platform.py::test_channel_dna_project_restart_and_replay
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+      - name: Affected C2 regressions
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m pytest -q `
+            tests/c2/test_platform.py::test_openapi_preserves_exact_19_c2_and_registers_only_implemented_c3 `
+            tests/c2/test_platform.py::test_channel_dna_project_restart_and_replay
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
       - name: Frontend clean install
         run: npm ci --ignore-scripts
       - name: Frontend typecheck build
