@@ -90,14 +90,38 @@ def test_process_job_assignment_failure_kills_child_and_closes_handle(tmp_path):
 
 
 def test_real_windows_job_owns_descendant_tree_without_killing_unrelated(tmp_path):
-    """No elevated rights; real job terminates assigned parent and grandchild."""
+    """A separate OS process bounds native Job Object waits and owns child cleanup.
+
+    The unrelated process is created by the outer test and cannot be killed by
+    the inner Job; the worker's crash closes its Job handle by Windows design.
+    """
     import ctypes
     import os
     import subprocess
     import sys
     import time
+    from pathlib import Path
     if os.name != "nt":
         pytest.skip("Windows-only functional ownership gate; always runs on windows-latest")
+
+    if os.environ.get("C2_JOB_CHILD_TEST") != "1":
+        unrelated = subprocess.Popen([sys.executable, "-c", "import time;time.sleep(60)"],
+            cwd=tmp_path, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            env=dict(os.environ)
+            env["C2_JOB_CHILD_TEST"]="1"
+            env["C2_JOB_UNRELATED_PID"]=str(unrelated.pid)
+            run=subprocess.run([sys.executable,"-m","pytest","-q","-s",
+                str(Path(__file__).resolve())+"::test_real_windows_job_owns_descendant_tree_without_killing_unrelated"],
+                cwd=Path(__file__).resolve().parents[2],env=env,
+                stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,timeout=25)
+            assert run.returncode==0, run.stdout+"\n"+run.stderr
+            assert unrelated.poll() is None, "Unrelated process killed by Job Object"
+        finally:
+            if unrelated.poll() is None:
+                unrelated.kill()
+            unrelated.wait(timeout=5)
+        return
 
     kernel=ctypes.WinDLL("kernel32",use_last_error=True)
     kernel.OpenProcess.argtypes=[ctypes.c_uint,ctypes.c_int,ctypes.c_uint]
@@ -126,41 +150,33 @@ def test_real_windows_job_owns_descendant_tree_without_killing_unrelated(tmp_pat
         "o.write_text(str(p.pid));time.sleep(60)"
     )
     owned=None
-    unrelated=subprocess.Popen([sys.executable,"-c","import time;time.sleep(60)"],
-        cwd=tmp_path,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     try:
         owned=HostOwnedProcess.start(
             [sys.executable,"-c",parent_code,str(gate),str(child_file)],
             cwd=tmp_path,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
-            bufsize=0,env=dict(os.environ),use_job_object=True,
-        )
+            bufsize=0,env=dict(os.environ),use_job_object=True)
         assert owned.owns_process_tree
         gate.write_text("ok")
         deadline=time.monotonic()+10
         while not child_file.exists() and time.monotonic()<deadline:
             time.sleep(.05)
-        assert child_file.exists(),"Assigned process did not start its descendant"
+        assert child_file.exists(),"Owned parent did not start its child"
         descendant=int(child_file.read_text())
         assert alive(owned.pid) and alive(descendant)
-        assert alive(unrelated.pid)
-        # Closing the sole Job handle exercises real KILL_ON_JOB_CLOSE
-        # without relying on a potentially blocking TerminateJobObject call.
+        unrelated_pid=int(os.environ["C2_JOB_UNRELATED_PID"])
+        assert alive(unrelated_pid)
         owned.release()
         owned.release()
-        assert owned.released
-        deadline=time.monotonic()+10
+        deadline=time.monotonic()+7
         while (alive(owned.pid) or alive(descendant)) and time.monotonic()<deadline:
             time.sleep(.05)
-        assert not alive(owned.pid),"Owned process remains alive"
-        assert not alive(descendant),"Orphaned descendant remains alive"
-        assert alive(unrelated.pid),"Unrelated process was terminated"
+        assert not alive(owned.pid),"Owned parent remains alive"
+        assert not alive(descendant),"Owned descendant remains alive"
+        assert alive(unrelated_pid),"Unrelated process killed"
     finally:
         if owned is not None:
             owned.release()
-            try:
-                owned.process.wait(timeout=5)
+            try: owned.process.wait(timeout=3)
             except subprocess.TimeoutExpired:
                 owned.process.kill()
-                owned.process.wait(timeout=5)
-        unrelated.kill()
-        unrelated.wait(timeout=5)
+                owned.process.wait(timeout=3)
