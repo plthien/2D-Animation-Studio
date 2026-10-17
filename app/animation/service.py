@@ -17,7 +17,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 from app.animation.database import connect
 
 STAGES = ("authoring", "resolver", "generation", "rigging", "director", "motion", "delivery")
-PHASE = dict(zip(STAGES, ("C3", "C4", "C5", "C7", "C9", "C8", "C11")))
+PHASE = dict(zip(STAGES, ("C3", "C3", "C3", "C4", "C5", "C5", "C6")))
 ZERO = "0" * 64
 DNA_SCHEMA = json.loads((Path(__file__).resolve().parents[2] /
                           "contracts/animation/schemas/channel_dna.v2.schema.json").read_text(encoding="utf-8"))
