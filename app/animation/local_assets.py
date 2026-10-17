@@ -91,7 +91,7 @@ def ingest(pid:str,kind:str,semantic_key:str,view:str,raw:bytes,filename:str) ->
                     kind="asset_version.v1",schema="asset_version.v1",logical=asset_id,
                     revision=revision,status="draft",checksum=hashlib.sha256(data).hexdigest(),
                     size=len(data),relative=meta_rel,metadata={"source_image_artifact_id":image_id,"project_id":pid})
-                con.execute("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?)",
+                con.execute("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                     (ver,asset_id,pr["channel_id"],revision,aid,fingerprint,s.sha([]),
                      "candidate",digest,t,None))
                 return {"asset_version_id":ver,"asset_id":asset_id,"artifact_id":aid,
