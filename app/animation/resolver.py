@@ -3,10 +3,34 @@ from __future__ import annotations
 import json
 from app.animation import service as s, authoring as a
 
+
+
+def current_shot(con, pid: str):
+    """Reject superseded upstream revisions before a requirement may be used."""
+    shot=a.latest(con,pid,"shot-plan")
+    if shot is None:
+        s.error("UNAPPROVED_DEPENDENCY","Current approved ShotPlan required",422)
+    doc=a.verified_doc(shot)
+    script=a.latest(con,pid,"script")
+    ideas=a.latest(con,pid,"topic-ideas")
+    if script is None or ideas is None:
+        s.error("UNAPPROVED_DEPENDENCY","Approved Topic and Script required",422)
+    script_doc=a.verified_doc(script)
+    if (script_doc.get("topic_ideas_artifact_id")!=ideas["artifact_id"]
+        or doc.get("script_artifact_id")!=script["artifact_id"]
+        or doc.get("script_sha256")!=script["sha256"]):
+        s.error("STALE_HEAD","ShotPlan references a superseded authoring source",
+                current_script_artifact_id=script["artifact_id"])
+    original=json.loads(shot["metadata_json"]).get("source_fingerprint")
+    _,_,_,current,_=a.source(con,pid,"shot-plan")
+    if original!=current:
+        s.error("STALE_HEAD","ShotPlan reservation source no longer current",current_fingerprint=current)
+    return shot
+
 def requirements(pid: str) -> dict:
     with s.reader() as con:
         pr=a.project(con,pid)
-        shot=a.latest(con,pid,"shot-plan")
+        shot=current_shot(con,pid)
         if not shot:
             s.error("UNAPPROVED_DEPENDENCY","Approve ShotPlan before resolving assets",422)
         doc=a.verified_doc(shot)
@@ -75,7 +99,14 @@ def resolution(pid: str):
                             "reason":None if ok else ("STALE_OR_INCOMPATIBLE_PIN" if b else "NO_APPROVED_COMPATIBLE_PIN")})
         return {"requirements_fingerprint":needed["fingerprint"],
                 "requirements":entries,"resolved_count":sum(x["state"]=="resolved" for x in entries),
-                "total_count":len(entries),"source":needed["source"]}
+                "total_count":len(entries),"source":needed["source"],
+                "compatible_versions":{r["requirement_id"]:[v["asset_version_id"] for v in con.execute("""
+                   SELECT v.asset_version_id,v.status,v.visual_style_hash,v.capability_hash,
+                          a.kind,a.semantic_key,a.view_key FROM asset_versions v
+                   JOIN assets a ON a.asset_id=v.asset_id
+                   WHERE a.channel_id=? AND v.status='approved'""", (needed["channel_id"],))
+                   if compatible(r,v,ch["visual_style_hash"])] for r in needed["requirements"]},
+                "rig_capability_status":"pending_c4_rig_validation"}
 
 def bind(pid: str, requirement_id: str, asset_version_id: str, expected_fingerprint: str):
     needed=requirements(pid)
