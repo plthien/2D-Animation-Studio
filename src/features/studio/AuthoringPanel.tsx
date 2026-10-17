@@ -65,7 +65,7 @@ export function AuthoringPanel({projectId,headRevision,onCommitted}:{projectId:s
    <p className="text-xs text-slate-400">Expires {pkg.expires_at}</p>
    <button className={btn} onClick={()=>void (async()=>{
     try{await navigator.clipboard.writeText(pkg.prompt_text);setCopyResult('Complete prompt copied');}
-    catch{setCopyResult('Clipboard write failed. Check browser permissions and try again.');}
+    catch(err){setCopyResult('Clipboard write failed: '+(err instanceof Error?err.message:String(err)));}
    })()}>Copy complete prompt</button>
    {copyResult&&<p role="status" className="text-xs text-slate-300">{copyResult}</p>}
   </div>}
