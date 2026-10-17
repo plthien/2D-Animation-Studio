@@ -36,14 +36,15 @@ export function AuthoringPanel({projectId,headRevision,onCommitted}:{projectId:s
  });
  const approve=()=>go(async()=>{
   if(!draft)throw new Error('Select a draft first');
-  await apiClient.authoringApprove(projectId,kind,draft.artifact_id,headRevision,draft.sha256);
+  const liveHead=(await apiClient.workflow(projectId)).stages.find(x=>x.stage_key==='authoring');
+  await apiClient.authoringApprove(projectId,kind,draft.artifact_id,liveHead?.head_revision??headRevision,draft.sha256);
   setDraft(null);onCommitted();
   setHistory((await apiClient.authoringHistory(projectId,kind)).items);
  });
  const loadHistory=()=>go(async()=>{setHistory((await apiClient.authoringHistory(projectId,kind)).items);});
  const open=(a:Artifact)=>go(async()=>{
   const entry=await apiClient.authoringDocument(projectId,a.artifact_id);
-  setJson(JSON.stringify(entry.document,null,2));setDraft(a.approval_status==='draft'?a:null);
+  setPkg(null);setJson(JSON.stringify(entry.document,null,2));setDraft(a.approval_status==='draft'?a:null);
   setReport(null);
  });
  const btn='rounded-xl border border-white/15 px-4 py-2 text-sm text-slate-100 hover:bg-white/10 disabled:opacity-40';
