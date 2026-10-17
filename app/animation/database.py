@@ -1,8 +1,9 @@
-"""Fresh animation SQLite bootstrap. Never migrate, delete or modify a YTB database."""
+"""Animation-only SQLite bootstrap with read-only frozen-schema attestation."""
 from __future__ import annotations
 
 import os
 import sqlite3
+from functools import lru_cache
 from pathlib import Path
 
 from alembic import command
@@ -16,10 +17,16 @@ APPLICATION_TABLES = frozenset({
 })
 SCHEMA_REVISION = "0001_animation_initial"
 DEFAULT_URL = "sqlite:///./2d_animation_studio.db"
+_SCHEMA_PATH = Path(__file__).resolve().parents[2] / "contracts/animation/animation_schema.sql"
 
 
 class LegacyDatabaseUnsupported(RuntimeError):
     code = "LEGACY_DATABASE_UNSUPPORTED"
+
+
+class AnimationSchemaIntegrityError(RuntimeError):
+    """Recognized animation DB with a corrupted or altered frozen schema."""
+    code = "ANIMATION_SCHEMA_INTEGRITY_INVALID"
 
 
 def database_path(url: str | None = None) -> Path:
@@ -33,18 +40,77 @@ def database_path(url: str | None = None) -> Path:
     return result.resolve()
 
 
+def _schema_signature(con: sqlite3.Connection) -> tuple:
+    """Compare all frozen DDL + structural PRAGMAs; preserve CHECK predicates.
+
+    Exact SQLite-stored SQL is intentionally stricter than heuristic normalizing:
+    quotes, CHECK clauses, collation and partial WHERE predicates are semantic.
+    Cosmetic third-party rewrites are not a supported migration of this frozen DB.
+    """
+    objects = tuple(con.execute(
+        "SELECT type,name,tbl_name,sql FROM sqlite_schema "
+        "WHERE name NOT LIKE 'sqlite_%' AND type IN ('table','index','view','trigger') "
+        "ORDER BY type,name"
+    ).fetchall())
+    tables = sorted(APPLICATION_TABLES)
+    structure = []
+    for table in tables:
+        quoted = '"' + table.replace('"', '""') + '"'
+        structure.append((
+            table,
+            tuple(con.execute(f"PRAGMA table_xinfo({quoted})")),
+            tuple(con.execute(f"PRAGMA foreign_key_list({quoted})")),
+            tuple(con.execute(f"PRAGMA index_list({quoted})")),
+        ))
+        for item in con.execute(f"PRAGMA index_list({quoted})"):
+            ix = '"' + str(item[1]).replace('"', '""') + '"'
+            structure.append((item[1], tuple(con.execute(f"PRAGMA index_xinfo({ix})"))))
+    return objects, tuple(structure)
+
+
+@lru_cache(maxsize=1)
+def _normative_schema_signature() -> tuple:
+    """Load frozen normative DDL only into a disposable in-memory connection."""
+    with sqlite3.connect(":memory:") as reference:
+        reference.executescript(_SCHEMA_PATH.read_text(encoding="utf-8"))
+        return _schema_signature(reference)
+
+
+def verify_frozen_schema(con: sqlite3.Connection) -> None:
+    """Read-only verification, including SQLite foreign-key integrity."""
+    try:
+        actual = _schema_signature(con)
+        expected = _normative_schema_signature()
+        if actual != expected:
+            raise AnimationSchemaIntegrityError(
+                "ANIMATION_SCHEMA_INTEGRITY_INVALID: frozen animation schema differs"
+            )
+        version_cols = tuple(con.execute('PRAGMA table_info("alembic_version")'))
+        if len(version_cols) != 1 or version_cols[0][1:4] != ("version_num", "VARCHAR(32)", 1):
+            raise AnimationSchemaIntegrityError(
+                "ANIMATION_SCHEMA_INTEGRITY_INVALID: migration version table differs"
+            )
+        if con.execute("PRAGMA foreign_key_check").fetchone() is not None:
+            raise AnimationSchemaIntegrityError(
+                "ANIMATION_SCHEMA_INTEGRITY_INVALID: foreign-key integrity check failed"
+            )
+    except sqlite3.DatabaseError as exc:
+        raise AnimationSchemaIntegrityError(
+            "ANIMATION_SCHEMA_INTEGRITY_INVALID: unable to inspect animation database"
+        ) from exc
+
+
 def guard_database(url: str | None = None) -> Path:
-    """Read-only inspection BEFORE any journal/pragma/migration write occurs."""
+    """Inspect before any migration or WAL write; never convert old user data."""
     path = database_path(url)
     if not path.exists():
         return path
     if not path.is_file():
-        raise LegacyDatabaseUnsupported("Configured database is not a regular file")
+        raise LegacyDatabaseUnsupported("LEGACY_DATABASE_UNSUPPORTED: not a database file")
     try:
-        with sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=1) as conn:
-            names = {r[0] for r in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' "
-                "AND name NOT LIKE 'sqlite_%'"
+        with sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=1) as con:
+            names = {r[0] for r in con.execute(
+                "SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%'"
             )}
             if not names:
                 return path
@@ -54,15 +120,20 @@ def guard_database(url: str | None = None) -> Path:
                     "LEGACY_DATABASE_UNSUPPORTED: choose a fresh animation database; "
                     "existing database was not modified"
                 )
-            revisions = {r[0] for r in conn.execute("SELECT version_num FROM alembic_version")}
-            if revisions != {SCHEMA_REVISION} or not APPLICATION_TABLES.issubset(names):
+            revisions = {r[0] for r in con.execute("SELECT version_num FROM alembic_version")}
+            if revisions != {SCHEMA_REVISION}:
                 raise LegacyDatabaseUnsupported(
                     "LEGACY_DATABASE_UNSUPPORTED: unrecognized migration lineage; "
                     "existing database was not modified"
                 )
+            # Missing known animation tables/constraints is an integrity error,
+            # distinct from an unrelated or old YTB database.
+            verify_frozen_schema(con)
+    except AnimationSchemaIntegrityError:
+        raise
     except sqlite3.DatabaseError as exc:
         raise LegacyDatabaseUnsupported(
-            "LEGACY_DATABASE_UNSUPPORTED: unable to verify the configured database"
+            "LEGACY_DATABASE_UNSUPPORTED: unable to verify database identity"
         ) from exc
     return path
 
@@ -70,16 +141,16 @@ def guard_database(url: str | None = None) -> Path:
 def connect(url: str | None = None) -> sqlite3.Connection:
     path = guard_database(url)
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path), timeout=5, isolation_level=None)
-    conn.row_factory = sqlite3.Row
+    con = sqlite3.connect(str(path), timeout=5, isolation_level=None)
+    con.row_factory = sqlite3.Row
     try:
-        conn.execute("PRAGMA foreign_keys=ON")
-        conn.execute("PRAGMA busy_timeout=5000")
-        conn.execute("PRAGMA journal_mode=WAL")
-    except Exception:
-        conn.close()
+        con.execute("PRAGMA foreign_keys=ON")
+        con.execute("PRAGMA busy_timeout=5000")
+        con.execute("PRAGMA journal_mode=WAL")
+    except BaseException:
+        con.close()
         raise
-    return conn
+    return con
 
 
 def migrate(url: str | None = None) -> Path:
@@ -91,12 +162,11 @@ def migrate(url: str | None = None) -> Path:
     cfg.set_main_option("script_location", str(ini.parent / "alembic"))
     cfg.set_main_option("sqlalchemy.url", value.replace("%", "%%"))
     command.upgrade(cfg, "head")
-    with connect(value) as conn:
-        names = {r[0] for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-        )}
-        if names != APPLICATION_TABLES | {"alembic_version"}:
-            raise RuntimeError("Fresh animation schema did not match frozen 14-table contract")
-        if conn.execute("PRAGMA foreign_key_check").fetchone() is not None:
-            raise RuntimeError("Animation database has foreign-key violations")
+    # Validate the same full frozen structure on freshly migrated databases.
+    guard_database(value)
+    with connect(value) as con:
+        if con.execute("PRAGMA foreign_keys").fetchone()[0] != 1:
+            raise AnimationSchemaIntegrityError(
+                "ANIMATION_SCHEMA_INTEGRITY_INVALID: foreign keys disabled"
+            )
     return path
