@@ -102,6 +102,13 @@ export const apiClient = {
     if(!response.ok||!('data' in value))throw new ApiError('error' in value?value.error.code:'HTTP_ERROR','error' in value?value.error.message:'Upload failed',response.status);
     return value.data;
   },
+  glabsConfig:(pid:string)=>request<GLabsConfig>('GET',`/api/v1/projects/${pid}/generation/provider`),
+  glabsPrepare:(pid:string,body:{requirement_id:string;prompt:string;negative_prompt:string;model:string;aspect_ratio:string;cost_ceiling_usd:number})=>request<GLabsQuote>('POST',`/api/v1/projects/${pid}/generation/prepare`,body),
+  glabsConfirm:(pid:string,quote:GLabsQuote, key:string)=>request<GLabsOperation>('POST',`/api/v1/projects/${pid}/generation/confirm`,{quote:quote.quote,fingerprint:quote.fingerprint,explicitly_approved:true},key),
+  glabsAdvance:(pid:string,oid:string)=>request<GLabsOperation>('POST',`/api/v1/projects/${pid}/generation/operations/${oid}/advance`,{}),
+  glabsCancel:(pid:string,oid:string)=>request<GLabsOperation>('POST',`/api/v1/projects/${pid}/generation/operations/${oid}/cancel`,{}),
+  glabsStatus:(pid:string,oid:string)=>request<GLabsOperation>('GET',`/api/v1/projects/${pid}/generation/operations/${oid}`),
+  glabsOperations:(pid:string)=>request<Page<Pick<GLabsOperation,'operation_id'|'status'>>>('GET',`/api/v1/projects/${pid}/generation/operations`),
   artifact:(aid:string,cid?:string)=>request<Artifact>('GET',`/api/v1/artifacts/${aid}`+query({channel_id:cid})),
 };
 
@@ -111,6 +118,10 @@ export type AuthoringPackage={reservation_id:string;reserved_artifact_id:string;
 export type AssetRequirement={requirement_id:string;kind:'actor'|'prop'|'location'|'background';semantic_key:string;view:string;shot_ids:string[];required_capabilities:string[]};
 export type AssetRequirements={project_id:string;channel_id:string;fingerprint:string;requirements:AssetRequirement[]};
 export type AssetBinding={binding_id:string;asset_version_id:string;source_fingerprint:string};
-export type AssetResolution={requirements_fingerprint:string;requirements:Array<{requirement:AssetRequirement;binding:AssetBinding|null;state:'resolved'|'unresolved';reason:string|null}>;resolved_count:number;total_count:number};
+export type AssetResolution={compatible_versions:Record<string,string[]>;rig_capability_status:string;requirements_fingerprint:string;requirements:Array<{requirement:AssetRequirement;binding:AssetBinding|null;state:'resolved'|'unresolved';reason:string|null}>;resolved_count:number;total_count:number};
 export type AssetVersion={asset_version_id:string;asset_id:string;kind:string;semantic_key:string;view_key:string;revision:number;status:'candidate'|'approved'|'rejected';visual_style_hash:string;capability_hash:string;source_sha256:string};
 export type ImageCandidate={asset_version_id:string;asset_id:string;artifact_id:string;source_image_artifact_id:string;width:number;height:number;status:'candidate';source_sha256:string};
+
+export type GLabsConfig={provider:string;configured:boolean;base_url:string;live_test:string};
+export type GLabsQuote={quote:Record<string,unknown>;fingerprint:string;cost_ceiling_usd:number;estimated_cost_usd:null;explicit_confirmation_required:boolean};
+export type GLabsOperation={operation_id:string;status:'queued'|'running'|'unknown'|'completed'|'failed'|'cancelled';result?:{candidate?:ImageCandidate};error?:{code:string};task?:Record<string,unknown>};
