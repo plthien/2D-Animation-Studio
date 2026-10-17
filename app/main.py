@@ -7,12 +7,14 @@ from contextlib import asynccontextmanager
 from typing import Any, Annotated
 
 from fastapi import FastAPI, Header, Query, Request
+from fastapi.routing import APIRoute
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.animation import service as svc
+from app.animation.strict_json import parse_strict_document
 from app.animation.database import LegacyDatabaseUnsupported, migrate
 
 
@@ -42,7 +44,54 @@ async def lifespan(app: FastAPI):
     yield
 
 
+MAX_C2_JSON_BYTES = 1_048_576
+
+
+class StrictC2JSONRoute(APIRoute):
+    """Validate bytes before FastAPI's Pydantic body parsing on every write route.
+
+    The exact parsed object is cached as Request._json; FastAPI then consumes
+    that same document. Neither permissive double parsing nor body truncation
+    can turn an invalid request into a DB write.
+    """
+
+    def get_route_handler(self):
+        handler = super().get_route_handler()
+
+        async def validated(request: Request):
+            if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+                media = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+                if media != "application/json":
+                    svc.error("VALIDATION_FAILED", "Request validation failed", 422)
+                declared = request.headers.get("content-length")
+                if declared:
+                    try:
+                        if int(declared) > MAX_C2_JSON_BYTES:
+                            svc.error("VALIDATION_FAILED", "Request validation failed", 422)
+                    except ValueError:
+                        svc.error("VALIDATION_FAILED", "Request validation failed", 422)
+                chunks = []
+                length = 0
+                async for piece in request.stream():
+                    length += len(piece)
+                    if length > MAX_C2_JSON_BYTES:
+                        svc.error("VALIDATION_FAILED", "Request validation failed", 422)
+                    chunks.append(piece)
+                body = b"".join(chunks)
+                try:
+                    document = parse_strict_document(body.decode("utf-8", errors="strict"),
+                                                     max_bytes=MAX_C2_JSON_BYTES)
+                except UnicodeError:
+                    svc.error("VALIDATION_FAILED", "Request validation failed", 422)
+                request._body = body
+                request._json = document
+            return await handler(request)
+
+        return validated
+
+
 app = FastAPI(title="2D Animation Studio", version="0.2.0-c2", lifespan=lifespan)
+app.router.route_class = StrictC2JSONRoute
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
