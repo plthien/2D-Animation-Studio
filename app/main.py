@@ -335,8 +335,10 @@ def authoring_import(request: Request, project_id: str, artifact_kind: str, body
 
 @app.post("/api/v1/projects/{project_id}/authoring/{artifact_kind}/{artifact_id}/approve")
 def authoring_approve(request: Request, project_id: str, artifact_kind: str, artifact_id: str, body: AuthoringApproval):
-    return enveloped(request, auth.approve(project_id, artifact_kind, artifact_id,
-                                           body.expected_head_revision, body.expected_sha256))
+    result=auth.approve(project_id, artifact_kind, artifact_id,
+                        body.expected_head_revision, body.expected_sha256)
+    if artifact_kind=="shot-plan": assets.publish_requirements(project_id)
+    return enveloped(request, result)
 
 @app.get("/api/v1/projects/{project_id}/authoring/{artifact_kind}/history")
 def authoring_history(request: Request, project_id: str, artifact_kind: str, limit: Limit = 50):
@@ -377,8 +379,10 @@ def list_project_bindings(request:Request,project_id:str):
 
 @app.post("/api/v1/projects/{project_id}/asset-bindings")
 def bind_asset(request:Request,project_id:str,body:AssetBind):
-    return enveloped(request,assets.bind(project_id,body.requirement_id,
-                                         body.asset_version_id,body.expected_fingerprint))
+    result=assets.bind(project_id,body.requirement_id,
+                       body.asset_version_id,body.expected_fingerprint)
+    assets.publish_resolution(project_id)
+    return enveloped(request,result)
 
 @app.delete("/api/v1/projects/{project_id}/asset-bindings/{binding_id}")
 def unbind_asset(request:Request,project_id:str,binding_id:str,body:AssetUnbind):
