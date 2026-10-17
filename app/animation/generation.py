@@ -186,7 +186,10 @@ def advance(pid,oid,client=None):
                     return status(pid,oid)
                 transition(con,oid,"running","running",handle=handle)
         except Exception:
-            with s.writer() as con:transition(con,oid,"unknown","unknown",err={"code":"SUBMIT_ACK_UNKNOWN"})
+            with s.writer() as con:
+                current=con.execute("SELECT status FROM operations WHERE operation_id=?",(oid,)).fetchone()
+                if current and current["status"]!="cancelled":
+                    transition(con,oid,"unknown","unknown",err={"code":"SUBMIT_ACK_UNKNOWN"})
             return status(pid,oid)
     if handle is None:
         with s.writer() as con:transition(con,oid,"unknown","unknown",err={"code":"SUBMIT_ACK_UNKNOWN"})
