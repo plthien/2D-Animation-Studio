@@ -59,3 +59,32 @@ No new SQLite tables, status enum, paid network request, legacy YTB runtime or C
 - No provider-enforced billing cap has been verified; live pricing/consent validation remains C7.
 
 **C3 READY FOR OWNER MERGE APPROVAL — FIVE REPAIR GATES PASS; GLABS LIVE DEFERRED TO C7.** PR #6 remains Draft, without merge.
+
+## 2026-10-17 — Final CI / M1 evidence correction (supersedes earlier merge claims)
+
+**Baseline reviewed:** `a6d490b33e1afe2eaed17d77ce916634aa0fdff9`.
+The previously cited green Windows job [39034746596](https://github.com/plthien/2D-Animation-Studio/actions/runs/39034746596) was **FALSE GREEN**. The actual logs contain `2 failed, 30 passed, 2 warnings` for C3 pytest, followed by `2 passed, 2 warnings` for the separate C2 pytest invocation. A combined PowerShell step returned the success status of its last native command instead of propagating the first failing pytest command. Earlier M1 PASS claims from that workflow are invalid and superseded by the evidence below.
+
+**F1 — fixed and failure propagation proven.** The Windows workflow now has two independent required steps, `C3 API SQLite and immutable asset tests` and `Affected C2 regressions`, each checking `$LASTEXITCODE` and exiting nonzero on failure. Before correcting the M1 fixtures, [run 39041257268](https://github.com/plthien/2D-Animation-Studio/actions/runs/39041257268) on interim SHA `5946517c` **FAILED** at the C3 step and **SKIPPED** the C2 step, proving the previous false-green condition cannot recur through that combined-step path. The final workflow also runs both M1 tests as separate mandatory steps.
+
+**F2 — valid publication-path regression fixture.** Both M1 tests had used `_complete()`, which binds through an API that automatically publishes `asset_resolution.v1` on the last pin. This caused the tests to reuse the already-approved artifact instead of entering the injected new-publication callback. They now use `_complete_unpublished_resolution()`: create real ChannelDNA/Project/ShotPlan, import and approve actual PNG versions, bind each requirement via the existing domain `resolver.bind()`, assert full resolution and **zero existing resolution artifacts / no Resolver head** before attaching the hook.
+
+The new M1-A and M1-B tests require proof that their injected callback **executed**. During the same SQLite writer transaction they respectively (A) replace the exact version ID of one requirement while keeping pin count unchanged and (B) change one approved version's status to rejected; the real publisher must detect the changed snapshot and return `STALE_HEAD`. Both assert transaction rollback, original exact pins/approval, unchanged stage-head snapshot, and no approved or orphan immutable resolution metadata. The H4 A → B → A reuse test was retained unchanged. **No production `resolver.py` changes were necessary for this F1/F2 repair.**
+
+**Exact-SHA final implementation evidence:**
+- Implementation SHA: `ad360655be85c76ba797a49cca91abf9865facfd`.
+- [Windows C3 workflow 39041445652](https://github.com/plthien/2D-Animation-Studio/actions/runs/39041445652): **SUCCESS**, exact checkout SHA verified.
+- M1-A independent: **1 passed, 2 warnings** (hook and rollback assertions active).
+- M1-B independent: **1 passed, 2 warnings** (hook and rollback assertions active).
+- Full C3 suite including H1/H2/H3/H4 and both M1 cases: **32 passed, 2 warnings, 0 failed**.
+- Two affected C2 regressions: **2 passed, 2 warnings, 0 failed**.
+- Frontend TS/Vite build: **PASS**.
+- Registered API checker: **PASS**.
+- Real Chromium → FastAPI → SQLite, clipboard/import/pinning, browser refresh/backend restart: **PASS**.
+- A follow-up **QA-documentation-only** commit requires its own exact-HEAD Windows CI run; do not equate the implementation SHA with the later documentation HEAD.
+
+**Bounded self-review:** F1 genuinely propagates native pytest failures; F2 reaches the previously untested new-publication callback and rejects both injected mutations; SQLite rolls back both; existing artifact reuse/H4 still passes; the QA correction matches actual log totals. The frozen C2 schema, production Resolver and provider adapter remain unchanged in this repair.
+
+**Owner-deferred, not C3 blockers:** `GLABS_LIVE_E2E = NOT_RUN — OWNER DEFERRED TO C7`; `WINDOWS_CONSUMER_E2E = NOT_RUN — C7`; `C2_FULL_PLATFORM_E2E = DEFERRED — OWNER DECISION`.
+
+**Merge verdict for verified implementation SHA:** `PR #6 — C3 READY FOR OWNER MERGE APPROVAL`, contingent on the final documentation-only HEAD also passing exact-SHA CI. PR remains Draft; no merge has occurred.
