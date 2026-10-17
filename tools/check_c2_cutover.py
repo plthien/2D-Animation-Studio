@@ -12,7 +12,7 @@ from app.main import app
 FORBIDDEN_PREFIXES=(
     "app/modules/v4/", "tests/v4/", "app/api/",
     "app/db/", "app/repositories/", "app/services/", "app/platform/",
-    "src/features/studio/", "src/features/settings/",
+    "src/features/settings/",
     "contracts/schemas/", "contracts/prompts/", "contracts/openapi/",
     "contracts/examples/", "tests/fixtures/v4/", "tests/platform/",
 )
@@ -58,12 +58,15 @@ def check() -> None:
     accepted={(x["method"],x["path"]) for x in registry if x["contract_status"]=="ACCEPTED"}
     actual={(method.upper(),path) for path,body in app.openapi()["paths"].items()
             for method in body if method in ("get","post","put","patch","delete")}
-    assert actual==accepted, f"API mismatch extra={actual-accepted}; missing={accepted-actual}"
+    c2={(x["method"],x["path"]) for x in registry if x["phase"]=="C2" and x["contract_status"]=="ACCEPTED"}
+    assert len(c2)==19, "Frozen 19 C2 routes changed"
+    assert c2 <= actual, f"C2 accepted route removed: {c2-actual}"
+    assert actual==accepted, f"Runtime/registry mismatch extra={actual-accepted}; missing={accepted-actual}"
     frontend=(ROOT/"src/App.tsx").read_text(encoding="utf-8")
     for token in ("SceneBreakdown","VoicePanel","AssemblyPanel","RenderPanel"):
         assert token not in frontend
     launcher=(ROOT/"start.bat").read_text(encoding="utf-8").lower()
     assert "youtube" not in launcher and "durable_media" not in launcher and ".yas3_" not in launcher
-    print(f"C2 cutover static PASS: {len(files)} filesystem entries; {len(visited)} reachable Python modules; exactly 19 endpoints")
+    print(f"C2 cutover static PASS: {len(files)} filesystem entries; {len(visited)} reachable Python modules; 19 frozen C2 routes plus registered implemented C3 endpoints")
 if __name__=="__main__":
     check()
