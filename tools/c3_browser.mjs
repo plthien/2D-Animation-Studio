@@ -65,12 +65,17 @@ try {
  await createChannel.locator('input').nth(1).fill('c3-browser-channel');
  await createChannel.getByRole('button',{name:'Create channel'}).click();
  await page.getByTestId('channel-card-grid').getByText('C2 Browser Channel').waitFor();
+ await page.waitForLoadState('networkidle'); // finish DNA query before editing, avoid draft hydration race
  const editor=page.getByTestId('channel-dna-editor');
  await editor.locator('textarea').nth(0).fill('Animation fans');
  await editor.locator('textarea').nth(1).fill('Sketchy flat color 2D figures, intentionally rough');
  await editor.locator('textarea').nth(2).fill('Funny, expressive physical comedy');
  await editor.locator('textarea').nth(3).fill('Friendly casual narrator');
+ const saveDNAResponse=page.waitForResponse(r=>r.url().endsWith('/dna')&&r.request().method()==='PUT');
  await page.getByTestId('save-dna').click();
+ const dnaResult=await saveDNAResponse;
+ assert(dnaResult.status()===201,'DNA draft save failed: '+dnaResult.status()+' '+await dnaResult.text());
+ await page.getByTestId('approve-dna').waitFor({state:'visible'});
  await page.waitForFunction(()=>!document.querySelector('[data-testid="approve-dna"]')?.hasAttribute('disabled'));
  await page.getByTestId('approve-dna').click();
  await page.getByText('Approved head').waitFor();
