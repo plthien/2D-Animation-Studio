@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import sqlite3
 from functools import lru_cache
+from contextlib import closing
 from pathlib import Path
 
 from alembic import command
@@ -93,7 +94,7 @@ def _schema_signature(con: sqlite3.Connection) -> tuple:
 @lru_cache(maxsize=1)
 def _normative_schema_signature() -> tuple:
     """Load frozen normative DDL only into a disposable in-memory connection."""
-    with sqlite3.connect(":memory:") as reference:
+    with closing(sqlite3.connect(":memory:")) as reference:
         reference.executescript(_SCHEMA_PATH.read_text(encoding="utf-8"))
         return _schema_signature(reference)
 
@@ -130,7 +131,10 @@ def guard_database(url: str | None = None) -> Path:
     if not path.is_file():
         raise LegacyDatabaseUnsupported("LEGACY_DATABASE_UNSUPPORTED: not a database file")
     try:
-        with sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=1) as con:
+        with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=1)) as con:
+            # Read-only connection and connection-local PRAGMA: inspect raw
+            # malformed DDL, then compare against the frozen normative schema.
+            con.execute("PRAGMA writable_schema=ON")
             names = {r[0] for r in con.execute(
                 "SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%'"
             )}
@@ -186,7 +190,7 @@ def migrate(url: str | None = None) -> Path:
     command.upgrade(cfg, "head")
     # Validate the same full frozen structure on freshly migrated databases.
     guard_database(value)
-    with connect(value) as con:
+    with closing(connect(value)) as con:
         if con.execute("PRAGMA foreign_keys").fetchone()[0] != 1:
             raise AnimationSchemaIntegrityError(
                 "ANIMATION_SCHEMA_INTEGRITY_INVALID: foreign keys disabled"

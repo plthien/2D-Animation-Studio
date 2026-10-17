@@ -30,6 +30,8 @@ def test_windows_job_object_configure_assign_terminate_close_and_idempotent():
     class FakeKernel32:
         def __init__(self):
             self.calls=[]
+        def GetCurrentProcess(self):
+            return 1
         def CreateJobObjectW(self,*args):
             self.calls.append(("create",))
             return 101
