@@ -449,3 +449,12 @@ def glabs_cancel(request:Request,project_id:str,operation_id:str):
 @app.get("/api/v1/projects/{project_id}/generation/operations")
 def glabs_operations(request:Request,project_id:str):
     return enveloped(request,glabs.list_operations(project_id))
+
+class GenerationReconcile(Payload):
+    provider_task_id: str
+    confirmed_owner_match: bool
+
+@app.post("/api/v1/projects/{project_id}/generation/operations/{operation_id}/reconcile")
+def glabs_reconcile(request: Request, project_id: str, operation_id: str, body: GenerationReconcile):
+    return enveloped(request, glabs.reconcile_unknown(project_id, operation_id,
+              body.provider_task_id, body.confirmed_owner_match), 202)
