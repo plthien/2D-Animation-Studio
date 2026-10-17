@@ -64,14 +64,25 @@ try {
  const createChannel=page.getByTestId('create-channel-modal');
  await createChannel.locator('input').nth(0).fill('C2 Browser Channel');
  await createChannel.locator('input').nth(1).fill('c3-browser-channel');
+ const dnaFetch=page.waitForResponse(r=>r.request().method()==='GET'&&
+    /\/api\/v1\/channels\/ch_[a-f0-9]+\/dna$/.test(new URL(r.url()).pathname));
  await createChannel.getByRole('button',{name:'Create channel'}).click();
  await page.getByTestId('channel-card-grid').getByText('C2 Browser Channel').waitFor();
- await page.waitForLoadState('networkidle'); // finish DNA query before editing, avoid draft hydration race
+ await dnaFetch;
+ await page.waitForFunction(()=>
+   document.querySelector('[data-testid="channel-dna-editor"] input')?.value==='C2 Browser Channel');
  const editor=page.getByTestId('channel-dna-editor');
  await editor.locator('textarea').nth(0).fill('Animation fans');
  await editor.locator('textarea').nth(1).fill('Sketchy flat color 2D figures, intentionally rough');
  await editor.locator('textarea').nth(2).fill('Funny, expressive physical comedy');
  await editor.locator('textarea').nth(3).fill('Friendly casual narrator');
+ await page.waitForFunction(()=>{
+   const fields=document.querySelectorAll('[data-testid="channel-dna-editor"] textarea');
+   return fields.length>=4 && fields[0].value==='Animation fans' &&
+     fields[1].value==='Sketchy flat color 2D figures, intentionally rough' &&
+     fields[2].value==='Funny, expressive physical comedy' &&
+     fields[3].value==='Friendly casual narrator';
+ });
  const saveDNAResponse=page.waitForResponse(r=>r.url().endsWith('/dna')&&r.request().method()==='PUT');
  await page.getByTestId('save-dna').click();
  const dnaResult=await saveDNAResponse;
@@ -101,8 +112,9 @@ try {
   await page.getByRole('button',{name:'Create prompt reservation'}).click();
   const pkg=(await (await promptResponse).json()).data;
   await page.getByRole('button',{name:'Copy complete prompt'}).click();
-  await page.getByRole('status').first().waitFor({timeout:8000});
-  const clipboardStatus=await page.getByRole('status').first().innerText();
+  const copyStatus=page.getByTestId('c3-authoring').getByRole('status');
+  await copyStatus.waitFor({timeout:8000});
+  const clipboardStatus=await copyStatus.innerText();
   assert(clipboardStatus==='Complete prompt copied','Clipboard UI status: '+clipboardStatus);
   const actualClipboard=await page.evaluate(()=>navigator.clipboard.readText());
   const begin='=== BEGIN AUTHORING PACKAGE JSON ===';
