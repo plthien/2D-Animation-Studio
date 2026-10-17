@@ -13,7 +13,7 @@ MAX_BYTES=12*1024*1024
 MAX_PIXELS=32_000_000
 EXT={"PNG":"png","JPEG":"jpg","WEBP":"webp"}
 
-def ingest(pid:str,kind:str,semantic_key:str,view:str,raw:bytes,filename:str) -> dict:
+def ingest(pid:str,kind:str,semantic_key:str,view:str,raw:bytes,filename:str, *, origin:str="local-user-import", provider_task_id:str|None=None) -> dict:
     if kind not in ("actor","prop","location","background"):
         s.error("VALIDATION_FAILED","Invalid asset kind",422)
     if not 1<=len(semantic_key)<=200 or not 1<=len(view)<=100:
@@ -48,6 +48,7 @@ def ingest(pid:str,kind:str,semantic_key:str,view:str,raw:bytes,filename:str) ->
     staging=s.bounded_path("_staging")
     staging.mkdir(parents=True,exist_ok=True)
     fd,scratch=tempfile.mkstemp(prefix="image-",dir=staging)
+    meta_path=None
     try:
         with os.fdopen(fd,"wb") as out:
             out.write(raw);out.flush();os.fsync(out.fileno())
@@ -74,7 +75,7 @@ def ingest(pid:str,kind:str,semantic_key:str,view:str,raw:bytes,filename:str) ->
                   kind="asset_source_image.v1",schema="image/"+("jpeg" if fmt=="JPEG" else fmt.lower()),
                   logical=image_id,revision=1,status="draft",checksum=digest,size=len(raw),relative=rel,
                   metadata={"filename":Path(filename).name[:200],"width":width,"height":height,
-                            "origin":"local-user-import","project_id":pid})
+                            "origin":origin,"provider_task_id":provider_task_id,"project_id":pid})
                 metadata={"schema_version":"asset_version.v1","artifact_id":aid,"asset_id":asset_id,
                    "channel_id":pr["channel_id"],"revision":revision,"created_at":t,
                    "kind":kind,"semantic_key":semantic_key,"view":view,
@@ -98,6 +99,11 @@ def ingest(pid:str,kind:str,semantic_key:str,view:str,raw:bytes,filename:str) ->
                         "source_image_artifact_id":image_id,"width":width,"height":height,
                         "status":"candidate","source_sha256":digest}
         except BaseException:
+            # Remove only files created by this failed attempt, never committed references.
+            if meta_path is not None:
+                with s.reader() as con:
+                    if not con.execute("SELECT 1 FROM artifacts WHERE relative_path=?",(meta_rel,)).fetchone():
+                        meta_path.unlink(missing_ok=True)
             # Preserve bytes if a DB record already references them.
             with s.reader() as con:
                 if not con.execute("SELECT 1 FROM artifacts WHERE artifact_id=?",(image_id,)).fetchone():
