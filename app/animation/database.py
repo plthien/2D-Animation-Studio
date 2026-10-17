@@ -71,7 +71,7 @@ def _schema_signature(con: sqlite3.Connection) -> tuple:
     """
     objects = tuple((kind, name, table, _normalize_ddl(sql)) for kind, name, table, sql in con.execute(
         "SELECT type,name,tbl_name,sql FROM sqlite_schema "
-        "WHERE name NOT LIKE 'sqlite_%' AND type IN ('table','index','view','trigger') "
+        "WHERE name NOT LIKE 'sqlite_%' AND name!='alembic_version' AND type IN ('table','index','view','trigger') "
         "ORDER BY type,name"
     ))
     tables = sorted(APPLICATION_TABLES)
