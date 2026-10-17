@@ -63,10 +63,30 @@ export function AuthoringPanel({projectId,headRevision,onCommitted}:{projectId:s
   {pkg&&<div className="space-y-2 rounded-xl border border-cyan-500/20 p-4">
    <p className="text-sm text-cyan-200">Reserved revision {pkg.revision} · {pkg.reservation_id}</p>
    <p className="text-xs text-slate-400">Expires {pkg.expires_at}</p>
-   <button className={btn} onClick={()=>void (async()=>{
-    try{await navigator.clipboard.writeText(pkg.prompt_text);setCopyResult('Complete prompt copied');}
-    catch(err){setCopyResult('Clipboard write failed: '+(err instanceof Error?err.message:String(err)));}
-   })()}>Copy complete prompt</button>
+   <button className={btn} onClick={()=>{
+    // Synchronous copy runs inside the real click activation on local Windows.
+    // Chromium may deny asynchronous clipboard-write even with browser permissions.
+    const area=document.createElement('textarea');
+    area.value=pkg.prompt_text;
+    area.readOnly=true;
+    area.style.position='fixed';
+    area.style.left='-10000px';
+    area.style.top='0';
+    document.body.appendChild(area);
+    area.focus();
+    area.select();
+    let copied=false;
+    try{copied=document.execCommand('copy');}
+    finally{document.body.removeChild(area);}
+    if(copied){setCopyResult('Complete prompt copied');return;}
+    if(!navigator.clipboard?.writeText){
+     setCopyResult('Clipboard write unavailable. Allow clipboard access and try again.');
+     return;
+    }
+    void navigator.clipboard.writeText(pkg.prompt_text)
+     .then(()=>setCopyResult('Complete prompt copied'))
+     .catch(err=>setCopyResult('Clipboard write failed: '+String(err)));
+   }>Copy complete prompt</button>
    {copyResult&&<p role="status" className="text-xs text-slate-300">{copyResult}</p>}
   </div>}
   <label className="block text-sm text-slate-300">External JSON response
