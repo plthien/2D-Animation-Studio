@@ -88,8 +88,29 @@ export const apiClient = {
   authoringApprove:(pid:string,kind:string,aid:string,expected_head_revision:number,expected_sha256:string)=>request<{artifact_id:string;revision:number;sha256:string}>('POST',`/api/v1/projects/${pid}/authoring/${kind}/${aid}/approve`,{expected_head_revision,expected_sha256}),
   authoringHistory:(pid:string,kind:string)=>request<Page<Artifact>>('GET',`/api/v1/projects/${pid}/authoring/${kind}/history`),
   authoringDocument:(pid:string,aid:string)=>request<{artifact:Artifact;document:Record<string,unknown>}>('GET',`/api/v1/projects/${pid}/authoring/revisions/${aid}`),
+  resolverRequirements:(pid:string)=>request<AssetRequirements>('GET',`/api/v1/projects/${pid}/resolver/requirements`),
+  assetResolution:(pid:string)=>request<AssetResolution>('GET',`/api/v1/projects/${pid}/resolver/resolution`),
+  assetVersions:(cid:string)=>request<Page<AssetVersion>>('GET',`/api/v1/channels/${cid}/assets`),
+  bindAsset:(pid:string,requirement_id:string,asset_version_id:string,expected_fingerprint:string)=>request<AssetBinding>('POST',`/api/v1/projects/${pid}/asset-bindings`,{requirement_id,asset_version_id,expected_fingerprint}),
+  unbindAsset:(pid:string,binding_id:string,expected_fingerprint:string)=>request<{removed_binding_id:string}>('DELETE',`/api/v1/projects/${pid}/asset-bindings/${binding_id}`,{expected_fingerprint}),
+  reviewImage:(pid:string,version:string,decision:'approved'|'rejected')=>request<{asset_version_id:string;status:string}>('POST',`/api/v1/projects/${pid}/assets/${version}/review`,{decision}),
+  imageSrc:(pid:string,version:string)=>BASE+`/api/v1/projects/${pid}/assets/${version}/image`,
+  uploadImage:async(pid:string,kind:string,semantic_key:string,view:string,file:File)=>{
+    const form=new FormData();form.set('file',file);form.set('kind',kind);form.set('semantic_key',semantic_key);form.set('view',view);
+    const response=await fetch(BASE+`/api/v1/projects/${pid}/images/import`,{method:'POST',body:form});
+    const value=await response.json() as Envelope<ImageCandidate>|{error:{code:string;message:string}};
+    if(!response.ok||!('data' in value))throw new ApiError('error' in value?value.error.code:'HTTP_ERROR','error' in value?value.error.message:'Upload failed',response.status);
+    return value.data;
+  },
   artifact:(aid:string,cid?:string)=>request<Artifact>('GET',`/api/v1/artifacts/${aid}`+query({channel_id:cid})),
 };
 
 export type ValidationReport={valid:boolean;issues:Array<{path:string;message:string}>;source_fingerprint:string};
 export type AuthoringPackage={reservation_id:string;reserved_artifact_id:string;revision:number;expires_at:string;source_fingerprint:string;schema:Record<string,unknown>;source:unknown;channel_dna:unknown;instructions:string;reserved_fields:Record<string,unknown>;source_inputs:Record<string,unknown>};
+
+export type AssetRequirement={requirement_id:string;kind:'actor'|'prop'|'location'|'background';semantic_key:string;view:string;shot_ids:string[];required_capabilities:string[]};
+export type AssetRequirements={project_id:string;channel_id:string;fingerprint:string;requirements:AssetRequirement[]};
+export type AssetBinding={binding_id:string;asset_version_id:string;source_fingerprint:string};
+export type AssetResolution={requirements_fingerprint:string;requirements:Array<{requirement:AssetRequirement;binding:AssetBinding|null;state:'resolved'|'unresolved';reason:string|null}>;resolved_count:number;total_count:number};
+export type AssetVersion={asset_version_id:string;asset_id:string;kind:string;semantic_key:string;view_key:string;revision:number;status:'candidate'|'approved'|'rejected';visual_style_hash:string;capability_hash:string;source_sha256:string};
+export type ImageCandidate={asset_version_id:string;asset_id:string;artifact_id:string;source_image_artifact_id:string;width:number;height:number;status:'candidate';source_sha256:string};
