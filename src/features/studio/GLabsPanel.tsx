@@ -11,6 +11,7 @@ export function GLabsPanel({projectId,requirement,onCandidate}:{projectId:string
  const [key,setKey]=useState('');
  const [operation,setOperation]=useState<GLabsOperation|null>(null);
  const [error,setError]=useState('');
+ const [providerTaskId,setProviderTaskId]=useState('');
  const [busy,setBusy]=useState(false);
  useEffect(()=>{void Promise.all([apiClient.glabsConfig(projectId),apiClient.glabsOperations(projectId)]).then(async([cfg,ops])=>{
   setConfig(cfg);
@@ -52,7 +53,14 @@ export function GLabsPanel({projectId,requirement,onCandidate}:{projectId:string
   </div>}
   {operation&&<div className="space-y-2 text-xs">
    <p>Durable operation: {operation.operation_id} · {operation.status}</p>
-   {operation.status==='unknown'&&<p className="text-amber-200">Submission acknowledgement unknown; no automatic resubmit. Check provider before approving a new paid attempt.</p>}
+   {operation.status==='unknown'&&<div className="space-y-2">
+    <p className="text-amber-200">Submission acknowledgement unknown. No automatic resubmit; retrieve the exact task ID from your local G-Labs service first.</p>
+    <input aria-label="Known G-Labs task ID" placeholder="8-character provider hex task ID" value={providerTaskId} onChange={e=>setProviderTaskId(e.target.value)} className="w-full rounded-lg bg-slate-800 p-2 font-mono"/>
+    <button className={btn} disabled={busy||!/^[0-9a-fA-F]{8}$/.test(providerTaskId)} onClick={()=>void act(async()=>{
+     const x=await apiClient.glabsReconcile(projectId,operation.operation_id,providerTaskId);
+     setOperation(x);if(x.result?.candidate)onCandidate(x.result.candidate);
+    })}>Verify this existing provider task (no new paid submit)</button>
+   </div>}
    {operation.error&&<p className="text-red-300">Error: {operation.error.code}</p>}
    <div className="flex flex-wrap gap-2">
     <button className={btn} disabled={busy} onClick={()=>void act(async()=>{setOperation(await apiClient.glabsStatus(projectId,operation.operation_id));})}>Refresh</button>
