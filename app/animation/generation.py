@@ -171,7 +171,13 @@ def advance(pid,oid,client=None):
         except AppError as exc:s.error(exc.code,exc.message,exc.status)
     if submit:
         try:
-            reply=client.submit_image(quote["payload"])
+            # Match the donor's actual /api/image/generate payload contract.
+            p=quote["payload"]
+            provider_prompt=p["prompt"].strip()
+            if p["negative_prompt"].strip():
+                provider_prompt+="\\n\\nAvoid: "+p["negative_prompt"].strip()
+            reply=client.submit_image({"prompt":provider_prompt,"model":p["model"],
+                 "aspect_ratio":p["aspect_ratio"],"reference_images":[],"upscale":[]})
             handle={"task_id":reply["task_id"]}
             with s.writer() as con:
                 if con.execute("SELECT status FROM operations WHERE operation_id=?",(oid,)).fetchone()["status"]=="cancelled":
