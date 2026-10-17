@@ -155,13 +155,15 @@ def advance(pid,oid,client=None):
                    (op["paid_consent_artifact_id"],pid)).fetchone()
         if consent is None:s.error("CONSENT_INVALID","Approved consent missing",422)
         signed=a.verified_doc(consent)
-        if signed["input_fingerprint"]!=op["input_fingerprint"] or signed["attempt"]!=op["attempt"] or signed["expires_at"]<s.now():
+        if signed["input_fingerprint"]!=op["input_fingerprint"] or signed["attempt"]!=op["attempt"]:
             s.error("CONSENT_INVALID","Expired or mismatched consent",422)
         quote=json.loads(op["request_json"])
         if r.requirements(pid)["fingerprint"]!=quote["requirements_fingerprint"]:
             s.error("STALE_HEAD","Generation source changed")
         task=con.execute("SELECT * FROM operation_tasks WHERE operation_id=?",(oid,)).fetchone()
         submit=task["status"]=="queued"
+        if submit and signed["expires_at"]<s.now():
+            s.error("CONSENT_INVALID","Expired consent cannot authorize a new submission",422)
         handle=json.loads(task["provider_handle_json"]) if task["provider_handle_json"] else None
         if submit:
             # Durable paid-submit fence before IO. Crash here -> unknown, never blind retry.
@@ -227,3 +229,29 @@ def list_operations(pid):
                             FROM operations WHERE project_id=? AND kind='glabs_image'
                             ORDER BY created_at DESC LIMIT 50""",(pid,)).fetchall()
         return {"items":[s.rowdict(x) for x in rows],"next_cursor":None}
+
+
+def reconcile_unknown(pid,oid,provider_task_id,confirmed_owner_match,client=None):
+    """Manual safe reconciliation by a real provider handle, never another paid POST."""
+    if confirmed_owner_match is not True:
+        s.error("CONSENT_INVALID","Owner must confirm this provider task belongs to the frozen attempt",422)
+    canonical=GLabsWebhookClient.normalize_task_id(provider_task_id)
+    with s.reader() as con:
+        a.project(con,pid)
+        op=con.execute("SELECT * FROM operations WHERE operation_id=? AND project_id=?",(oid,pid)).fetchone()
+        if op is None:s.error("NOT_FOUND","Operation not found",404)
+        if op["status"]!="unknown":s.error("STALE_HEAD","Only unknown submissions may be reconciled")
+        quote=json.loads(op["request_json"])
+    if r.requirements(pid)["fingerprint"]!=quote["requirements_fingerprint"]:
+        s.error("STALE_HEAD","Cannot reconcile under changed source fingerprint")
+    if client is None:client=GLabsWebhookClient(settings())
+    try:
+        remote=client.get_status(canonical)  # GET only, not a second paid submit.
+    except AppError as exc:
+        s.error(exc.code,exc.message,exc.status)
+    with s.writer() as con:
+        current=con.execute("SELECT status FROM operations WHERE operation_id=? AND project_id=?",(oid,pid)).fetchone()
+        if current is None or current["status"]!="unknown":
+            s.error("STALE_HEAD","Operation changed during provider reconciliation")
+        transition(con,oid,"running","running",handle={"task_id":canonical})
+    return advance(pid,oid,client=client)
