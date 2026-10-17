@@ -122,111 +122,264 @@ def confirm(pid,quote,signature,idem,approved):
     return status(pid,result["operation_id"])
 
 def cancel(pid,oid):
+    """Cancel locally without losing knowledge of a possible paid submission."""
     with s.writer() as con:
         a.project(con,pid)
-        op=con.execute("SELECT status FROM operations WHERE operation_id=? AND project_id=?",(oid,pid)).fetchone()
+        op=con.execute("SELECT * FROM operations WHERE operation_id=? AND project_id=?",
+                       (oid,pid)).fetchone()
         if op is None:s.error("NOT_FOUND","Operation not found",404)
         if op["status"] in ("completed","failed","cancelled"):
             return {"operation_id":oid,"status":op["status"]}
+        task=con.execute("SELECT * FROM operation_tasks WHERE operation_id=?",(oid,)).fetchone()
+        if task is None:s.error("LINEAGE_MISMATCH","Operation task missing",422)
+        if task["provider_handle_json"]:
+            reason="CANCELLED_WITH_PROVIDER_HANDLE"
+        elif task["status"] in ("submitted","running","unknown"):
+            reason="CANCELLED_SUBMISSION_UNCERTAIN"
+        else:
+            reason="CANCELLED_BEFORE_SUBMISSION"
         t=s.now()
-        con.execute("UPDATE operations SET status='cancelled',updated_at=? WHERE operation_id=?",(t,oid))
-        con.execute("UPDATE operation_tasks SET status='cancelled',updated_at=? WHERE operation_id=?",(t,oid))
-        con.execute("UPDATE jobs SET status='cancelled',updated_at=?,progress_message='Cancelled' WHERE operation_id=?",(t,oid))
+        updated=con.execute(
+            """UPDATE operations SET status='cancelled',error_json=?,lease_owner=NULL,
+               lease_token=NULL,lease_expires_at=NULL,updated_at=?
+               WHERE operation_id=? AND project_id=? AND status IN ('queued','running','unknown')""",
+            (s.canon({"code":reason}).decode(),t,oid,pid),
+        )
+        if updated.rowcount!=1:s.error("STALE_HEAD","Operation changed during cancel")
+        con.execute(
+            "UPDATE operation_tasks SET status='cancelled',claim_token=NULL,updated_at=? WHERE operation_id=?",
+            (t,oid),
+        )
+        con.execute(
+            """UPDATE jobs SET status='cancelled',updated_at=?,progress_message=? WHERE operation_id=?""",
+            (t,reason,oid),
+        )
     return {"operation_id":oid,"status":"cancelled"}
 
-def transition(con,oid,op_status,task_status,handle=None,result=None,err=None):
+
+def transition(con,oid,op_status,task_status,handle=None,result=None,err=None,
+               claim_token=None):
+    """CAS transition; terminal cancelled/completed may not be resurrected."""
     t=s.now()
-    con.execute("UPDATE operations SET status=?,result_json=?,error_json=?,updated_at=? WHERE operation_id=?",
-        (op_status,s.canon(result).decode() if result else None,s.canon(err).decode() if err else None,t,oid))
-    con.execute("""UPDATE operation_tasks SET status=?,provider_handle_json=COALESCE(?,provider_handle_json),updated_at=?
-                   WHERE operation_id=?""",
-        (task_status,s.canon(handle).decode() if handle else None,t,oid))
-    con.execute("UPDATE jobs SET status=?,progress_message=?,progress_percent=?,updated_at=? WHERE operation_id=?",
-        (op_status,op_status,100 if op_status=="completed" else 50,t,oid))
+    query="""UPDATE operations SET status=?,result_json=?,error_json=?,updated_at=?,
+            lease_owner=CASE WHEN ? THEN NULL ELSE lease_owner END,
+            lease_token=CASE WHEN ? THEN NULL ELSE lease_token END,
+            lease_expires_at=CASE WHEN ? THEN NULL ELSE lease_expires_at END
+            WHERE operation_id=? AND status IN ('queued','running','unknown')"""
+    done=op_status in ("completed","failed","unknown")
+    args=[op_status,s.canon(result).decode() if result is not None else None,
+          s.canon(err).decode() if err is not None else None,t,
+          int(done),int(done),int(done),oid]
+    if claim_token is not None:
+        query+=" AND lease_token=?"
+        args.append(claim_token)
+    changed=con.execute(query,args)
+    if changed.rowcount!=1:return False
+    con.execute(
+        """UPDATE operation_tasks SET status=?,
+           claim_token=CASE WHEN ? THEN NULL ELSE claim_token END,
+           provider_handle_json=COALESCE(?,provider_handle_json),updated_at=?
+           WHERE operation_id=?""",
+        (task_status,int(done),s.canon(handle).decode() if handle else None,t,oid),
+    )
+    con.execute(
+        "UPDATE jobs SET status=?,progress_message=?,progress_percent=?,updated_at=? WHERE operation_id=?",
+        (op_status,op_status,100 if op_status=="completed" else 50,t,oid),
+    )
+    return True
+
+
+def _claim_advance(con, pid, oid):
+    """BEGIN IMMEDIATE owns claim + submit fence; never hold it during provider IO."""
+    from uuid import uuid4
+    op=con.execute("SELECT * FROM operations WHERE project_id=? AND operation_id=?",
+                   (pid,oid)).fetchone()
+    if op is None:s.error("NOT_FOUND","Operation not found",404)
+    if op["status"] in ("cancelled","completed","failed","unknown"):
+        return None
+    task=con.execute("SELECT * FROM operation_tasks WHERE operation_id=?",(oid,)).fetchone()
+    if task is None:s.error("LINEAGE_MISMATCH","Operation task missing",422)
+    instant=s.now()
+    if op["lease_token"] and op["lease_expires_at"] and op["lease_expires_at"]>instant:
+        return None
+    handle=json.loads(task["provider_handle_json"]) if task["provider_handle_json"] else None
+    if task["status"] in ("submitted","claimed") and handle is None:
+        # Lease expiry/crash after the submit fence is ambiguous, NOT retry permission.
+        transition(con,oid,"unknown","unknown",err={"code":"SUBMIT_ACK_UNKNOWN"})
+        return None
+    submit=task["status"]=="queued"
+    if not submit and handle is None:
+        transition(con,oid,"unknown","unknown",err={"code":"SUBMIT_ACK_UNKNOWN"})
+        return None
+    consent=con.execute(
+        """SELECT * FROM artifacts WHERE artifact_id=? AND project_id=?
+           AND kind='paid_operation_consent.v1' AND approval_status='approved'""",
+        (op["paid_consent_artifact_id"],pid),
+    ).fetchone()
+    if consent is None:s.error("CONSENT_INVALID","Approved consent missing",422)
+    signed=a.verified_doc(consent)
+    if signed["input_fingerprint"]!=op["input_fingerprint"] or signed["attempt"]!=op["attempt"]:
+        s.error("CONSENT_INVALID","Paid consent does not match operation attempt",422)
+    quote=json.loads(op["request_json"])
+    provider_settings=settings()
+    if quote.get("provider_identity_hash")!=s.sha({
+            "endpoint":provider_settings["base_url"],"api_key":provider_settings["api_key"]}):
+        s.error("CONSENT_INVALID","Provider identity changed since consent",422)
+    if r._requirements_in_connection(con,pid)["fingerprint"]!=quote["requirements_fingerprint"]:
+        s.error("STALE_HEAD","Generation source changed")
+    if submit and signed["expires_at"]<instant:
+        s.error("CONSENT_INVALID","Expired paid submission consent",422)
+    token=uuid4().hex
+    expiry=(datetime.now(timezone.utc)+timedelta(minutes=5)).isoformat(timespec="microseconds")
+    changed=con.execute(
+        """UPDATE operations SET lease_owner='c3-glabs-advance',lease_token=?,
+           lease_expires_at=?,updated_at=?
+           WHERE operation_id=? AND project_id=? AND status IN ('queued','running')
+             AND (lease_token IS NULL OR lease_expires_at<=?)""",
+        (token,expiry,instant,oid,pid,instant),
+    )
+    if changed.rowcount!=1:return None
+    con.execute("UPDATE operation_tasks SET claim_token=?,updated_at=? WHERE operation_id=?",
+                (token,instant,oid))
+    if submit:
+        # Durable paid POST fence. On crash the next advance becomes UNKNOWN, not POST.
+        if not transition(con,oid,"running","submitted",claim_token=token):
+            s.error("STALE_HEAD","Unable to write paid submit fence")
+    return {"token":token,"submit":submit,"handle":handle,"quote":quote,
+            "task_id":task["operation_task_id"]}
+
+
+def _release_claim(pid,oid,token):
+    with s.writer() as con:
+        t=s.now()
+        con.execute(
+            """UPDATE operations SET lease_owner=NULL,lease_token=NULL,
+               lease_expires_at=NULL,updated_at=?
+               WHERE operation_id=? AND project_id=? AND lease_token=?""",
+            (t,oid,pid,token),
+        )
+        con.execute(
+            """UPDATE operation_tasks SET claim_token=NULL,updated_at=?
+               WHERE operation_id=? AND claim_token=?""",
+            (t,oid,token),
+        )
+
+
+def _acknowledge(pid,oid,task_id,token,handle):
+    """Always save a real provider task ID, EVEN IF cancellation won the race."""
+    with s.writer() as con:
+        op=con.execute("SELECT * FROM operations WHERE operation_id=? AND project_id=?",
+                       (oid,pid)).fetchone()
+        task=con.execute("SELECT * FROM operation_tasks WHERE operation_task_id=? AND operation_id=?",
+                         (task_id,oid)).fetchone()
+        if op is None or task is None:s.error("LINEAGE_MISMATCH","Provider operation missing",422)
+        previous=json.loads(task["provider_handle_json"]) if task["provider_handle_json"] else None
+        if previous is not None and previous!=handle:
+            s.error("LINEAGE_MISMATCH","Conflicting acknowledged provider task identity",422)
+        con.execute(
+            """UPDATE operation_tasks SET provider_handle_json=?,updated_at=?
+               WHERE operation_task_id=? AND (provider_handle_json IS NULL OR provider_handle_json=?)""",
+            (s.canon(handle).decode(),s.now(),task_id,s.canon(handle).decode()),
+        )
+        if op["status"]=="cancelled":
+            con.execute(
+                """UPDATE operations SET error_json=?,updated_at=?
+                   WHERE operation_id=? AND status='cancelled'""",
+                (s.canon({"code":"CANCELLED_WITH_PROVIDER_HANDLE"}).decode(),s.now(),oid),
+            )
+            return False
+        if op["lease_token"]!=token or op["status"]!="running":
+            # The handle remains durable for manual reconciliation, no revival.
+            return False
+        return transition(con,oid,"running","running",handle=handle,claim_token=token)
+
+
+def _submit_unknown(pid,oid):
+    with s.writer() as con:
+        op=con.execute("SELECT * FROM operations WHERE operation_id=? AND project_id=?",
+                       (oid,pid)).fetchone()
+        if op and op["status"]=="running":
+            transition(con,oid,"unknown","unknown",err={"code":"SUBMIT_ACK_UNKNOWN"})
+        # A cancelled request retains CANCELLED_SUBMISSION_UNCERTAIN and is never retried.
+
 
 def advance(pid,oid,client=None):
     with s.writer() as con:
-        pr=a.project(con,pid)
-        op=con.execute("SELECT * FROM operations WHERE project_id=? AND operation_id=?",(pid,oid)).fetchone()
-        if op is None:s.error("NOT_FOUND","Operation not found",404)
-        if op["status"] in ("cancelled","completed","failed","unknown"):
-            return {"operation_id":oid,"status":op["status"]}
-        consent=con.execute("""SELECT * FROM artifacts WHERE artifact_id=? AND project_id=?
-                   AND kind='paid_operation_consent.v1' AND approval_status='approved'""",
-                   (op["paid_consent_artifact_id"],pid)).fetchone()
-        if consent is None:s.error("CONSENT_INVALID","Approved consent missing",422)
-        signed=a.verified_doc(consent)
-        if signed["input_fingerprint"]!=op["input_fingerprint"] or signed["attempt"]!=op["attempt"]:
-            s.error("CONSENT_INVALID","Expired or mismatched consent",422)
-        quote=json.loads(op["request_json"])
-        provider_settings=settings()
-        if quote.get("provider_identity_hash")!=s.sha({"endpoint":provider_settings["base_url"],"api_key":provider_settings["api_key"]}):
-            s.error("CONSENT_INVALID","G-Labs provider identity changed after consent",422)
-        if r.requirements(pid)["fingerprint"]!=quote["requirements_fingerprint"]:
-            s.error("STALE_HEAD","Generation source changed")
-        task=con.execute("SELECT * FROM operation_tasks WHERE operation_id=?",(oid,)).fetchone()
-        submit=task["status"]=="queued"
-        if submit and signed["expires_at"]<s.now():
-            s.error("CONSENT_INVALID","Expired consent cannot authorize a new submission",422)
-        handle=json.loads(task["provider_handle_json"]) if task["provider_handle_json"] else None
-        if submit:
-            # Durable paid-submit fence before IO. Crash here -> unknown, never blind retry.
-            transition(con,oid,"running","submitted")
-    if client is None:
-        try:client=GLabsWebhookClient(settings())
-        except AppError as exc:s.error(exc.code,exc.message,exc.status)
-    if submit:
-        try:
-            # Match the donor's actual /api/image/generate payload contract.
-            p=quote["payload"]
-            provider_prompt=p["prompt"].strip()
-            if p["negative_prompt"].strip():
-                provider_prompt+="\\n\\nAvoid: "+p["negative_prompt"].strip()
-            reply=client.submit_image({"prompt":provider_prompt,"model":p["model"],
-                 "aspect_ratio":p["aspect_ratio"],"reference_images":[],"upscale":[]})
-            handle={"task_id":reply["task_id"]}
-            with s.writer() as con:
-                if con.execute("SELECT status FROM operations WHERE operation_id=?",(oid,)).fetchone()["status"]=="cancelled":
-                    return status(pid,oid)
-                transition(con,oid,"running","running",handle=handle)
-        except Exception:
-            with s.writer() as con:
-                current=con.execute("SELECT status FROM operations WHERE operation_id=?",(oid,)).fetchone()
-                if current and current["status"]!="cancelled":
-                    transition(con,oid,"unknown","unknown",err={"code":"SUBMIT_ACK_UNKNOWN"})
-            return status(pid,oid)
-    if handle is None:
-        with s.writer() as con:transition(con,oid,"unknown","unknown",err={"code":"SUBMIT_ACK_UNKNOWN"})
+        a.project(con,pid)
+        claim=_claim_advance(con,pid,oid)
+    if claim is None:
         return status(pid,oid)
+    token,submit,handle,quote,task_id=(claim[k] for k in
+                                      ("token","submit","handle","quote","task_id"))
     try:
-        remote=client.get_status(handle["task_id"])
-        if remote["status"] in ("running","pending"):
+        if client is None:
+            try:client=GLabsWebhookClient(settings())
+            except AppError as exc:
+                if submit:_submit_unknown(pid,oid)
+                s.error(exc.code,exc.message,exc.status)
+        if submit:
+            try:
+                p=quote["payload"]
+                provider_prompt=p["prompt"].strip()
+                if p["negative_prompt"].strip():
+                    provider_prompt+="\n\nAvoid: "+p["negative_prompt"].strip()
+                reply=client.submit_image({"prompt":provider_prompt,"model":p["model"],
+                     "aspect_ratio":p["aspect_ratio"],"reference_images":[],"upscale":[]})
+                handle={"task_id":reply["task_id"]}
+                if not _acknowledge(pid,oid,task_id,token,handle):
+                    return status(pid,oid)
+            except Exception:
+                _submit_unknown(pid,oid)
+                return status(pid,oid)
+        if handle is None:
+            _submit_unknown(pid,oid)
             return status(pid,oid)
-        if remote["status"]=="failed":
-            with s.writer() as con:transition(con,oid,"failed","failed",err={"code":"PROVIDER_FAILED"})
-            return status(pid,oid)
-        result=client.get_result(handle["task_id"])
-        stage=s.artifact_root()
-        stage.mkdir(parents=True,exist_ok=True)
-        fd,tmp=tempfile.mkstemp(prefix="glabs-",dir=stage)
-        os.close(fd)
+        with s.reader() as con:
+            op=con.execute("SELECT status,lease_token FROM operations WHERE operation_id=? AND project_id=?",
+                           (oid,pid)).fetchone()
+            if op is None or op["status"]!="running" or op["lease_token"]!=token:
+                return status(pid,oid)
         try:
-            client.download_file(result["results"][0],Path(tmp),local_assets.MAX_BYTES)
-            need=r.requirements(pid)
-            req=next(x for x in need["requirements"] if x["requirement_id"]==quote["requirement_id"])
-            candidate=local_assets.ingest(pid,req["kind"],req["semantic_key"],req["view"],
-                Path(tmp).read_bytes(),"glabs-generated.png",origin="glabs",provider_task_id=handle["task_id"])
-        finally:Path(tmp).unlink(missing_ok=True)
-        with s.writer() as con:
-            if con.execute("SELECT status FROM operations WHERE operation_id=?",(oid,)).fetchone()["status"]!="cancelled":
-                transition(con,oid,"completed","completed",result={"candidate":candidate,"task_id":handle["task_id"]})
-        return status(pid,oid)
-    except Exception as exc:
-        if isinstance(exc,AppError) and exc.retryable:return status(pid,oid)
-        with s.writer() as con:
-            if con.execute("SELECT status FROM operations WHERE operation_id=?",(oid,)).fetchone()["status"]!="cancelled":
-                transition(con,oid,"failed","failed",err={"code":"RESULT_INVALID_OR_DOWNLOAD_FAILED"})
-        return status(pid,oid)
+            remote=client.get_status(handle["task_id"])
+            if remote["status"] in ("running","pending"):
+                return status(pid,oid)
+            if remote["status"]=="failed":
+                with s.writer() as con:
+                    transition(con,oid,"failed","failed",err={"code":"PROVIDER_FAILED"},claim_token=token)
+                return status(pid,oid)
+            result=client.get_result(handle["task_id"])
+            stage=s.artifact_root()
+            stage.mkdir(parents=True,exist_ok=True)
+            fd,tmp=tempfile.mkstemp(prefix="glabs-",dir=stage)
+            os.close(fd)
+            try:
+                client.download_file(result["results"][0],Path(tmp),local_assets.MAX_BYTES)
+                # Pre-ingest cancellation is also checked under local_assets' owning writer.
+                with s.reader() as con:
+                    need=r._requirements_in_connection(con,pid)
+                req=next(x for x in need["requirements"] if x["requirement_id"]==quote["requirement_id"])
+                candidate=local_assets.ingest(
+                    pid,req["kind"],req["semantic_key"],req["view"],Path(tmp).read_bytes(),
+                    "glabs-generated.png",origin="glabs",provider_task_id=handle["task_id"],
+                    operation_id=oid,operation_task_id=task_id,claim_token=token,result_index=0,
+                )
+            finally:
+                Path(tmp).unlink(missing_ok=True)
+            with s.writer() as con:
+                transition(con,oid,"completed","completed",claim_token=token,
+                           result={"candidate":candidate,"task_id":handle["task_id"]})
+            return status(pid,oid)
+        except Exception as exc:
+            if isinstance(exc,s.DomainError) and exc.code=="STALE_HEAD":
+                return status(pid,oid)
+            if isinstance(exc,AppError) and exc.retryable:
+                return status(pid,oid)
+            with s.writer() as con:
+                transition(con,oid,"failed","failed",claim_token=token,
+                           err={"code":"RESULT_INVALID_OR_DOWNLOAD_FAILED"})
+            return status(pid,oid)
+    finally:
+        _release_claim(pid,oid,token)
 
 
 def list_operations(pid):
