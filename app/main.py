@@ -212,7 +212,7 @@ def system(request: Request):
         "product": "2D Animation Studio", "api_schema_version": "api.v1",
         "database_revision": "0001_animation_initial",
         "stages": list(svc.STAGES), "animation_generation_ready": False,
-        "disabled_phases": ["C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12"],
+        "disabled_phases": ["C4", "C5", "C6", "C7"],
     })
 
 
