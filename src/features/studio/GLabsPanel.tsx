@@ -41,7 +41,7 @@ export function GLabsPanel({projectId,requirement,onCandidate}:{projectId:string
    setQuote(x);setKey(crypto.randomUUID());setApproved(false);
   })}>Prepare frozen paid quote</button>
   {quote&&<div className="space-y-2 rounded-lg border border-amber-500/20 p-3 text-xs">
-   <p className="text-amber-200">Cost estimate unavailable. Hard authorized ceiling: USD {quote.cost_ceiling_usd.toFixed(2)}.</p>
+   <p className="text-amber-200">Provider cost estimate unavailable. Owner authorization limit: USD {quote.cost_ceiling_usd.toFixed(2)}. This is NOT a provider-enforced billing cap; confirm actual provider pricing before spending.</p>
    <p className="break-all font-mono">Attempt fingerprint: {quote.fingerprint}</p>
    <label className="flex items-start gap-2"><input type="checkbox" checked={approved} onChange={e=>setApproved(e.target.checked)}/> I explicitly authorize ONE paid G-Labs request with the displayed exact input and ceiling.</label>
    <button className={btn} disabled={busy||!approved} onClick={()=>void act(async()=>{
