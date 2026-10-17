@@ -40,6 +40,28 @@ def database_path(url: str | None = None) -> Path:
     return result.resolve()
 
 
+def _normalize_ddl(sql: str | None) -> str | None:
+    """Normalize only non-quoted whitespace and case, never SQL literal data."""
+    if sql is None:
+        return None
+    out = []
+    quote = None
+    for ch in sql:
+        if quote is not None:
+            out.append(ch)
+            if ch == quote:
+                quote = None
+        elif ch in ("'", '"', "`", "["):
+            quote = "]" if ch == "[" else ch
+            out.append(ch)
+        elif ch.isspace():
+            if out and out[-1] != " ":
+                out.append(" ")
+        else:
+            out.append(ch.lower())
+    return "".join(out).strip()
+
+
 def _schema_signature(con: sqlite3.Connection) -> tuple:
     """Compare all frozen DDL + structural PRAGMAs; preserve CHECK predicates.
 
@@ -47,11 +69,11 @@ def _schema_signature(con: sqlite3.Connection) -> tuple:
     quotes, CHECK clauses, collation and partial WHERE predicates are semantic.
     Cosmetic third-party rewrites are not a supported migration of this frozen DB.
     """
-    objects = tuple(con.execute(
+    objects = tuple((kind, name, table, _normalize_ddl(sql)) for kind, name, table, sql in con.execute(
         "SELECT type,name,tbl_name,sql FROM sqlite_schema "
         "WHERE name NOT LIKE 'sqlite_%' AND type IN ('table','index','view','trigger') "
         "ORDER BY type,name"
-    ).fetchall())
+    ))
     tables = sorted(APPLICATION_TABLES)
     structure = []
     for table in tables:
