@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+from contextlib import closing
 import sqlite3
 from pathlib import Path
 
@@ -112,7 +113,7 @@ def test_existing_animation_schema_tamper_refused_without_writes(tmp_path, monke
     monkeypatch.setenv("ARTIFACT_ROOT",str(tmp_path / "artifacts"))
     migrate(url)
 
-    with sqlite3.connect(path) as conn:
+    with closing(sqlite3.connect(path)) as conn:
         # Use a disposable test DB and checkpoint before the corruption baseline.
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         conn.execute("PRAGMA journal_mode=DELETE")
