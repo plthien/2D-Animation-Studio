@@ -143,22 +143,19 @@ def test_real_windows_job_owns_descendant_tree_without_killing_unrelated(tmp_pat
         descendant=int(child_file.read_text())
         assert alive(owned.pid) and alive(descendant)
         assert alive(unrelated.pid)
-        owned.terminate_tree()
+        # Closing the sole Job handle exercises real KILL_ON_JOB_CLOSE
+        # without relying on a potentially blocking TerminateJobObject call.
+        owned.release()
+        owned.release()
+        assert owned.released
         deadline=time.monotonic()+10
         while (alive(owned.pid) or alive(descendant)) and time.monotonic()<deadline:
             time.sleep(.05)
         assert not alive(owned.pid),"Owned process remains alive"
         assert not alive(descendant),"Orphaned descendant remains alive"
         assert alive(unrelated.pid),"Unrelated process was terminated"
-        owned.release()
-        owned.release()
-        assert owned.released
     finally:
         if owned is not None:
-            try:
-                owned.terminate_tree()
-            except OSError:
-                pass
             owned.release()
             try:
                 owned.process.wait(timeout=5)
