@@ -1,0 +1,29 @@
+name: C2 one-time source snapshot for regression reproduction
+on:
+  push:
+    branches: [feat/c2-atomic-animation-cutover]
+    paths: ['tools/c2_repo_snapshot_request.txt']
+jobs:
+  snapshot:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Archive exact committed source without secrets
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          Write-Host "C2_VERIFIED_HEAD=$actual"
+          if ($actual -ne "${{ github.sha }}") { throw "C2_CHECKOUT_SHA_MISMATCH" }
+          git archive --format=zip --output=c2-repro-source.zip HEAD
+          if ($LASTEXITCODE -ne 0) { throw "C2_SNAPSHOT_FAILED" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c2-repro-source-verified
+          path: c2-repro-source.zip
+          if-no-files-found: error
