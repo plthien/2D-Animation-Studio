@@ -189,3 +189,42 @@ The 2026-10-17 full platform job at `cf2c7e7d62ea676b041d4b170f2726b3088de68e` r
 All temporary source snapshot, upgrade and diagnostic workflow triggers must be removed from the final production tree. The only mandatory acceptance workflow is `.github/workflows/c2-animation-cutover.yml`, with independent exact-head Windows platform and security jobs. Earlier run cancellations are retained as historical evidence; their causes are not asserted without logs.
 
 **Acceptance status remains C2 BLOCKED until both jobs complete successfully on the final exact PR commit.**
+
+
+---
+
+## 2026-10-17 — Explicit repository-owner C2 merge authorization with deferred Windows platform acceptance
+
+**Decision authority:** The repository owner explicitly requested: "kết quả Windows platform tôi sẽ test sau khi hoàn thành full flow, bây giờ yêu cầu note vào và merge" (defer Windows platform testing until the full flow is implemented; record it and merge PR #4 now). This decision supersedes the earlier *C2 merge readiness requirement* for a completed exact-HEAD `c2-platform` job **only for PR #4**. It does NOT create a false C2 platform PASS, waive product security, or waive release testing.
+
+**Reviewed implementation prior to this documentation commit:** `8a6004da80c47a3c4ff4725999dbc45509ab3774`. Exact final documentation commit SHA and actual merge SHA must be taken from GitHub, never inferred from this file.
+
+**Evidence at owner decision:**
+- [Windows run 39003163417](https://github.com/plthien/2D-Animation-Studio/actions/runs/39003163417), `c2-security` on implementation SHA: **SUCCESS**, verified `C2_VERIFIED_HEAD`, 10/10 security-policy tests PASS, Python pip-audit "No known vulnerabilities found", npm production and full installed-graph audit exit codes `0/0`, no approved exceptions.
+- The same run's `c2-platform`: **IN_PROGRESS at the last verification**, still on `Test animation C2 platform`; its final outcome and full exact-SHA evidence were **NOT VERIFIED** at this decision point. Do not quote the earlier Linux 46 passed/1 skipped or a prior Windows job as equivalent final-HEAD acceptance.
+- [Separate Windows native Job Object diagnostic run 39003006866](https://github.com/plthien/2D-Animation-Studio/actions/runs/39003006866): 6/6 neutral tests PASS on **a prior diagnostic SHA**, not on the final implementation SHA.
+- [Windows browser/toolchain candidate run 39002408890](https://github.com/plthien/2D-Animation-Studio/actions/runs/39002408890): build, browser Channel → DNA → Project → restart, G0 comparisons and zero npm findings PASS on a **prior candidate SHA**.
+- Consumer `WINDOWS_11_REAL_DEVICE` still **NOT_RUN**.
+
+**Owner-authorized disposition (phase scoped):**
+
+| Gate | Verified status at decision | Owner disposition |
+|---|---|---|
+| C2-01/02/03 platform source, DB and 19 API routes | Source reviewed; final integrated Windows pytest NOT_VERIFIED | **MERGE-WITH-EXPLICIT-RISK**, not PASS |
+| C2-04/05/06 browser, UI parity, Windows launcher | Prior candidate PASS; final integrated Windows platform NOT_VERIFIED | **DEFER ACCEPTANCE TO FULL FLOW** |
+| C2-07 Python/npm security | **PASS on exact implementation SHA** | Retain as verified evidence |
+| Windows native process-tree test | Prior Windows diagnostic PASS; final integrated Windows platform NOT_VERIFIED | **DEFER FINAL REGRESSION** |
+| Consumer Windows 11 | **NOT_RUN** | **DEFER TO FULL FLOW / C12 RELEASE** |
+
+The owner accepts the risk of merging the C2 source baseline **without final Windows platform acceptance**, to unblock C3–C12 implementation. This is an authorized *merge policy exception*, not an assertion that all C2 technical acceptance gates are complete. If any still-running CI job later fails or is cancelled, preserve its true status and investigate during integrated verification; do not retroactively call it PASS.
+
+**Mandatory follow-up before full product release / C12 signoff:**
+1. Run the full C2 Windows platform suite on the final integrated full-flow source, with **zero skipped applicable Windows tests**: frozen 14-table schema and migration/legacy refusal, strict HTTP JSON, ChannelDNA monotonic CAS, all 19 accepted C2 routes, legacy-source reachability, actual native Job Object process-tree safety, and Windows launcher start/stop with spaces in paths.
+2. Run real Chromium Channel → DNA → Project → browser refresh → application restart → seven-stage projection workflow; recreate and review G0 parity screenshots for required desktop/narrow widths.
+3. Re-run production and full npm audits, Python dependency scan, verify exact commit SHA and maintain security, source, license and no-hidden-paid-call safeguards.
+4. Execute consumer Windows 11 x64 install/cold-start/restart/SQLite/render/media proof. GitHub Windows Server tests cannot substitute.
+5. Record actual final integration test results and failure remediation in C12 handoff/release QA. A failed or missing mandatory release check remains **BLOCKED**, even though PR #4 source may already have been merged.
+
+**CI and branch protection:** Keep the C2 workflow/test source intact; do not modify or skip checks to make the PR appear green. The merge may proceed only by GitHub's normal allowed path, **without force, admin override or branch-protection bypass**.
+
+**Owner-directed PR #4 merge recommendation:** `MERGE AUTHORIZED WITH WINDOWS PLATFORM ACCEPTANCE DEFERRED — NOT FULL C2 TEST PASS`. This exception is specific to PR #4 and does not automatically change acceptance for subsequent feature PRs.

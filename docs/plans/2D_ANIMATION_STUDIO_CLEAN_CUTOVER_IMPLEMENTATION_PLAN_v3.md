@@ -363,6 +363,12 @@ At C6/C7 use two visually distinct real generated or user-owned images; segmenta
 
 **Deferred phase-owner IDs:** C12-RELEASE-01; acceptance/evidence in the phase handoff register below. C0 is not blocked by this unimplemented functionality.
 
+**2026-10-17 owner-authorized C2 → full-flow/C12 handoff (PR #4 only):**
+The owner explicitly authorized merging the C2 source cutover before final integrated Windows platform tests, which they will execute after the full flow is built. This is an exception to the PR #4 **merge** gate only: it is *not* a C2 platform PASS, it does not hide pending/cancelled tests, and it does not waive any release gate. Retain `docs/qa/PHASE_C2_REVIEW.md` as the exact-evidence/owner-risk record.
+
+**C12-RELEASE-01 must include all deferred C2 platform acceptance** on the complete integration: real Windows C2 regression including Win32 Job Objects and process tree; 14-table SQLite integrity/legacy refusal, CAS/ChannelDNA/strict HTTP JSON, exact C2 API contract; real Chromium Channel → DNA → Project → refresh/restart and seven-stage projection; launcher start/stop on paths with spaces; G0 UI evidence; security audits and actual consumer Windows 11 proof. No applicable test may be quietly skipped, falsified as PASS, or replaced by older-SHA CI. Fix failures before product release. Prior C2 Windows Server browser and security proof remains historically valid only for its verified SHA.
+
+
 **Real deliverables:** two distinct 30–60s animated films, each 3+ shots and real bone motion/prop actions, at least one explicitly approved real G-Labs generation where credentials/consent allow, two distinct character rigs, actual voice, shot/render manifests and final MP4. Verify cold Windows setup and restart recovery, project isolation, UI screenshots matched to G0, access/path safety, credentials redaction, paid-operation fencing and legal/licensing. Any unavailable licensed/provider gate is `BLOCKED/NOT_RUN`, never PASS. **Gate:** zero BLOCKER/HIGH, CI at exact head, human visual review and explicit user merge approval.
 
 ### Deferred issue ownership register — phase handoff (C0 scope frozen)
