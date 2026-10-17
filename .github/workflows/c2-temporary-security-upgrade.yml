@@ -1,0 +1,84 @@
+name: C2 temporary verified frontend security migration
+on:
+  push:
+    branches: [feat/c2-atomic-animation-cutover]
+    paths: ['tools/c2_security_upgrade_request.txt']
+permissions:
+  contents: write
+jobs:
+  bounded-candidate:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Migrate Vite + Tailwind build tooling in disposable CI checkout
+        run: |
+          $css = Get-Content src/index.css -Raw
+          if (-not $css.StartsWith("@tailwind base;`n@tailwind components;`n@tailwind utilities;")) {
+            throw "C2_TAILWIND_SOURCE_MISMATCH"
+          }
+          $css = $css.Replace("@tailwind base;`n@tailwind components;`n@tailwind utilities;", "@import `"tailwindcss`";`n@config `"../tailwind.config.js`";")
+          Set-Content src/index.css $css -Encoding utf8
+          Set-Content postcss.config.js 'export default { plugins: { "@tailwindcss/postcss": {} } };' -Encoding utf8
+          npm.cmd install --save-dev vite@^8 @vitejs/plugin-react@^6 tailwindcss@^4 @tailwindcss/postcss@^4
+          if ($LASTEXITCODE -ne 0) { throw "C2_TOOLCHAIN_UPGRADE_INSTALL_FAILED" }
+          npm.cmd uninstall --save-dev autoprefixer
+          if ($LASTEXITCODE -ne 0) { throw "C2_TOOLCHAIN_CLEANUP_FAILED" }
+          npm.cmd ci --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { throw "C2_TOOLCHAIN_CI_INSTALL_FAILED" }
+          npm.cmd run build
+          if ($LASTEXITCODE -ne 0) { throw "C2_TOOLCHAIN_BUILD_FAILED" }
+      - name: Verify candidate security audit fail closed
+        run: |
+          New-Item -ItemType Directory -Force artifacts/c2 | Out-Null
+          npm.cmd audit --json --omit=dev | Out-File artifacts/c2/npm-prod.json -Encoding utf8
+          $prod = $LASTEXITCODE
+          npm.cmd audit --json | Out-File artifacts/c2/npm-full.json -Encoding utf8
+          $all = $LASTEXITCODE
+          Write-Host "Candidate audit exits: production=$prod full=$all"
+          node tools/c2_security_gate.mjs artifacts/c2/npm-prod.json artifacts/c2/npm-full.json
+          if ($LASTEXITCODE -ne 0) { throw "C2_TOOLCHAIN_SECURITY_STILL_BLOCKED" }
+      - name: Real Chromium and G0 screenshots on migrated dev toolchain
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m pip install -r requirements.txt
+          if ($LASTEXITCODE -ne 0) { throw "C2_TOOLCHAIN_PYTHON_INSTALL_FAILED" }
+          npm.cmd install --no-save --package-lock=false playwright@1.57.0
+          if ($LASTEXITCODE -ne 0) { throw "C2_PLAYWRIGHT_INSTALL_FAILED" }
+          npx.cmd playwright install chromium
+          if ($LASTEXITCODE -ne 0) { throw "C2_CHROMIUM_INSTALL_FAILED" }
+          node tools/c2_browser.mjs
+          if ($LASTEXITCODE -ne 0) { throw "C2_BROWSER_REGRESSION" }
+          python -m pip install Pillow==12.3.0
+          python tools/c2_g0_compare.py
+          if ($LASTEXITCODE -ne 0) { throw "C2_G0_COMPARISON_FAILED" }
+      - name: Publish only proven compatible manifest, lockfile and CSS on PR branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json src/index.css postcss.config.js
+          git commit -m "fix(c2): upgrade supported Vite Tailwind toolchain with tested Cockpit parity"
+          if ($LASTEXITCODE -ne 0) { throw "C2_TOOLCHAIN_COMMIT_FAILED" }
+          git push origin HEAD:feat/c2-atomic-animation-cutover
+          if ($LASTEXITCODE -ne 0) { throw "C2_TOOLCHAIN_PUSH_CONFLICT" }
+      - name: Preserve audit and G0 candidate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-security-migration-candidate
+          path: |
+            artifacts/c2/*.json
+            artifacts/c2/*.png
+          if-no-files-found: warn
