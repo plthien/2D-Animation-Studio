@@ -44,6 +44,7 @@ def prepare(pid,requirement_id,prompt,negative_prompt,model,aspect_ratio,cost_ce
            "visual_style_hash":state["source"]["visual_style_hash"],
            "kind":req["kind"],"semantic_key":req["semantic_key"],"view":req["view"],
            "provider":"glabs_local_webhook","base_url":opt["base_url"],
+           "provider_identity_hash":s.sha({"endpoint":opt["base_url"],"api_key":opt["api_key"]}),
            "payload":{"prompt":prompt,"negative_prompt":negative_prompt,
                      "model":model,"aspect_ratio":aspect_ratio,"upscale":[]},
            "cost_ceiling_usd":float(cost_ceiling_usd),"attempt":1}
@@ -158,6 +159,9 @@ def advance(pid,oid,client=None):
         if signed["input_fingerprint"]!=op["input_fingerprint"] or signed["attempt"]!=op["attempt"]:
             s.error("CONSENT_INVALID","Expired or mismatched consent",422)
         quote=json.loads(op["request_json"])
+        provider_settings=settings()
+        if quote.get("provider_identity_hash")!=s.sha({"endpoint":provider_settings["base_url"],"api_key":provider_settings["api_key"]}):
+            s.error("CONSENT_INVALID","G-Labs provider identity changed after consent",422)
         if r.requirements(pid)["fingerprint"]!=quote["requirements_fingerprint"]:
             s.error("STALE_HEAD","Generation source changed")
         task=con.execute("SELECT * FROM operation_tasks WHERE operation_id=?",(oid,)).fetchone()
