@@ -14,13 +14,16 @@ on:
       - 'tests/c2/**'
       - 'package*.json'
       - 'requirements.txt'
+      - 'vite.config.ts'
+      - 'postcss.config.js'
+      - 'tailwind.config.js'
       - '.github/workflows/c2-animation-cutover.yml'
       - 'scripts/windows/**'
       - 'start.bat'
   workflow_dispatch:
 
 jobs:
-  c2:
+  c2-platform:
     runs-on: windows-latest
     timeout-minutes: 35
     env:
@@ -80,30 +83,6 @@ jobs:
             artifacts/c2/*.png
             artifacts/c2/*.json
           if-no-files-found: warn
-      - name: Python security audit (mandatory, no bypass)
-        run: |
-          python -m pip install pip-audit==2.9.0
-          python -m pip_audit -r requirements.txt
-      - name: Audit production and full installed Node dependency graph
-        if: always()
-        run: |
-          New-Item -ItemType Directory -Force artifacts/c2 | Out-Null
-          npm audit --json --omit=dev | Out-File artifacts/c2/npm-prod.json -Encoding utf8
-          $production = $LASTEXITCODE
-          npm audit --json | Out-File artifacts/c2/npm-full.json -Encoding utf8
-          $full = $LASTEXITCODE
-          Write-Host "C2_NPM_AUDIT_EXIT production=$production full=$full"
-          node tools/c2_security_gate.mjs artifacts/c2/npm-prod.json artifacts/c2/npm-full.json
-      - name: Preserve dependency audit evidence, even on failure
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: c2-dependency-security-inventory
-          path: |
-            artifacts/c2/npm-prod.json
-            artifacts/c2/npm-full.json
-            artifacts/c2/npm-security-report.json
-          if-no-files-found: warn
       - name: Actual Windows launcher first-run, spaced path and shutdown
         run: ./tests/c2/windows_launcher_smoke.ps1
       - name: Verify future API routes not registered
@@ -111,3 +90,57 @@ jobs:
           python -c "from app.main import app; print('C2 OpenAPI endpoints:',sum(len(v) for v in app.openapi()['paths'].values()))"
       - name: Windows hosted runner disclosure
         run: Write-Output "Windows-latest is Windows Server, not consumer Windows 11 evidence."
+
+  c2-security:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      EXPECTED_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_HEAD }}
+          persist-credentials: false
+      - name: Assert security checkout is exact triggering PR HEAD
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          Write-Host "C2_VERIFIED_HEAD=$actual"
+          if ($actual -ne $env:EXPECTED_HEAD) { throw "C2_CHECKOUT_SHA_MISMATCH" }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Security policy self tests
+        run: node --test tests/c2/security_gate.test.mjs
+      - name: Python dependency audit — mandatory
+        run: |
+          python -m pip install pip-audit==2.9.0
+          python -m pip_audit -r requirements.txt
+      - name: npm clean pinned install
+        run: npm.cmd ci --ignore-scripts
+      - name: npm production and full dependency inventories
+        run: |
+          New-Item -ItemType Directory -Force artifacts/c2 | Out-Null
+          npm.cmd audit --json --omit=dev | Out-File artifacts/c2/npm-prod.json -Encoding utf8
+          $production = $LASTEXITCODE
+          npm.cmd audit --json | Out-File artifacts/c2/npm-full.json -Encoding utf8
+          $full = $LASTEXITCODE
+          Write-Host "C2_NPM_AUDIT_EXIT production=$production full=$full"
+          node tools/c2_security_gate.mjs artifacts/c2/npm-prod.json artifacts/c2/npm-full.json
+          if ($LASTEXITCODE -ne 0) { throw "C2_SECURITY_POLICY_BLOCKED" }
+      - name: Upload raw security evidence regardless of policy verdict
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-security-evidence
+          path: |
+            artifacts/c2/npm-prod.json
+            artifacts/c2/npm-full.json
+            artifacts/c2/npm-security-report.json
+          if-no-files-found: warn
