@@ -1,0 +1,1 @@
+One-time Windows diagnostic test isolation on exact PR SHA; no release acceptance bypass.
