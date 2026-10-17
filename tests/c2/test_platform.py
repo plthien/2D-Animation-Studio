@@ -361,3 +361,63 @@ def test_project_archive_repeat_safe_and_scoped(client):
     persisted=data(client.get("/api/v1/projects",params={"channel_id":ch["channel_id"]}))["items"]
     assert len(persisted)==2
     assert {item["status"] for item in persisted}=={"archived","active"}
+
+
+def test_dna_head_strictly_monotonic_and_rejection_immutable(client):
+    """Old draft cannot replace newer approved head even with a fresh expected CAS."""
+    import hashlib
+    ch=new_channel(client)
+    first=publish_dna(client,ch,key="monotonic-first")
+    second=publish_dna(client,ch,key="monotonic-second")
+    assert second["revision"]==first["revision"]+1
+    first_path=service.bounded_path(first["relative_artifact_handle"])
+    first_bytes=first_path.read_bytes()
+    approve(client,ch,second)
+    head_url=f"/api/v1/channels/{ch['channel_id']}/dna"
+    before=data(client.get(head_url))
+    with service.reader() as con:
+        artifacts_before=[tuple(r) for r in con.execute(
+            "SELECT artifact_id,revision,approval_status,sha256,byte_size FROM artifacts WHERE kind='channel_dna.v2' ORDER BY revision"
+        )]
+    response=client.post(
+        f"/api/v1/channels/{ch['channel_id']}/dna/{first['artifact_id']}/approve",
+        json={"expected_head_revision":second["revision"],"expected_sha256":first["sha256"],
+              "actor":"qa","reviewed_at":"2026-10-16T00:00:00Z"},
+    )
+    error(response,409,"STALE_HEAD")
+    assert response.json()["error"]["details"]["current_head_revision"]==second["revision"]
+    assert response.json()["error"]["details"]["current_head_artifact_id"]==second["artifact_id"]
+    assert data(client.get(head_url))==before
+    assert first_path.read_bytes()==first_bytes
+    assert hashlib.sha256(first_bytes).hexdigest()==first["sha256"]
+    with service.reader() as con:
+        artifacts_after=[tuple(r) for r in con.execute(
+            "SELECT artifact_id,revision,approval_status,sha256,byte_size FROM artifacts WHERE kind='channel_dna.v2' ORDER BY revision"
+        )]
+    assert artifacts_after==artifacts_before
+    assert approve(client,ch,second,expected_revision=None)["head_revision"]==second["revision"]
+    # Reusing old bytes as a *new* candidate is legitimate, rolling back a pointer is not.
+    third=publish_dna(client,ch,key="monotonic-third",expected_revision=2,expected_aid=second["artifact_id"])
+    assert third["revision"]==3
+    assert approve(client,ch,third,expected_revision=2)["head_revision"]==3
+
+
+def test_dna_approval_first_then_newer_and_wrong_channel_sha(client):
+    first_channel=new_channel(client)
+    draft1=publish_dna(client,first_channel,key="head-one")
+    assert approve(client,first_channel,draft1)["head_revision"]==1
+    draft2=publish_dna(client,first_channel,key="head-two",
+        expected_revision=1,expected_aid=draft1["artifact_id"])
+    wrong=new_channel(client,name="Other",slug="other",key="other-channel")
+    other_draft=publish_dna(client,wrong,key="other-dna")
+    error(client.post(
+        f"/api/v1/channels/{first_channel['channel_id']}/dna/{other_draft['artifact_id']}/approve",
+        json={"expected_head_revision":1,"expected_sha256":other_draft["sha256"],
+              "actor":"qa","reviewed_at":"2026-10-16T00:00:00Z"},
+    ),404,"NOT_FOUND")
+    error(client.post(
+        f"/api/v1/channels/{first_channel['channel_id']}/dna/{draft2['artifact_id']}/approve",
+        json={"expected_head_revision":1,"expected_sha256":"0"*64,
+              "actor":"qa","reviewed_at":"2026-10-16T00:00:00Z"},
+    ),422,"LINEAGE_MISMATCH")
+    assert approve(client,first_channel,draft2,expected_revision=1)["head_revision"]==2
