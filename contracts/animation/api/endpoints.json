@@ -473,7 +473,7 @@
     "path": "/api/v1/projects/{project_id}/generation/prepare",
     "phase": "C3",
     "owner": "generation",
-    "contract_status": "PROPOSED",
+    "contract_status": "ACCEPTED",
     "request_dto": "GenerationPrepareRequest",
     "response_dto": "GenerationConsentQuoteResponse",
     "success": 201,
@@ -492,7 +492,7 @@
     "path": "/api/v1/projects/{project_id}/generation/confirm",
     "phase": "C3",
     "owner": "generation",
-    "contract_status": "PROPOSED",
+    "contract_status": "ACCEPTED",
     "request_dto": "GenerationConfirmRequest",
     "response_dto": "OperationResponse",
     "success": 202,
@@ -511,7 +511,7 @@
     "path": "/api/v1/projects/{project_id}/generation/operations/{operation_id}/cancel",
     "phase": "C3",
     "owner": "generation",
-    "contract_status": "PROPOSED",
+    "contract_status": "ACCEPTED",
     "request_dto": "OperationCancelRequest",
     "response_dto": "OperationResponse",
     "success": 202,
@@ -835,5 +835,65 @@
     "idempotency": "safe read",
     "authority": "asset_versions",
     "readiness": "live C3"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{project_id}/generation/provider",
+    "phase": "C3",
+    "owner": "generation",
+    "contract_status": "ACCEPTED",
+    "request_dto": "GenerationGETRequest",
+    "response_dto": "ProviderConfigResponse",
+    "success": 200,
+    "errors": [
+      404,
+      409,
+      422,
+      503
+    ],
+    "precondition": "Explicit paid consent before any provider I/O; submit fence and known provider handle on recovery",
+    "idempotency": "Do not resubmit a submitted or unknown paid attempt",
+    "authority": "operations/operation_tasks/jobs/paid_operation_consent.v1",
+    "readiness": "generation"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{project_id}/generation/operations/{operation_id}",
+    "phase": "C3",
+    "owner": "generation",
+    "contract_status": "ACCEPTED",
+    "request_dto": "GenerationGETRequest",
+    "response_dto": "OperationResponse",
+    "success": 200,
+    "errors": [
+      404,
+      409,
+      422,
+      503
+    ],
+    "precondition": "Explicit paid consent before any provider I/O; submit fence and known provider handle on recovery",
+    "idempotency": "Do not resubmit a submitted or unknown paid attempt",
+    "authority": "operations/operation_tasks/jobs/paid_operation_consent.v1",
+    "readiness": "generation"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{project_id}/generation/operations/{operation_id}/advance",
+    "phase": "C3",
+    "owner": "generation",
+    "contract_status": "ACCEPTED",
+    "request_dto": "GenerationPOSTRequest",
+    "response_dto": "OperationResponse",
+    "success": 202,
+    "errors": [
+      404,
+      409,
+      422,
+      503
+    ],
+    "precondition": "Explicit paid consent before any provider I/O; submit fence and known provider handle on recovery",
+    "idempotency": "Do not resubmit a submitted or unknown paid attempt",
+    "authority": "operations/operation_tasks/jobs/paid_operation_consent.v1",
+    "readiness": "generation"
   }
 ]
