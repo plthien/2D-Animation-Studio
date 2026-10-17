@@ -12,6 +12,7 @@ export function AuthoringPanel({projectId,headRevision,onCommitted}:{projectId:s
  const [history,setHistory]=useState<Artifact[]>([]);
  const [error,setError]=useState('');
  const [busy,setBusy]=useState(false);
+ const [copyResult,setCopyResult]=useState('');
  const go=async(fn:()=>Promise<void>)=>{
   setBusy(true);setError('');
   try{await fn();}catch(err){setError(err instanceof Error?err.message:String(err));}
@@ -19,7 +20,7 @@ export function AuthoringPanel({projectId,headRevision,onCommitted}:{projectId:s
  };
  const newPrompt=()=>go(async()=>{
   const result=await apiClient.authoringPrompt(projectId,kind);
-  setPkg(result);setJson('');setReport(null);setDraft(null);
+  setPkg(result);setJson('');setReport(null);setDraft(null);setCopyResult('');
  });
  const check=()=>go(async()=>{
   if(!pkg)throw new Error('Create a source-bound prompt first');
@@ -52,7 +53,7 @@ export function AuthoringPanel({projectId,headRevision,onCommitted}:{projectId:s
   <p className="text-sm text-slate-400">External LLM workflow: generate a frozen prompt, obtain JSON externally, validate, review and approve its immutable revision. Script Analysis is optional.</p>
   <div className="flex flex-wrap items-center gap-2">
    <label htmlFor="authoring-kind" className="text-xs text-slate-300">Artifact</label>
-   <select id="authoring-kind" value={kind} onChange={e=>{setKind(e.target.value);setPkg(null);setDraft(null);setReport(null);setJson('');setHistory([]);}} className="rounded-lg bg-slate-800 px-3 py-2 text-slate-100">
+   <select id="authoring-kind" value={kind} onChange={e=>{setKind(e.target.value);setPkg(null);setDraft(null);setReport(null);setJson('');setHistory([]);setCopyResult('');}} className="rounded-lg bg-slate-800 px-3 py-2 text-slate-100">
     {KINDS.map(k=><option value={k.value} key={k.value}>{k.label}</option>)}
    </select>
    <button className={btn} disabled={busy} onClick={newPrompt}>Create prompt reservation</button>
@@ -62,11 +63,10 @@ export function AuthoringPanel({projectId,headRevision,onCommitted}:{projectId:s
   {pkg&&<div className="space-y-2 rounded-xl border border-cyan-500/20 p-4">
    <p className="text-sm text-cyan-200">Reserved revision {pkg.revision} · {pkg.reservation_id}</p>
    <p className="text-xs text-slate-400">Expires {pkg.expires_at}</p>
-   <button className={btn} onClick={()=>void navigator.clipboard.writeText(
-    pkg.instructions+'\n\nASSIGNED FIELDS:\n'+JSON.stringify(pkg.reserved_fields,null,2)+
-    '\n\nSOURCE:\n'+JSON.stringify(pkg.source,null,2)+
-    '\n\nCHANNEL DNA:\n'+JSON.stringify(pkg.channel_dna,null,2)+
-    '\n\nJSON SCHEMA:\n'+JSON.stringify(pkg.schema,null,2))}>Copy complete prompt</button>
+   <button className={btn} onClick={()=>void (async()=>{
+    try{await navigator.clipboard.writeText(pkg.prompt_text);setCopyResult('Complete prompt copied');}
+    catch{setCopyResult('Clipboard write failed. Check browser permissions and try again.');}
+   })()}>Copy complete prompt</button>
   </div>}
   <label className="block text-sm text-slate-300">External JSON response
    <textarea value={json} onChange={e=>{setJson(e.target.value);setReport(null);}} rows={12}
