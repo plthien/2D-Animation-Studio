@@ -30,6 +30,7 @@ concurrency:
 
 jobs:
   c2-platform:
+    if: github.event_name != 'pull_request' || github.head_ref == 'feat/c2-atomic-animation-cutover'
     runs-on: windows-latest
     timeout-minutes: 35
     env:
@@ -98,6 +99,7 @@ jobs:
         run: Write-Output "Windows-latest is Windows Server, not consumer Windows 11 evidence."
 
   c2-security:
+    if: github.event_name != 'pull_request' || github.head_ref == 'feat/c2-atomic-animation-cutover'
     runs-on: windows-latest
     timeout-minutes: 20
     env:
