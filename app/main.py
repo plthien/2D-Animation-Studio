@@ -17,6 +17,7 @@ from app.animation import service as svc
 from app.animation import authoring as auth
 from app.animation import resolver as assets
 from app.animation import local_assets as localimages
+from app.animation import generation as glabs
 from app.animation.strict_json import parse_strict_document
 from app.animation.database import LegacyDatabaseUnsupported, migrate
 
@@ -402,3 +403,45 @@ def review_local_image(request:Request,project_id:str,version_id:str,body:Review
 def local_image_preview(request:Request,project_id:str,version_id:str):
     path,mime=localimages.read_image(project_id,version_id)
     return FileResponse(path,media_type=mime)
+
+
+# G-Labs: consent recorded durably before any user-initiated paid submission.
+class GenerationPrepare(Payload):
+    requirement_id: str
+    prompt: str
+    negative_prompt: str = ""
+    model: str = "nano_banana_2"
+    aspect_ratio: str = "1:1"
+    cost_ceiling_usd: float = Field(gt=0,le=100)
+
+class GenerationConfirm(Payload):
+    quote: dict[str, Any]
+    fingerprint: str
+    explicitly_approved: bool
+
+@app.get("/api/v1/projects/{project_id}/generation/provider")
+def glabs_provider(request:Request,project_id:str):
+    svc.get_project(project_id)
+    return enveloped(request,glabs.configuration())
+
+@app.post("/api/v1/projects/{project_id}/generation/prepare")
+def glabs_prepare(request:Request,project_id:str,body:GenerationPrepare):
+    return enveloped(request,glabs.prepare(project_id,body.requirement_id,body.prompt,
+                       body.negative_prompt,body.model,body.aspect_ratio,body.cost_ceiling_usd),201)
+
+@app.post("/api/v1/projects/{project_id}/generation/confirm")
+def glabs_confirm(request:Request,project_id:str,body:GenerationConfirm,idem:Idempotency):
+    return enveloped(request,glabs.confirm(project_id,body.quote,body.fingerprint,
+                       idem,body.explicitly_approved),202)
+
+@app.get("/api/v1/projects/{project_id}/generation/operations/{operation_id}")
+def glabs_status(request:Request,project_id:str,operation_id:str):
+    return enveloped(request,glabs.status(project_id,operation_id))
+
+@app.post("/api/v1/projects/{project_id}/generation/operations/{operation_id}/advance")
+def glabs_advance(request:Request,project_id:str,operation_id:str):
+    return enveloped(request,glabs.advance(project_id,operation_id),202)
+
+@app.post("/api/v1/projects/{project_id}/generation/operations/{operation_id}/cancel")
+def glabs_cancel(request:Request,project_id:str,operation_id:str):
+    return enveloped(request,glabs.cancel(project_id,operation_id),202)
