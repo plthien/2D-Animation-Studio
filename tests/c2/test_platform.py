@@ -115,8 +115,8 @@ def test_channel_dna_project_restart_and_replay(client):
     wf=data(client.get(f"/api/v1/projects/{project['project_id']}/workflow"))
     assert tuple(s["stage_key"] for s in wf["stages"])==STAGES
     assert len(wf["stages"])==7
-    assert wf["stages"][0]["readiness"]=="blocked"
-    assert "REQUIRES_C3_AUTHORING" in wf["stages"][0]["blocker_codes"]
+    assert wf["stages"][0]["readiness"]=="ready"
+    assert "TOPIC_IDEAS_MISSING" in wf["stages"][0]["blocker_codes"]
     for stage in wf["stages"][1:]:
         assert stage["readiness"]=="blocked" and stage["blocker_codes"]
     assert all(s["head_revision"]==0 for s in wf["stages"])
