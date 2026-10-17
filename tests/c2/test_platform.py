@@ -421,3 +421,71 @@ def test_dna_approval_first_then_newer_and_wrong_channel_sha(client):
               "actor":"qa","reviewed_at":"2026-10-16T00:00:00Z"},
     ),422,"LINEAGE_MISMATCH")
     assert approve(client,first_channel,draft2,expected_revision=1)["head_revision"]==2
+
+
+@pytest.mark.parametrize("bad", [
+    b'{"name":"Safe","name":"Hijack","slug":"safe"}',
+    b'{"name":"x","slug":"x","meta":{"nested":1,"nested":2}}',
+    b'{"name":"x","slug":"x","extra":NaN}',
+    b'{"name":"x","slug":"x","extra":Infinity}',
+    b'{"name":"x","slug":"x","extra":-Infinity}',
+    b'{"name":"x","slug":"x","extra":1e9999}',
+    b'{"name":"unterminated","slug":',
+    b'{"name":"x","slug":"x","extra":"\\xff"}',
+    b'["not-an-object"]',
+])
+def test_http_strict_json_rejects_raw_bytes_before_any_database_write(client,bad):
+    before=data(client.get("/api/v1/channels"))
+    with service.reader() as con:
+        n=con.execute("SELECT COUNT(*) FROM artifacts").fetchone()[0]
+    response=client.post("/api/v1/channels",content=bad,headers={
+        "Content-Type":"application/json","Idempotency-Key":"raw-case"})
+    error(response,422,"VALIDATION_FAILED")
+    assert response.json()["error"]["message"]=="Request validation failed"
+    assert data(client.get("/api/v1/channels"))==before
+    with service.reader() as con:
+        assert con.execute("SELECT COUNT(*) FROM artifacts").fetchone()[0]==n
+
+
+def test_http_strict_dna_nested_duplicate_rejected_without_artifact_change(client):
+    import json
+    ch=new_channel(client)
+    url=f"/api/v1/channels/{ch['channel_id']}/dna"
+    original_head=data(client.get(url))
+    original_files=list(service.artifact_root().rglob("*.json"))
+    original_bytes={str(p):p.read_bytes() for p in original_files}
+    valid=dna()
+    raw=json.dumps({"channel_dna":valid,"expected_head_revision":None,
+                    "expected_head_artifact_id":None})
+    raw=raw.replace('"style": "Hand-drawn flat 2D with uneven outlines"',
+                    '"style": "Old", "style": "Hand-drawn flat 2D with uneven outlines"')
+    assert raw.count('"style"')==2
+    response=client.put(url,content=raw.encode(),headers={
+        "Content-Type":"application/json","Idempotency-Key":"duplicate-nested"})
+    error(response,422,"VALIDATION_FAILED")
+    assert data(client.get(url))==original_head
+    assert {str(p):p.read_bytes() for p in service.artifact_root().rglob("*.json")}==original_bytes
+
+
+@pytest.mark.parametrize("headers,content", [
+    ({"Content-Type":"text/plain","Idempotency-Key":"ctype"},b'{"name":"A","slug":"a"}'),
+    ({"Content-Type":"application/json","Idempotency-Key":"oversize"},
+     b'{"name":"A","slug":"a","padding":"' + b'x' * 1_048_577 + b'"}'),
+    ({"Content-Type":"application/json","Content-Length":"2000000","Idempotency-Key":"declared"},
+     b'{"name":"A","slug":"a"}'),
+])
+def test_http_boundary_rejects_wrong_content_type_and_size(client,headers,content):
+    before=data(client.get("/api/v1/channels"))
+    error(client.post("/api/v1/channels",content=content,headers=headers),422,"VALIDATION_FAILED")
+    assert data(client.get("/api/v1/channels"))==before
+
+
+def test_http_strict_json_valid_unicode_and_parser_finite_decimal(client):
+    from app.animation.strict_json import parse_strict_document
+    assert parse_strict_document('{"city":"Đà Nẵng","ratio":0.75,"nested":{"value":-1.2e-3}}')=={
+        "city":"Đà Nẵng","ratio":0.75,"nested":{"value":-0.0012}}
+    result=client.post("/api/v1/channels",
+        content='{"name":"Đà Nẵng animation","slug":"da-nang"}'.encode("utf-8"),
+        headers={"Content-Type":"application/json; charset=utf-8",
+                 "Idempotency-Key":"utf8-channel"})
+    assert data(result,201)["name"]=="Đà Nẵng animation"
