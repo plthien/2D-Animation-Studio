@@ -209,9 +209,8 @@ def _exact_snapshot(con, pid: str) -> tuple[dict, list[dict]]:
         if b is None or req["requirement_id"] in seen:
             s.error("STALE_HEAD", "Duplicate or missing requirement pin")
         seen.add(req["requirement_id"])
-        if b["channel_id"] != state["source"].get("channel_id", b["channel_id"]):
-            # Exact channel is also verified by the joined asset and project below.
-            s.error("STALE_HEAD", "Pin channel differs")
+        if b["channel_id"] != a.project(con,pid)["channel_id"]:
+            s.error("STALE_HEAD", "Pin channel differs from project")
         version = con.execute(
             """SELECT v.*,a.kind,a.semantic_key,a.view_key,a.channel_id AS owner_channel
                FROM asset_versions v JOIN assets a ON a.asset_id=v.asset_id
@@ -238,18 +237,21 @@ def _exact_snapshot(con, pid: str) -> tuple[dict, list[dict]]:
 
 
 def _activate_resolution(con, pid: str, row, requirements_artifact: dict,
-                         expected_key: str, expected_pins: list[dict]) -> dict:
+                         expected_key: str, expected_pins: list[dict],
+                         pending_doc: dict | None = None) -> dict:
     """Revalidate immutable artifact and CAS project head; reuse never leaves stale head."""
     if (row["project_id"] != pid or row["channel_id"] != requirements_artifact["channel_id"]
             or row["approval_status"] != "approved"
             or json.loads(row["metadata_json"]).get("source_fingerprint") != expected_key):
         s.error("STALE_HEAD", "Resolution artifact owner/source mismatch")
-    doc = a.verified_doc(row)
+    doc = pending_doc if pending_doc is not None else a.verified_doc(row)
     if (doc["requirements_artifact_id"] != requirements_artifact["artifact_id"]
             or s.canon(doc["pins"]) != s.canon(expected_pins)):
         s.error("STALE_HEAD", "Existing resolution bytes do not match active pins")
     state, current_pins = _exact_snapshot(con, pid)
-    if s.canon(current_pins) != s.canon(expected_pins):
+    if (state["requirements_fingerprint"] != requirements_artifact["metadata"]["source_fingerprint"]
+            or s.canon(current_pins) != s.canon(expected_pins)):
+
         s.error("STALE_HEAD", "Pins changed during head activation")
     head = con.execute(
         "SELECT * FROM project_stage_heads WHERE project_id=? AND stage_key='resolver'",
@@ -336,6 +338,6 @@ def publish_resolution(pid: str) -> dict | None:
              s.canon({"requirements": state["requirements_fingerprint"]}).decode(), aid),
         )
         row = con.execute("SELECT * FROM artifacts WHERE artifact_id=?", (aid,)).fetchone()
-        return _activate_resolution(con, pid, row, requirement, key, pins)
+        return _activate_resolution(con, pid, row, requirement, key, pins, pending_doc=doc)
 
     return s.document_publish(doc, rel, commit)
