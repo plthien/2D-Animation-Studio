@@ -895,5 +895,22 @@
     "idempotency": "Do not resubmit a submitted or unknown paid attempt",
     "authority": "operations/operation_tasks/jobs/paid_operation_consent.v1",
     "readiness": "generation"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{project_id}/generation/operations",
+    "phase": "C3",
+    "owner": "generation",
+    "contract_status": "ACCEPTED",
+    "request_dto": "OperationListQuery",
+    "response_dto": "OperationListResponse",
+    "success": 200,
+    "errors": [
+      404
+    ],
+    "precondition": "Project-scoped durable operations",
+    "idempotency": "safe read",
+    "authority": "operations",
+    "readiness": "generation"
   }
 ]
