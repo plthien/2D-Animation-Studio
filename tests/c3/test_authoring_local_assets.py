@@ -356,3 +356,15 @@ def test_glabs_invalid_reconcile_task_id_returns_typed_error(client,monkeypatch)
         json={"provider_task_id":"INVALID_TASK_ID","confirmed_owner_match":True})
     assert response.status_code==502,response.text
     assert response.json()["error"]["code"]=="MEDIA_PROVIDER_UPSTREAM_ERROR"
+
+
+def test_cancel_during_ambiguous_submit_remains_cancelled(client,monkeypatch):
+    from app.animation import generation
+    pid,req,quote,op=_seed_g(client,monkeypatch,"cancelrace")
+    class CancelThenTimeout:
+        def submit_image(self,payload):
+            assert generation.cancel(pid,op["operation_id"])["status"]=="cancelled"
+            raise TimeoutError("Provider ACK timed out after cancellation")
+    after=generation.advance(pid,op["operation_id"],client=CancelThenTimeout())
+    assert after["status"]=="cancelled"
+    assert generation.status(pid,op["operation_id"])["status"]=="cancelled"
