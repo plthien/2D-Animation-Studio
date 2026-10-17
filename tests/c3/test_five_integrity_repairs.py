@@ -390,3 +390,34 @@ def test_h3_stale_optional_analysis_excluded_from_copy_prompt(client):
     assert copied["source_metadata"]["artifact_id"]==updated["artifact_id"]
     assert copied["analysis"] is None and copied["analysis_metadata"] is None
     assert copied["source_inputs"].get("analysis_id") is None
+
+
+
+def test_h2_provider_same_result_index_changed_digest_rejected(client,monkeypatch):
+    pid,_,_,op=_seed_g(client,monkeypatch,"h2digest")
+    oid=op["operation_id"]
+    class Fake:
+        submits=0
+        alternate=False
+        def submit_image(self,p):self.submits+=1;return {"task_id":"abcd9999","status":"pending"}
+        def get_status(self,tid):return {"status":"completed"}
+        def get_result(self,tid):return {"results":["http://127.0.0.1:8765/files/out.png"]}
+        def download_file(self,url,path,max_bytes):
+            path.write_bytes(png((1,2,3)) if self.alternate else png((4,5,6)))
+    fake=Fake()
+    original=generation.transition
+    def interrupted(con,opid,status,task,*args,**kwargs):
+        if status=="completed":
+            raise SystemExit("power cut after materialization")
+        return original(con,opid,status,task,*args,**kwargs)
+    monkeypatch.setattr(generation,"transition",interrupted)
+    with pytest.raises(SystemExit):
+        generation.advance(pid,oid,client=fake)
+    monkeypatch.setattr(generation,"transition",original)
+    fake.alternate=True
+    state=generation.advance(pid,oid,client=fake)
+    assert state["status"]=="failed"
+    assert fake.submits==1
+    with s.reader() as con:
+        assert con.execute("""SELECT COUNT(*) FROM artifacts WHERE kind='asset_version.v1'
+             AND json_extract(metadata_json,'$.operation_id')=?""",(oid,)).fetchone()[0]==1
