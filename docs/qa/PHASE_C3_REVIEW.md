@@ -1,22 +1,35 @@
-# PHASE C3 REVIEW — WORK IN PROGRESS
+# C3 — Authoring & Asset Production: targeted QA evidence
 
-**Status:** C3 BLOCKED — TARGETED REPAIR REQUIRED (Draft PR #6).
+**PR:** https://github.com/plthien/2D-Animation-Studio/pull/6 (one Draft PR; no merge).
+**Branch:** feat/c3-authoring-assets.
+**Base main HEAD:** f86f9178278230158f06aa3310ed3553a0d388a7.
+**Implementation checkpoint:** 1f0814610ba5316219dd51f9afc868a25510ff30 (before report-only commit). Use GitHub exact-SHA Actions to verify final PR HEAD.
+**Test policy:** Windows-hosted C3 CI now, integrated/consumer Windows 11 in C7.
 
-- Base main: `f86f9178278230158f06aa3310ed3553a0d388a7`.
-- PR: https://github.com/plthien/2D-Animation-Studio/pull/6
-- Branch: `feat/c3-authoring-assets`.
-- Scope: new C3 combines historical C3 + C4 + C5; consumer Windows 11 qualification remains owned by C7.
-- SQLite: no new tables or altered frozen initial migration.
-- Authoring: created source-fingerprint reservations, schema/semantic validation, immutable drafts, CAS approval and history. **Not yet end-to-end accepted**.
-- Resolver: created deterministic requirement computation, cross-channel-rejected version lookup, exact pinned bindings and source fingerprint handling. **Not yet end-to-end accepted**.
-- Local assets: created multipart image import, Pillow decode and bounds, managed image storage, candidate review, image preview and restart-oriented test. **Not yet end-to-end accepted**.
-- Frontend: wired C3 Authoring, Resolver, Generation panels to API. Downstream C4–C6 remains blocked.
-- G-Labs: **NOT IMPLEMENTED**. No consented provider request made. `GLABS_LIVE_E2E = NOT_RUN`; mock provider failure/recovery coverage absent.
-- Tests: `tests/c3/test_authoring_local_assets.py`, Windows workflow `.github/workflows/c3-authoring-assets.yml`. Focused Windows C3 workflow SUCCESS on immutable HEAD `95cbc0192f9cdae43c3592d55c82f22beddc1f38`, run https://github.com/plthien/2D-Animation-Studio/actions/runs/39009302451. Python C3 tests passed (2 tests) and frontend clean install/typecheck/build passed. This does not cover C3 browser smoke or G-Labs mocked tests. Browser Chromium smoke not executed.
-- API registry: new C3 read/import/review operations and activation state must be reconciled with `contracts/animation/api/endpoints.json`.
-- Stage-readiness authority: needs updated C3 readiness and dependency fingerprint computation.
-- Focused issue policy: any failing import/CAS/asset integrity/real workflow test remains BLOCKER. Later C4–C7 functionality does not block C3.
+## Completed feature implementation
 
-## Merge recommendation
+- Authoring: external Topic → Script → optional Analysis → ShotPlan prompt/reservation, import, schema/semantic validation, exact Script spans, source hash, immutable revisions, CAS approval and history.
+- Readiness/lineage: computed Authoring/Resolver/Generation stage states; rejects stale ShotPlan after Script/Topic/source revision change. Visual style invalidates asset eligibility without corrupting Script approvals.
+- Resolver: deterministic requirements derived from approved ShotPlan, immutable requirements/resolution revisions and resolver head, exact channel-scoped compatible pins and same-channel reuse, rejects cross-channel bindings. Rig capability validation remains pending C4.
+- Local images: actual bounded PNG/JPEG/WebP decode, SHA/bytes persistence, project-owned candidate review, exact version pin, preview and restart recovery. Precommit failure removes only unreferenced attempt files.
+- G-Labs: extracted donor glabs_webhook_client, bounded_http_transport, transport_policy and neutral safety routines from plthien/ytb-ai-studio at 393d0eb5516ac8bb8455f859b79bfc64388b128e, adapting to animation namespaces. Actual donor HTTP routes are POST api/image/generate, GET api/status/{task_id}, GET api/result/{task_id}, validated image download. One durable owner-consented operation authority uses existing operations/operation_tasks/jobs/artifacts and asset_versions; exact frozen quote/attempt, pre-I/O submit fence, unknown acknowledgement with NO auto resubmit, manual existing-handle GET reconciliation, cancellation, polling, candidate creation. No legacy YTB domain DB or orchestration imported.
+- Studio UI: functional panels for authoring, resolver and generation with explicit consent controls and persisted operation status. No fake G-Labs image; no paid call at startup.
+- API: exactly 19 frozen C2 ACCEPTED route pairs preserved, 23 implemented C3 ACCEPTED route pairs registered; C4–C6 remain PROPOSED/absent. Checker validates full runtime/registry parity.
+- Targeted dependencies: Pillow 12.3.0, python-multipart 0.0.31.
 
-**DO NOT MERGE.** Complete G-Labs bounded integration with attempt-scoped consent, idempotent unknown/recovery/cancel, real browser E2E, current API contract + C3 projection sync; then run focused Windows CI on final immutable HEAD and self-review. Do not claim mocked results verify live G-Labs and do not spend without explicit owner consent.
+## Test proof and limitations
+
+- **PASS:** Windows C3 CI run https://github.com/plthien/2D-Animation-Studio/actions/runs/39026421773 on immutable HEAD 4dd13c38ee6a064a31364dca4320ee6b1f2783bf: Python C3 tests, frontend TS/Vite build, API checker, actual Chromium Studio browser smoke.
+- Real Chromium smoke used Vite + FastAPI + disposable SQLite (no mock backend): Channel → approved ChannelDNA → Project → imported/approved Topic/Script/ShotPlan → Resolver → real local PNG import → version approval → pin → browser refresh → backend restart, with C3 screenshots uploaded as Actions artifact.
+- Additional tests since green run: stale lineage, idempotent requirements, asset version/pin/cleanup, provider fake HTTP success/result/download, provider failure and ambiguous paid submit, unknown handle reconciliation without second POST, typed error redaction, relevant C2 route and Project regression. These require confirmation on the **latest** immutable HEAD, not merely on 4dd13c38.
+- GLABS_ADAPTER_IMPLEMENTED = YES (source implementation present).
+- GLABS_MOCK_CONTRACT_TEST = PASS on earlier Windows C3 suite; final HEAD CI proof required.
+- GLABS_LIVE_E2E = NOT_RUN — OWNER DEFERRED TO C7.
+- WINDOWS_CONSUMER_E2E = NOT_RUN — C7.
+- C2_FULL_PLATFORM_E2E = DEFERRED — OWNER DECISION.
+- Actual provider fee estimation/capping has NOT been verified. Owner-defined consent ceiling is NOT a provider-enforced billing cap; UI discloses this, and C7 live-price verification is necessary before owner spending.
+- C4 rig/Spine, C5 motion/director, C6 render/voice/MP4 are intentionally excluded.
+
+## Self-review and merge verdict
+
+All artifacts are persisted in the original fourteen-table animation-only SQLite and managed artifact root. No automatic merge or real paid network call. Current PR stays Draft until a successful exact final SHA Windows C3 CI (including browser smoke, C3 negative tests and affected C2 tests). If any required gate fails, report C3 BLOCKED — SPECIFIC REMAINING C3 ISSUES; otherwise C3 READY FOR OWNER MERGE APPROVAL — GLABS LIVE TEST DEFERRED TO C7.
