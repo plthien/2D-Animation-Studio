@@ -150,3 +150,90 @@ def unbind(pid: str,binding_id: str,expected_fingerprint: str):
         if not row:s.error("NOT_FOUND","Binding not found",404)
         con.execute("DELETE FROM project_asset_bindings WHERE binding_id=? AND project_id=?",(binding_id,pid))
         return {"removed_binding_id":binding_id}
+
+
+# Published resolver authorities: requests are idempotent by complete input fingerprint.
+def publish_requirements(pid: str) -> dict:
+    need=requirements(pid)
+    with s.reader() as con:
+        old=con.execute("""SELECT * FROM artifacts WHERE project_id=? AND kind='asset_requirements.v1'
+           AND json_extract(metadata_json,'$.source_fingerprint')=? ORDER BY revision DESC LIMIT 1""",
+           (pid,need["fingerprint"])).fetchone()
+        if old: return s.artifact_view(old)
+        revision=con.execute("""SELECT COALESCE(MAX(revision),0)+1 FROM artifacts
+           WHERE project_id=? AND kind='asset_requirements.v1'""",(pid,)).fetchone()[0]
+    aid=s.uid("ar")
+    doc={"schema_version":"asset_requirements.v1","artifact_id":aid,"channel_id":need["channel_id"],
+         "project_id":pid,"revision":revision,"created_at":s.now(),
+         "shot_plan_artifact_id":need["source"]["shot_plan_artifact_id"],
+         "requirements":need["requirements"]}
+    rel=f"projects/{pid}/resolver/requirements/{aid}.json"
+    def commit(con,digest,size):
+        current=requirements(pid)
+        if current["fingerprint"]!=need["fingerprint"]:
+            s.error("STALE_HEAD","Asset requirements changed during publication")
+        duplicate=con.execute("""SELECT * FROM artifacts WHERE project_id=? AND kind='asset_requirements.v1'
+            AND json_extract(metadata_json,'$.source_fingerprint')=?""",
+            (pid,need["fingerprint"])).fetchone()
+        if duplicate:return s.artifact_view(duplicate)
+        next_revision=con.execute("""SELECT COALESCE(MAX(revision),0)+1 FROM artifacts
+            WHERE project_id=? AND kind='asset_requirements.v1'""",(pid,)).fetchone()[0]
+        if next_revision!=revision:s.error("STALE_HEAD","Requirements revision race")
+        s.add_artifact(con,aid=aid,channel_id=need["channel_id"],project_id=pid,
+            kind="asset_requirements.v1",schema="asset_requirements.v1",logical="asset_requirements",
+            revision=revision,status="approved",checksum=digest,size=size,relative=rel,
+            metadata={"source_fingerprint":need["fingerprint"]})
+        con.execute("UPDATE artifacts SET source_fingerprints_json=?,parents_json=? WHERE artifact_id=?",
+            (s.canon(need["source"]).decode(),s.canon([need["source"]["shot_plan_artifact_id"]]).decode(),aid))
+        return s.artifact_view(con.execute("SELECT * FROM artifacts WHERE artifact_id=?",(aid,)).fetchone())
+    return s.document_publish(doc,rel,commit)
+
+
+def publish_resolution(pid: str) -> dict | None:
+    state=resolution(pid)
+    if state["resolved_count"]!=state["total_count"]:return None
+    requirements_artifact=publish_requirements(pid)
+    pins=[]
+    with s.reader() as con:
+        for entry in state["requirements"]:
+            b=entry["binding"]
+            v=con.execute("""SELECT v.*,a.kind,a.semantic_key,a.view_key FROM asset_versions v
+                              JOIN assets a ON a.asset_id=v.asset_id WHERE v.asset_version_id=?""",
+                          (b["asset_version_id"],)).fetchone()
+            pins.append({"requirement_id":entry["requirement"]["requirement_id"],
+             "asset_version_id":v["asset_version_id"],"asset_channel_id":requirements_artifact["channel_id"],
+             "kind":v["kind"],"semantic_key":v["semantic_key"],"view":v["view_key"],
+             "visual_style_hash":v["visual_style_hash"],"capability_hash":v["capability_hash"],
+             "approval_status":"approved"})
+        key=s.sha({"requirements_sha":requirements_artifact["sha256"],"pins":pins})
+        old=con.execute("""SELECT * FROM artifacts WHERE project_id=? AND kind='asset_resolution.v1'
+            AND json_extract(metadata_json,'$.source_fingerprint')=?""",(pid,key)).fetchone()
+        if old:return s.artifact_view(old)
+        revision=con.execute("""SELECT COALESCE(MAX(revision),0)+1 FROM artifacts
+          WHERE project_id=? AND kind='asset_resolution.v1'""",(pid,)).fetchone()[0]
+    aid=s.uid("ar")
+    doc={"schema_version":"asset_resolution.v1","artifact_id":aid,
+         "channel_id":requirements_artifact["channel_id"],"project_id":pid,
+         "revision":revision,"created_at":s.now(),
+         "requirements_artifact_id":requirements_artifact["artifact_id"],"pins":pins}
+    rel=f"projects/{pid}/resolver/resolutions/{aid}.json"
+    def commit(con,digest,size):
+        if resolution(pid)["resolved_count"]!=state["total_count"]:
+            s.error("STALE_HEAD","Pins changed during resolution publication")
+        old=con.execute("""SELECT * FROM artifacts WHERE project_id=? AND kind='asset_resolution.v1'
+            AND json_extract(metadata_json,'$.source_fingerprint')=?""",(pid,key)).fetchone()
+        if old:return s.artifact_view(old)
+        s.add_artifact(con,aid=aid,channel_id=requirements_artifact["channel_id"],project_id=pid,
+            kind="asset_resolution.v1",schema="asset_resolution.v1",logical="asset_resolution",
+            revision=revision,status="approved",checksum=digest,size=size,relative=rel,
+            metadata={"source_fingerprint":key})
+        con.execute("UPDATE artifacts SET parents_json=?,source_fingerprints_json=? WHERE artifact_id=?",
+           (s.canon([requirements_artifact["artifact_id"]]).decode(),
+            s.canon({"requirements":state["requirements_fingerprint"]}).decode(),aid))
+        head=con.execute("SELECT revision FROM project_stage_heads WHERE project_id=? AND stage_key='resolver'",(pid,)).fetchone()
+        con.execute("""UPDATE project_stage_heads SET artifact_id=?,approval_status='approved',
+            revision=revision+1,dependency_fingerprint=?,updated_at=?
+            WHERE project_id=? AND stage_key='resolver' AND revision=?""",
+            (aid,key,s.now(),pid,head["revision"]))
+        return s.artifact_view(con.execute("SELECT * FROM artifacts WHERE artifact_id=?",(aid,)).fetchone())
+    return s.document_publish(doc,rel,commit)
