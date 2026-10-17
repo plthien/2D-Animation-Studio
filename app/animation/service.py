@@ -432,6 +432,13 @@ def approve_dna(cid: str, aid: str, *, expected_revision: int | None,
             error("STALE_HEAD", "DNA approval lost head race",
                   current_head_artifact_id=current["current_dna_artifact_id"],
                   current_head_revision=current["current_dna_revision"])
+        # CAS of the expected head is necessary but not sufficient: approving an
+        # old draft must never move the live head revision backwards.
+        active_revision = current["current_dna_revision"] or 0
+        if row["revision"] <= active_revision:
+            error("STALE_HEAD", "ChannelDNA candidate is older than the approved head",
+                  current_head_artifact_id=current["current_dna_artifact_id"],
+                  current_head_revision=current["current_dna_revision"])
         if row["approval_status"] != "draft":
             error("VALIDATION_FAILED", "Only draft DNA can be approved", 422)
         path = bounded_path(row["relative_path"])
