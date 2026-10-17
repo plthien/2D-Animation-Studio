@@ -180,3 +180,12 @@ The independent policy tests `node --test tests/c2/security_gate.test.mjs` repor
 **Remaining C2 gate:** complete clean `windows-latest` CI on final exact PR SHA, including 0-skipped applicable Win32 process ownership, Windows launcher, screenshots and independent Python/npm security job. Previous cancelled or pre-upgrade results are not final acceptance. Consumer Windows 11 evidence remains a separate C1/C12 gap, never fabricated from Windows Server.
 
 **Merge verdict at document-authorship time: C2 BLOCKED — NOT MERGE READY until final exact-HEAD Windows jobs are green.** After all pass, owner approval is still required; no automatic merge.
+
+
+### C2 Windows runner isolation follow-up
+
+The 2026-10-17 full platform job at `cf2c7e7d62ea676b041d4b170f2726b3088de68e` remained in `Test animation C2 platform` while the independent `c2-security` job completed **SUCCESS** ([run 39002762025](https://github.com/plthien/2D-Animation-Studio/actions/runs/39002762025)). A one-time [isolated Windows diagnosis run](https://github.com/plthien/2D-Animation-Studio/actions/runs/39003006866) was requested to distinguish schema/API pytest from native Job Object testing. The test database corruption fixture now explicitly closes its SQLite connection, avoiding Windows file locks. That isolation is diagnostic, **not** permission to remove any applicable Windows safety test from final acceptance.
+
+All temporary source snapshot, upgrade and diagnostic workflow triggers must be removed from the final production tree. The only mandatory acceptance workflow is `.github/workflows/c2-animation-cutover.yml`, with independent exact-head Windows platform and security jobs. Earlier run cancellations are retained as historical evidence; their causes are not asserted without logs.
+
+**Acceptance status remains C2 BLOCKED until both jobs complete successfully on the final exact PR commit.**
