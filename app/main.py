@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.animation import service as svc
+from app.animation import authoring as auth
 from app.animation.strict_json import parse_strict_document
 from app.animation.database import LegacyDatabaseUnsupported, migrate
 
@@ -299,3 +300,44 @@ def job(request: Request, job_id: str, project_id: str):
 @app.get("/api/v1/artifacts/{artifact_id}")
 def artifact(request: Request, artifact_id: str, channel_id: str):
     return enveloped(request, svc.artifact(artifact_id, channel_id))
+
+
+# C3 external-authoring endpoints. All operations return the existing envelope.
+class AuthoringPrompt(Payload):
+    expected_source_fingerprint: str | None = None
+
+class AuthoringImport(Payload):
+    reservation_id: str
+    document: dict[str, Any]
+
+class AuthoringApproval(Payload):
+    expected_head_revision: int
+    expected_sha256: str
+
+@app.post("/api/v1/projects/{project_id}/authoring/{artifact_kind}/prompt")
+def authoring_prompt(request: Request, project_id: str, artifact_kind: str, body: AuthoringPrompt):
+    pkg = auth.prompt(project_id, artifact_kind)
+    if body.expected_source_fingerprint is not None and body.expected_source_fingerprint != pkg["source_fingerprint"]:
+        svc.error("STALE_HEAD", "Authoring source changed")
+    return enveloped(request, pkg, 201)
+
+@app.post("/api/v1/projects/{project_id}/authoring/{artifact_kind}/validate")
+def authoring_validate(request: Request, project_id: str, artifact_kind: str, body: AuthoringImport):
+    return enveloped(request, auth.validate(project_id, artifact_kind, body.reservation_id, body.document))
+
+@app.post("/api/v1/projects/{project_id}/authoring/{artifact_kind}/import")
+def authoring_import(request: Request, project_id: str, artifact_kind: str, body: AuthoringImport):
+    return enveloped(request, auth.import_revision(project_id, artifact_kind, body.reservation_id, body.document), 201)
+
+@app.post("/api/v1/projects/{project_id}/authoring/{artifact_kind}/{artifact_id}/approve")
+def authoring_approve(request: Request, project_id: str, artifact_kind: str, artifact_id: str, body: AuthoringApproval):
+    return enveloped(request, auth.approve(project_id, artifact_kind, artifact_id,
+                                           body.expected_head_revision, body.expected_sha256))
+
+@app.get("/api/v1/projects/{project_id}/authoring/{artifact_kind}/history")
+def authoring_history(request: Request, project_id: str, artifact_kind: str, limit: Limit = 50):
+    return enveloped(request, auth.history(project_id, artifact_kind, limit))
+
+@app.get("/api/v1/projects/{project_id}/authoring/revisions/{artifact_id}")
+def authoring_document(request: Request, project_id: str, artifact_id: str):
+    return enveloped(request, auth.document(project_id, artifact_id))
