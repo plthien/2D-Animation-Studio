@@ -33,3 +33,29 @@
 ## Self-review and merge verdict
 
 All artifacts are persisted in the original fourteen-table animation-only SQLite and managed artifact root. No automatic merge or real paid network call. **C3 READY FOR OWNER MERGE APPROVAL — GLABS LIVE TEST DEFERRED TO C7**, based on exact implementation HEAD `8da15b1a` green Windows C3 CI with real Chromium, fake provider and relevant regressions. This report-only commit changes no runtime/test/contract files. PR remains Draft pending owner decision; no automatic merge.
+
+## Five-finding C3 integrity repair — final targeted self-review (2026-10-17)
+
+Audited baseline: 39cf5e611d5ca4d649302e0e10436d3b84c6a627.
+Verified implementation HEAD: 51b981965acde411885fe01d6f89af2595c522ad.
+Exact-SHA Windows C3 CI: https://github.com/plthien/2D-Animation-Studio/actions/runs/39034475023 — **PASS**: Python C3 tests, two affected C2 regressions, TS/Vite build, API checker, and genuine Chromium → FastAPI → SQLite journey with user-supplied PNG, approval, pin, refresh and backend restart.
+
+### Scoped repair checklist
+
+- **H1 PASS:** cancellation-safe provider acknowledgement, preserving a known task handle even after cancel; distinguish queued cancel from unknown submit result, prohibit automatic second paid POST. Regression: before/during submit, valid/missing acknowledgement, repeated cancel/advance, cancel during download and restart.
+- **H2 PASS:** single-owner SQLite operation lease/task claim, CAS transitions, idempotent provider result materialization by operation/task/provider task/result index and verified hash. Concurrent advance/poll, post-download interruption, post-candidate crash, expired lease, changed result digest and terminal replay covered by deterministic fake-provider tests. Result candidates remain traceable.
+- **M1 PASS:** same-transaction exact Snapshot/ShotPlan/style validation and canonical sorted pin mapping, not resolved count alone. Midpublication swap/approval fault injection rejects stale artifact with rolled-back SQLite changes.
+- **H3 PASS:** authoritative backend prompt_text includes full reserved identities, source fingerprints and metadata, DNA/Topic/Script IDs and SHAs, optional current Analysis, actual source text, and frozen JSON schema. UI copies actual prompt with a Windows-compatible user-gesture method and visible errors. Chromium uses real clipboard content to build and import external JSON; stale optional Analysis excluded.
+- **H4 PASS:** new or reused resolution artifact passes exact source/pin validation and CAS head activation. A → B → A reuses immutable A and restores Resolver head without duplicate artifact; monotonic head revision and idempotent repeat verified.
+
+### Bounded conclusion and deferrals
+
+No new SQLite tables, status enum, paid network request, legacy YTB runtime or C4–C7 functionality was introduced. Scoped self-review found no remaining confirmed H1/H2/M1/H3/H4 blocker on the tested implementation HEAD. The next QA-only commit changes no runtime/contract/tests and should also have an exact-HEAD CI check.
+
+- GLABS_ADAPTER_IMPLEMENTED = YES; GLABS_MOCK_CONTRACT_TEST = PASS.
+- GLABS_LIVE_E2E = NOT_RUN — OWNER DEFERRED TO C7.
+- WINDOWS_CONSUMER_E2E = NOT_RUN — C7.
+- C2_FULL_PLATFORM_E2E = DEFERRED — OWNER DECISION.
+- No provider-enforced billing cap has been verified; live pricing/consent validation remains C7.
+
+**C3 READY FOR OWNER MERGE APPROVAL — FIVE REPAIR GATES PASS; GLABS LIVE DEFERRED TO C7.** PR #6 remains Draft, without merge.
