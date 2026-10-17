@@ -125,8 +125,10 @@ try {
  await page.reload({waitUntil:'networkidle'});
  await page.getByTestId('c3-authoring').waitFor();
  await page.getByText('Readiness: approved').first().waitFor();
- await page.getByRole('button',{name:'Resolver'}).first().click();
- await page.getByTestId('c3-resolver').waitFor();
+ await page.locator('.pipeline-step').nth(1).click();
+ console.log('C3 resolver selection DOM', (await page.getByTestId('animation-studio').innerText()).slice(0,1700), 'pageErrors=',errors);
+ await page.screenshot({path:join(evidence,'resolver-debug.png'),fullPage:true});
+ await page.getByTestId('c3-resolver').waitFor({timeout:15000});
  await page.getByText('actor: actor_one (front)').waitFor();
  await capture(page,'resolver-requirements');
  await page.getByRole('button',{name:'Generation'}).first().click();
