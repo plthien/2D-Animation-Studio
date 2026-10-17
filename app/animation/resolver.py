@@ -29,31 +29,35 @@ def current_shot(con, pid: str):
 
 def requirements(pid: str) -> dict:
     with s.reader() as con:
-        pr=a.project(con,pid)
-        shot=current_shot(con,pid)
-        if not shot:
-            s.error("UNAPPROVED_DEPENDENCY","Approve ShotPlan before resolving assets",422)
-        doc=a.verified_doc(shot)
-        rows=[]
-        for kind,ids in (("actor",doc["actor_ids"]),("prop",doc["prop_ids"]),("location",doc["location_ids"])):
-            for ident in sorted(ids):
-                usage=sorted(sh["shot_id"] for sh in doc["shots"] if (
-                    ident in sh["actor_ids"] if kind=="actor" else
-                    ident in sh["prop_ids"] if kind=="prop" else
-                    sh["location_id"]==ident))
-                if not usage: continue
-                rows.append({"requirement_id":"req_"+s.sha({"kind":kind,"key":ident,"view":"front" if kind=="actor" else "default"})[:24],
-                             "kind":kind,"semantic_key":ident,"view":"front" if kind=="actor" else "default",
-                             "shot_ids":usage,"required_capabilities":[]})
-        for loc in sorted({sh["location_id"] for sh in doc["shots"]}):
-            rows.append({"requirement_id":"req_"+s.sha({"kind":"background","key":loc})[:24],
-                         "kind":"background","semantic_key":loc,"view":"default",
-                         "shot_ids":sorted(sh["shot_id"] for sh in doc["shots"] if sh["location_id"]==loc),
-                         "required_capabilities":[]})
-        inputs={"shot_plan_artifact_id":shot["artifact_id"],"shot_plan_sha256":shot["sha256"],
-                "visual_style_hash":s.channel_row(con,pr["channel_id"])["visual_style_hash"]}
-        return {"project_id":pid,"channel_id":pr["channel_id"],"source":inputs,
-                "fingerprint":s.sha({"inputs":inputs,"requirements":rows}),"requirements":rows}
+        return _requirements_in_connection(con, pid)
+
+
+def _requirements_in_connection(con, pid: str) -> dict:
+    pr=a.project(con,pid)
+    shot=current_shot(con,pid)
+    if not shot:
+        s.error("UNAPPROVED_DEPENDENCY","Approve ShotPlan before resolving assets",422)
+    doc=a.verified_doc(shot)
+    rows=[]
+    for kind,ids in (("actor",doc["actor_ids"]),("prop",doc["prop_ids"]),("location",doc["location_ids"])):
+        for ident in sorted(ids):
+            usage=sorted(sh["shot_id"] for sh in doc["shots"] if (
+                ident in sh["actor_ids"] if kind=="actor" else
+                ident in sh["prop_ids"] if kind=="prop" else
+                sh["location_id"]==ident))
+            if not usage: continue
+            rows.append({"requirement_id":"req_"+s.sha({"kind":kind,"key":ident,"view":"front" if kind=="actor" else "default"})[:24],
+                         "kind":kind,"semantic_key":ident,"view":"front" if kind=="actor" else "default",
+                         "shot_ids":usage,"required_capabilities":[]})
+    for loc in sorted({sh["location_id"] for sh in doc["shots"]}):
+        rows.append({"requirement_id":"req_"+s.sha({"kind":"background","key":loc})[:24],
+                     "kind":"background","semantic_key":loc,"view":"default",
+                     "shot_ids":sorted(sh["shot_id"] for sh in doc["shots"] if sh["location_id"]==loc),
+                     "required_capabilities":[]})
+    inputs={"shot_plan_artifact_id":shot["artifact_id"],"shot_plan_sha256":shot["sha256"],
+            "visual_style_hash":s.channel_row(con,pr["channel_id"])["visual_style_hash"]}
+    return {"project_id":pid,"channel_id":pr["channel_id"],"source":inputs,
+            "fingerprint":s.sha({"inputs":inputs,"requirements":rows}),"requirements":rows}
 
 def versions(channel_id: str,limit: int=100):
     with s.reader() as con:
@@ -83,30 +87,34 @@ def compatible(req: dict, version, current_style: str) -> bool:
         and not req["required_capabilities"])
 
 def resolution(pid: str):
-    needed=requirements(pid)
     with s.reader() as con:
-        ch=s.channel_row(con,needed["channel_id"])
-        chosen={row["usage_key"]:dict(row) for row in con.execute(
-            """SELECT b.*,v.status,v.visual_style_hash,v.capability_hash,a.kind,a.semantic_key,a.view_key
-               FROM project_asset_bindings b JOIN asset_versions v ON v.asset_version_id=b.asset_version_id
-               JOIN assets a ON a.asset_id=b.asset_id WHERE b.project_id=?""",(pid,))}
-        entries=[]
-        for r in needed["requirements"]:
-            b=chosen.get(r["requirement_id"])
-            ok=bool(b and b["source_fingerprint"]==needed["fingerprint"] and compatible(r,b,ch["visual_style_hash"]))
-            entries.append({"requirement":r,"binding":b if ok else None,
-                            "state":"resolved" if ok else "unresolved",
-                            "reason":None if ok else ("STALE_OR_INCOMPATIBLE_PIN" if b else "NO_APPROVED_COMPATIBLE_PIN")})
-        return {"requirements_fingerprint":needed["fingerprint"],
-                "requirements":entries,"resolved_count":sum(x["state"]=="resolved" for x in entries),
-                "total_count":len(entries),"source":needed["source"],
-                "compatible_versions":{r["requirement_id"]:[v["asset_version_id"] for v in con.execute("""
-                   SELECT v.asset_version_id,v.status,v.visual_style_hash,v.capability_hash,
-                          a.kind,a.semantic_key,a.view_key FROM asset_versions v
-                   JOIN assets a ON a.asset_id=v.asset_id
-                   WHERE a.channel_id=? AND v.status='approved'""", (needed["channel_id"],))
-                   if compatible(r,v,ch["visual_style_hash"])] for r in needed["requirements"]},
-                "rig_capability_status":"pending_c4_rig_validation"}
+        return _resolution_in_connection(con,pid)
+
+
+def _resolution_in_connection(con,pid: str):
+    needed=_requirements_in_connection(con,pid)
+    ch=s.channel_row(con,needed["channel_id"])
+    chosen={row["usage_key"]:dict(row) for row in con.execute(
+        """SELECT b.*,v.status,v.visual_style_hash,v.capability_hash,a.kind,a.semantic_key,a.view_key
+           FROM project_asset_bindings b JOIN asset_versions v ON v.asset_version_id=b.asset_version_id
+           JOIN assets a ON a.asset_id=b.asset_id WHERE b.project_id=?""",(pid,))}
+    entries=[]
+    for r in needed["requirements"]:
+        b=chosen.get(r["requirement_id"])
+        ok=bool(b and b["source_fingerprint"]==needed["fingerprint"] and compatible(r,b,ch["visual_style_hash"]))
+        entries.append({"requirement":r,"binding":b if ok else None,
+                        "state":"resolved" if ok else "unresolved",
+                        "reason":None if ok else ("STALE_OR_INCOMPATIBLE_PIN" if b else "NO_APPROVED_COMPATIBLE_PIN")})
+    return {"requirements_fingerprint":needed["fingerprint"],
+            "requirements":entries,"resolved_count":sum(x["state"]=="resolved" for x in entries),
+            "total_count":len(entries),"source":needed["source"],
+            "compatible_versions":{r["requirement_id"]:[v["asset_version_id"] for v in con.execute("""
+               SELECT v.asset_version_id,v.status,v.visual_style_hash,v.capability_hash,
+                      a.kind,a.semantic_key,a.view_key FROM asset_versions v
+               JOIN assets a ON a.asset_id=v.asset_id
+               WHERE a.channel_id=? AND v.status='approved'""", (needed["channel_id"],))
+               if compatible(r,v,ch["visual_style_hash"])] for r in needed["requirements"]},
+            "rig_capability_status":"pending_c4_rig_validation"}
 
 def bind(pid: str, requirement_id: str, asset_version_id: str, expected_fingerprint: str):
     needed=requirements(pid)
@@ -169,7 +177,7 @@ def publish_requirements(pid: str) -> dict:
          "requirements":need["requirements"]}
     rel=f"projects/{pid}/resolver/requirements/{aid}.json"
     def commit(con,digest,size):
-        current=requirements(pid)
+        current=_requirements_in_connection(con,pid)
         if current["fingerprint"]!=need["fingerprint"]:
             s.error("STALE_HEAD","Asset requirements changed during publication")
         duplicate=con.execute("""SELECT * FROM artifacts WHERE project_id=? AND kind='asset_requirements.v1'
