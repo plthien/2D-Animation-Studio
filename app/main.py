@@ -18,6 +18,7 @@ from app.animation import authoring as auth
 from app.animation import resolver as assets
 from app.animation import local_assets as localimages
 from app.animation import generation as glabs
+from app.animation.provider import AppError as ProviderAppError
 from app.animation.strict_json import parse_strict_document
 from app.animation.database import LegacyDatabaseUnsupported, migrate
 
@@ -141,6 +142,11 @@ async def local_only(request: Request, next_handler):
     if origin is not None and origin not in ALLOWED_ORIGINS:
         return err_json(request, "ORIGIN_REJECTED", "Origin not allowed", 403)
     return await next_handler(request)
+
+
+@app.exception_handler(ProviderAppError)
+async def provider_error(request: Request, exc: ProviderAppError):
+    return err_json(request, exc.code, exc.message, exc.status, exc.details)
 
 
 @app.exception_handler(svc.DomainError)
