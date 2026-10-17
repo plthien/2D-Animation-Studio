@@ -131,7 +131,7 @@ try {
  await page.getByTestId('c3-resolver').waitFor({timeout:15000});
  await page.getByText('actor: actor_one (front)').waitFor();
  await capture(page,'resolver-requirements');
- await page.getByRole('button',{name:'Generation'}).first().click();
+ await page.locator('.pipeline-step').nth(2).click();
  await page.getByTestId('c3-generation').waitFor();
  await page.getByLabel('Asset requirement').selectOption({index:1});
  const imagePath=join(root,'docs','qa','evidence','g0','05-studio-pipeline-1440x900.png');
@@ -139,7 +139,7 @@ try {
  await page.getByText(/Candidate av_/).first().waitFor();
  await page.getByRole('button',{name:'Approve version'}).click();
  await capture(page,'generation-approved-local-image');
- await page.getByRole('button',{name:'Resolver'}).first().click();
+ await page.locator('.pipeline-step').nth(1).click();
  const opts=page.getByTestId('c3-resolver').locator('select').first();
  await opts.selectOption({index:1});
  await page.getByRole('button',{name:'Pin version'}).first().click();
