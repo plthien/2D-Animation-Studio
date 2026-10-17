@@ -86,7 +86,7 @@ export function AuthoringPanel({projectId,headRevision,onCommitted}:{projectId:s
     void navigator.clipboard.writeText(pkg.prompt_text)
      .then(()=>setCopyResult('Complete prompt copied'))
      .catch(err=>setCopyResult('Clipboard write failed: '+String(err)));
-   }>Copy complete prompt</button>
+   }}>Copy complete prompt</button>
    {copyResult&&<p role="status" className="text-xs text-slate-300">{copyResult}</p>}
   </div>}
   <label className="block text-sm text-slate-300">External JSON response
