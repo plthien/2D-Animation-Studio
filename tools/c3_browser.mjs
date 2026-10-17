@@ -4,6 +4,7 @@
  * same disposable database. No local-only mocks or paid calls.
  */
 import {chromium} from 'playwright';
+import {deepStrictEqual} from 'node:assert/strict';
 import {spawn,spawnSync} from 'node:child_process';
 import {mkdirSync,mkdtempSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -107,7 +108,7 @@ try {
   assert(actualClipboard.includes(begin)&&actualClipboard.includes(end),'Clipboard must contain backend-owned full source package');
   const copied=JSON.parse(actualClipboard.split(begin)[1].split(end)[0]);
   for(const field of ['reservation_id','reserved_fields','source_inputs','source_metadata','dna_metadata','source','channel_dna','schema']){
-   assert(JSON.stringify(copied[field])===JSON.stringify(pkg[field]),'Copied prompt source differs: '+field);
+   deepStrictEqual(copied[field],pkg[field],'Copied prompt source differs: '+field);
   }
   assert(copied.reservation_id===pkg.reservation_id,'Clipboard reservation identity lost');
   const doc={...copied.reserved_fields,...build(copied)};
