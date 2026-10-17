@@ -24,7 +24,7 @@ jobs:
           python-version: '3.12'
       - name: Migrate Vite + Tailwind build tooling in disposable CI checkout
         run: |
-          $css = Get-Content src/index.css -Raw
+          $css = (Get-Content src/index.css -Raw).Replace("`r`n", "`n")
           if (-not $css.StartsWith("@tailwind base;`n@tailwind components;`n@tailwind utilities;")) {
             throw "C2_TAILWIND_SOURCE_MISMATCH"
           }
