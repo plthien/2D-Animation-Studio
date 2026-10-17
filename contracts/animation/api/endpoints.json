@@ -912,5 +912,25 @@
     "idempotency": "safe read",
     "authority": "operations",
     "readiness": "generation"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{project_id}/generation/operations/{operation_id}/reconcile",
+    "phase": "C3",
+    "owner": "generation",
+    "contract_status": "ACCEPTED",
+    "request_dto": "GenerationReconcileRequest",
+    "response_dto": "OperationResponse",
+    "success": 202,
+    "errors": [
+      404,
+      409,
+      422,
+      502
+    ],
+    "precondition": "Unknown submitted attempt; owner confirms exact provider task identity; GET-only remote verification",
+    "idempotency": "Never paid resubmit; may reconcile known provider handle",
+    "authority": "operations/operation_tasks/jobs",
+    "readiness": "generation"
   }
 ]
