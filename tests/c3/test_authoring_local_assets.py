@@ -129,3 +129,121 @@ def test_authoring_rejects_corrupt_script_and_bad_image(client):
         files={"file":("fake.png",b"not an image","image/png")},
         data={"kind":"actor","semantic_key":"actor_one","view":"front"})
     assert upload.status_code==422
+
+
+def test_stale_script_invalidates_shot_and_resolver(client):
+    ch=channel(client,"lineage")
+    pid=project(client,ch,"story")["project_id"]
+    ideas,script,shot=build_story(client,pid)
+    reserved(client,pid,"script",lambda pkg:{
+       "topic_ideas_artifact_id":ideas["artifact_id"],"selected_idea_id":"idea_one",
+       "full_text":"Hello again!","sections":[{"section_id":"section_one","start_char":0,
+       "end_char":12,"text":"Hello again!"}]})
+    invalid=client.get(f"/api/v1/projects/{pid}/resolver/requirements")
+    assert invalid.status_code==409,invalid.text
+    assert invalid.json()["error"]["code"]=="STALE_HEAD"
+    wf=ok(client.get(f"/api/v1/projects/{pid}/workflow"))
+    assert wf["stages"][0]["readiness"]=="stale"
+    assert wf["stages"][1]["readiness"]=="blocked"
+
+
+def test_genuine_optional_analysis_and_immutable_requirements(client):
+    ch=channel(client,"analysis")
+    pid=project(client,ch,"story")["project_id"]
+    ideas,script,shot=build_story(client,pid)
+    _,analysis=reserved(client,pid,"script-analysis",
+       lambda pkg:{"script_artifact_id":script["artifact_id"],
+                   "entities":[{"entity_id":"actor_one","kind":"actor","name":"Hero"}],
+                   "continuity_notes":["Preserve hero identity"]})
+    assert analysis["entities"][0]["entity_id"]=="actor_one"
+    from app.animation import resolver
+    before=resolver.publish_requirements(pid)
+    after=resolver.publish_requirements(pid)
+    assert before["artifact_id"]==after["artifact_id"]
+    assert before["sha256"]==after["sha256"]
+    with s.reader() as con:
+        assert con.execute("SELECT COUNT(*) FROM artifacts WHERE project_id=? AND kind='asset_requirements.v1'",
+                           (pid,)).fetchone()[0]==1
+
+
+def _seed_g(request_client,monkeypatch,tag):
+    from app.animation import generation
+    monkeypatch.setenv("GLABS_API_KEY","fake-ci-key")
+    ch=channel(request_client,tag)
+    pid=project(request_client,ch,"story")["project_id"]
+    build_story(request_client,pid)
+    needed=ok(request_client.get(f"/api/v1/projects/{pid}/resolver/requirements"))
+    req=next(x for x in needed["requirements"] if x["kind"]=="actor")
+    quote=generation.prepare(pid,req["requirement_id"],"Cartoon hero","",
+                             "nano_banana_2","1:1",2.0)
+    op=generation.confirm(pid,quote["quote"],quote["fingerprint"],"paid-"+tag,True)
+    return pid,req,quote,op
+
+
+def test_mocked_donor_transport_succeeds_without_live_payment(client,monkeypatch):
+    from app.animation import generation
+    pid,req,quote,op=_seed_g(client,monkeypatch,"glabs")
+    same=generation.confirm(pid,quote["quote"],quote["fingerprint"],"paid-glabs",True)
+    assert same["operation_id"]==op["operation_id"]
+    with pytest.raises(s.DomainError) as bad:
+        generation.confirm(pid,{**quote["quote"],"cost_ceiling_usd":99},quote["fingerprint"],"another",True)
+    assert bad.value.code=="CONSENT_INVALID"
+    buffer=io.BytesIO()
+    Image.new("RGBA",(40,32),(10,20,30,255)).save(buffer,format="PNG")
+    class Fake:
+        submits=0
+        def submit_image(self,payload):
+            assert payload["model"]=="nano_banana_2"
+            self.submits+=1
+            return {"task_id":"abcd1234","status":"pending"}
+        def get_status(self,tid):
+            assert tid=="abcd1234"
+            return {"task_id":tid,"status":"completed"}
+        def get_result(self,tid):
+            return {"task_id":tid,"status":"completed","results":["http://127.0.0.1:8765/files/a.png"]}
+        def download_file(self,url,path,max_bytes):
+            assert max_bytes>=len(buffer.getvalue())
+            path.write_bytes(buffer.getvalue())
+    fake=Fake()
+    done=generation.advance(pid,op["operation_id"],client=fake)
+    assert done["status"]=="completed",done
+    assert fake.submits==1
+    assert done["result"]["candidate"]["status"]=="candidate"
+    again=generation.advance(pid,op["operation_id"],client=fake)
+    assert again["status"]=="completed" and fake.submits==1
+    with s.reader() as con:
+        assert con.execute("SELECT COUNT(*) FROM operations WHERE project_id=?",(pid,)).fetchone()[0]==1
+    with TestClient(app) as restarted:
+        persisted=ok(restarted.get(f"/api/v1/projects/{pid}/generation/operations/{op['operation_id']}"))
+        assert persisted["status"]=="completed"
+
+
+def test_ambiguous_submission_never_resubmits(client,monkeypatch):
+    from app.animation import generation
+    pid,req,quote,op=_seed_g(client,monkeypatch,"unknown")
+    class TimedOut:
+        calls=0
+        def submit_image(self,payload):
+            self.calls+=1
+            raise TimeoutError("submit ACK lost")
+    fake=TimedOut()
+    first=generation.advance(pid,op["operation_id"],client=fake)
+    assert first["status"]=="unknown"
+    second=generation.advance(pid,op["operation_id"],client=fake)
+    assert second["status"]=="unknown"
+    assert fake.calls==1
+    assert generation.cancel(pid,op["operation_id"])["status"]=="cancelled"
+
+
+def test_cancel_queued_and_orphan_submitted_fence(client,monkeypatch):
+    from app.animation import generation
+    pid,req,quote,op=_seed_g(client,monkeypatch,"cancel")
+    assert generation.cancel(pid,op["operation_id"])["status"]=="cancelled"
+    class Never:
+        def submit_image(self,payload):raise AssertionError("paid duplicate call")
+    assert generation.advance(pid,op["operation_id"],client=Never())["status"]=="cancelled"
+    pid2,_,_,op2=_seed_g(client,monkeypatch,"crash")
+    with s.writer() as con:
+        con.execute("UPDATE operation_tasks SET status='submitted' WHERE operation_id=?",(op2["operation_id"],))
+        con.execute("UPDATE operations SET status='running' WHERE operation_id=?",(op2["operation_id"],))
+    assert generation.advance(pid2,op2["operation_id"],client=Never())["status"]=="unknown"
