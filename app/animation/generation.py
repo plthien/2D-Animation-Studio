@@ -67,6 +67,12 @@ def confirm(pid,quote,signature,idem,approved):
         s.error("CONSENT_INVALID","Explicit owner approval required",422)
     if signature!=s.sha(quote) or quote.get("attempt")!=1:
         s.error("CONSENT_INVALID","Consent quote identity mismatch",422)
+    kh=s.keyhash(idem)
+    with s.reader() as con:
+        prior=con.execute("SELECT operation_id,input_fingerprint FROM operations WHERE project_id=? AND kind='glabs_image' AND idempotency_key=?",(pid,kh)).fetchone()
+        if prior:
+            if prior["input_fingerprint"]!=signature:s.error("IDEMPOTENCY_CONFLICT","Paid key reused")
+            return status(pid,prior["operation_id"])
     p=quote.get("payload",{})
     frozen=prepare(pid,quote.get("requirement_id",""),p.get("prompt",""),p.get("negative_prompt",""),
                    p.get("model",""),p.get("aspect_ratio",""),quote.get("cost_ceiling_usd",0))
@@ -206,3 +212,12 @@ def advance(pid,oid,client=None):
             if con.execute("SELECT status FROM operations WHERE operation_id=?",(oid,)).fetchone()["status"]!="cancelled":
                 transition(con,oid,"failed","failed",err={"code":"RESULT_INVALID_OR_DOWNLOAD_FAILED"})
         return status(pid,oid)
+
+
+def list_operations(pid):
+    with s.reader() as con:
+        a.project(con,pid)
+        rows=con.execute("""SELECT operation_id,status,input_fingerprint,created_at,updated_at
+                            FROM operations WHERE project_id=? AND kind='glabs_image'
+                            ORDER BY created_at DESC LIMIT 50""",(pid,)).fetchall()
+        return {"items":[s.rowdict(x) for x in rows],"next_cursor":None}
