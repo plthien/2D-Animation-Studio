@@ -315,3 +315,31 @@ def test_resolver_unknown_rig_capability_is_not_approved(client):
     assert not compatible({**actor,"required_capabilities":["grab"]},version,"a"*64)
     assert not compatible(actor,{**version,"view_key":"left"},"a"*64)
     assert not compatible(actor,version,"b"*64)
+
+
+def test_unknown_submission_reconcile_known_handle_only(client,monkeypatch):
+    from app.animation import generation
+    pid,req,quote,op=_seed_g(client,monkeypatch,"reconcile")
+    class LostAck:
+        calls=0
+        def submit_image(self,body):
+            self.calls+=1
+            raise TimeoutError("real paid request may have been submitted")
+    missing=LostAck()
+    assert generation.advance(pid,op["operation_id"],client=missing)["status"]=="unknown"
+    with pytest.raises(s.DomainError) as e:
+        generation.reconcile_unknown(pid,op["operation_id"],"12345678",False)
+    assert e.value.code=="CONSENT_INVALID"
+    class KnownTask:
+        calls=0
+        def submit_image(self,body):
+            self.calls+=1
+            raise AssertionError("No second paid POST allowed")
+        def get_status(self,task_id):
+            assert task_id=="1234abcd"
+            return {"task_id":task_id,"status":"pending"}
+    matched=KnownTask()
+    result=generation.reconcile_unknown(pid,op["operation_id"],"1234abcd",True,client=matched)
+    assert result["status"]=="running"
+    assert matched.calls==0 and missing.calls==1
+    assert result["task"]["provider_handle_json"] is not None
