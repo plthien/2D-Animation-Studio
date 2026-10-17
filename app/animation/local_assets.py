@@ -13,7 +13,9 @@ MAX_BYTES=12*1024*1024
 MAX_PIXELS=32_000_000
 EXT={"PNG":"png","JPEG":"jpg","WEBP":"webp"}
 
-def ingest(pid:str,kind:str,semantic_key:str,view:str,raw:bytes,filename:str, *, origin:str="local-user-import", provider_task_id:str|None=None) -> dict:
+def ingest(pid:str,kind:str,semantic_key:str,view:str,raw:bytes,filename:str, *, origin:str="local-user-import", provider_task_id:str|None=None, operation_id:str|None=None,
+           operation_task_id:str|None=None, result_index:int=0,
+           claim_token:str|None=None) -> dict:
     if kind not in ("actor","prop","location","background"):
         s.error("VALIDATION_FAILED","Invalid asset kind",422)
     if not 1<=len(semantic_key)<=200 or not 1<=len(view)<=100:
@@ -38,6 +40,46 @@ def ingest(pid:str,kind:str,semantic_key:str,view:str,raw:bytes,filename:str, *,
         ch=s.channel_row(con,pr["channel_id"])
         fingerprint=ch["visual_style_hash"]
     digest=hashlib.sha256(raw).hexdigest()
+    result_key=None
+    if origin=="glabs":
+        if not all((provider_task_id,operation_id,operation_task_id,claim_token)) or result_index<0:
+            s.error("VALIDATION_FAILED","Provider result requires durable operation ownership",422)
+        result_key=s.sha({"operation_id":operation_id,"operation_task_id":operation_task_id,
+            "provider_task_id":provider_task_id,"result_index":result_index,"sha256":digest})
+
+    def previous_candidate(con):
+        if result_key is None:
+            return None
+        prior=con.execute(
+            """SELECT v.*, ar.metadata_json FROM asset_versions v
+               JOIN artifacts ar ON ar.artifact_id=v.artifact_id
+               WHERE ar.kind='asset_version.v1'
+                 AND json_extract(ar.metadata_json,'$.provider_result_key')=?
+               LIMIT 1""", (result_key,),
+        ).fetchone()
+        if prior is None:
+            return None
+        ref=json.loads(prior["metadata_json"])
+        src=con.execute("SELECT * FROM artifacts WHERE artifact_id=?",
+                        (ref["source_image_artifact_id"],)).fetchone()
+        if src is None or src["sha256"]!=digest:
+            s.error("LINEAGE_MISMATCH","Materialized provider image changed",422)
+        source_path=s.bounded_path(src["relative_path"])
+        if not source_path.is_file() or s.filehash(source_path)!=(src["sha256"],src["byte_size"]):
+            s.error("LINEAGE_MISMATCH","Existing provider image bytes invalid",422)
+        meta=con.execute("SELECT * FROM artifacts WHERE artifact_id=?",
+                         (prior["artifact_id"],)).fetchone()
+        manifest=a.verified_doc(meta)
+        return {"asset_version_id":prior["asset_version_id"],"asset_id":prior["asset_id"],
+                "artifact_id":prior["artifact_id"],"source_image_artifact_id":src["artifact_id"],
+                "width":manifest["width"],"height":manifest["height"],
+                "status":prior["status"],"source_sha256":digest}
+
+    if result_key is not None:
+        with s.reader() as con:
+            existing=previous_candidate(con)
+            if existing is not None:
+                return existing
     aid=s.uid("ar")
     ver=s.uid("av")
     image_id=s.uid("ar")
@@ -58,6 +100,24 @@ def ingest(pid:str,kind:str,semantic_key:str,view:str,raw:bytes,filename:str, *,
         try:
             with s.writer() as con:
                 pr=a.project(con,pid)
+                if result_key is not None:
+                    # A cancelled or superseded claimant must not publish an image.
+                    owner=con.execute(
+                        """SELECT o.status,o.lease_token,t.claim_token,t.provider_handle_json
+                           FROM operations o JOIN operation_tasks t ON t.operation_id=o.operation_id
+                           WHERE o.operation_id=? AND o.project_id=?
+                             AND t.operation_task_id=?""",
+                        (operation_id,pid,operation_task_id),
+                    ).fetchone()
+                    if (owner is None or owner["status"]!="running"
+                            or owner["lease_token"]!=claim_token
+                            or owner["claim_token"]!=claim_token
+                            or not owner["provider_handle_json"]
+                            or json.loads(owner["provider_handle_json"]).get("task_id")!=provider_task_id):
+                        s.error("STALE_HEAD","Provider result claim cancelled or superseded")
+                    existing=previous_candidate(con)
+                    if existing is not None:
+                        return existing
                 ch=s.channel_row(con,pr["channel_id"])
                 if ch["visual_style_hash"]!=fingerprint:
                     s.error("STALE_HEAD","Visual style changed during image upload")
@@ -75,7 +135,9 @@ def ingest(pid:str,kind:str,semantic_key:str,view:str,raw:bytes,filename:str, *,
                   kind="asset_source_image.v1",schema="image/"+("jpeg" if fmt=="JPEG" else fmt.lower()),
                   logical=image_id,revision=1,status="draft",checksum=digest,size=len(raw),relative=rel,
                   metadata={"filename":Path(filename).name[:200],"width":width,"height":height,
-                            "origin":origin,"provider_task_id":provider_task_id,"project_id":pid})
+                            "origin":origin,"provider_task_id":provider_task_id,"project_id":pid,
+                            "operation_id":operation_id,"operation_task_id":operation_task_id,
+                            "provider_result_key":result_key,"result_index":result_index})
                 metadata={"schema_version":"asset_version.v1","artifact_id":aid,"asset_id":asset_id,
                    "channel_id":pr["channel_id"],"revision":revision,"created_at":t,
                    "kind":kind,"semantic_key":semantic_key,"view":view,
@@ -91,7 +153,10 @@ def ingest(pid:str,kind:str,semantic_key:str,view:str,raw:bytes,filename:str, *,
                 s.add_artifact(con,aid=aid,channel_id=pr["channel_id"],project_id=None,
                     kind="asset_version.v1",schema="asset_version.v1",logical=asset_id,
                     revision=revision,status="draft",checksum=hashlib.sha256(data).hexdigest(),
-                    size=len(data),relative=meta_rel,metadata={"source_image_artifact_id":image_id,"project_id":pid})
+                    size=len(data),relative=meta_rel,metadata={"source_image_artifact_id":image_id,"project_id":pid,
+                        "operation_id":operation_id,"operation_task_id":operation_task_id,
+                        "provider_task_id":provider_task_id,"provider_result_key":result_key,
+                        "result_index":result_index})
                 con.execute("INSERT INTO asset_versions VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                     (ver,asset_id,pr["channel_id"],revision,aid,fingerprint,s.sha([]),
                      "candidate",digest,t,None))
