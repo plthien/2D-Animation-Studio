@@ -151,14 +151,14 @@ def test_genuine_optional_analysis_and_immutable_requirements(client):
     ch=channel(client,"analysis")
     pid=project(client,ch,"story")["project_id"]
     ideas,script,shot=build_story(client,pid)
+    from app.animation import resolver
+    before=resolver.publish_requirements(pid)
+    after=resolver.publish_requirements(pid)
     _,analysis=reserved(client,pid,"script-analysis",
        lambda pkg:{"script_artifact_id":script["artifact_id"],
                    "entities":[{"entity_id":"actor_one","kind":"actor","name":"Hero"}],
                    "continuity_notes":["Preserve hero identity"]})
     assert analysis["entities"][0]["entity_id"]=="actor_one"
-    from app.animation import resolver
-    before=resolver.publish_requirements(pid)
-    after=resolver.publish_requirements(pid)
     assert before["artifact_id"]==after["artifact_id"]
     assert before["sha256"]==after["sha256"]
     with s.reader() as con:
