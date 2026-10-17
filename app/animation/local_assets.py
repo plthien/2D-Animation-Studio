@@ -54,12 +54,17 @@ def ingest(pid:str,kind:str,semantic_key:str,view:str,raw:bytes,filename:str, *,
             """SELECT v.*, ar.metadata_json FROM asset_versions v
                JOIN artifacts ar ON ar.artifact_id=v.artifact_id
                WHERE ar.kind='asset_version.v1'
-                 AND json_extract(ar.metadata_json,'$.provider_result_key')=?
-               LIMIT 1""", (result_key,),
+                 AND json_extract(ar.metadata_json,'$.operation_id')=?
+                 AND json_extract(ar.metadata_json,'$.operation_task_id')=?
+                 AND json_extract(ar.metadata_json,'$.provider_task_id')=?
+                 AND json_extract(ar.metadata_json,'$.result_index')=?
+               LIMIT 1""", (operation_id,operation_task_id,provider_task_id,result_index),
         ).fetchone()
         if prior is None:
             return None
         ref=json.loads(prior["metadata_json"])
+        if ref.get("provider_result_key") != result_key:
+            s.error("LINEAGE_MISMATCH","One provider task result cannot change image digest",422)
         src=con.execute("SELECT * FROM artifacts WHERE artifact_id=?",
                         (ref["source_image_artifact_id"],)).fetchone()
         if src is None or src["sha256"]!=digest:
