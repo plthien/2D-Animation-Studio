@@ -343,3 +343,16 @@ def test_unknown_submission_reconcile_known_handle_only(client,monkeypatch):
     assert result["status"]=="running"
     assert matched.calls==0 and missing.calls==1
     assert result["task"]["provider_handle_json"] is not None
+
+
+def test_glabs_invalid_reconcile_task_id_returns_typed_error(client,monkeypatch):
+    from app.animation import generation
+    pid,req,quote,op=_seed_g(client,monkeypatch,"badhandle")
+    class Lost:
+        def submit_image(self,payload):
+            raise TimeoutError("ambiguous ACK")
+    assert generation.advance(pid,op["operation_id"],client=Lost())["status"]=="unknown"
+    response=client.post(f"/api/v1/projects/{pid}/generation/operations/{op['operation_id']}/reconcile",
+        json={"provider_task_id":"INVALID_TASK_ID","confirmed_owner_match":True})
+    assert response.status_code==502,response.text
+    assert response.json()["error"]["code"]=="MEDIA_PROVIDER_UPSTREAM_ERROR"
