@@ -99,7 +99,18 @@ try {
   const promptResponse=page.waitForResponse(r=>r.url().endsWith('/authoring/'+kind+'/prompt')&&r.request().method()==='POST');
   await page.getByRole('button',{name:'Create prompt reservation'}).click();
   const pkg=(await (await promptResponse).json()).data;
-  const doc={...pkg.reserved_fields,...build(pkg)};
+  await page.getByRole('button',{name:'Copy complete prompt'}).click();
+  await page.getByText('Complete prompt copied').waitFor();
+  const actualClipboard=await page.evaluate(()=>navigator.clipboard.readText());
+  const begin='=== BEGIN AUTHORING PACKAGE JSON ===';
+  const end='=== END AUTHORING PACKAGE JSON ===';
+  assert(actualClipboard.includes(begin)&&actualClipboard.includes(end),'Clipboard must contain backend-owned full source package');
+  const copied=JSON.parse(actualClipboard.split(begin)[1].split(end)[0]);
+  for(const field of ['reservation_id','reserved_fields','source_inputs','source_metadata','dna_metadata','source','channel_dna','schema']){
+   assert(JSON.stringify(copied[field])===JSON.stringify(pkg[field]),'Copied prompt source differs: '+field);
+  }
+  assert(copied.reservation_id===pkg.reservation_id,'Clipboard reservation identity lost');
+  const doc={...copied.reserved_fields,...build(copied)};
   await page.locator('[data-testid="c3-authoring"] textarea').fill(JSON.stringify(doc));
   const imported=page.waitForResponse(r=>r.url().endsWith('/authoring/'+kind+'/import')&&r.request().method()==='POST');
   await page.getByRole('button',{name:'Import immutable draft'}).click();
@@ -115,13 +126,13 @@ try {
   channel_dna_hash:pkg.dna_metadata.sha256,
   ideas:[{idea_id:'idea_one',title:'The first animated story',premise:'An actor waves in an imaginary location'}]
  }));
- const script=await author('script',()=>({
-  topic_ideas_artifact_id:ideas.draft.artifact_id,selected_idea_id:'idea_one',
+ const script=await author('script',pkg=>({
+  topic_ideas_artifact_id:pkg.source_metadata.artifact_id,selected_idea_id:'idea_one',
   full_text:'Hello!',sections:[{section_id:'section_one',start_char:0,end_char:6,text:'Hello!'}]
  }));
  const world={actors:[{actor_id:'actor_one',x:0,y:0,facing:'right'}],props:[]};
- const shots=await author('shot-plan',()=>({
-  script_artifact_id:script.draft.artifact_id,script_sha256:script.draft.sha256,
+ const shots=await author('shot-plan',pkg=>({
+  script_artifact_id:pkg.source_metadata.artifact_id,script_sha256:pkg.source_metadata.sha256,
   actor_ids:['actor_one'],prop_ids:[],location_ids:['location_one'],
   shots:[{shot_id:'shot_one',duration_frames:48,actor_ids:['actor_one'],prop_ids:[],
    location_id:'location_one',utterance:{text:'Hello!',script_start:0,script_end:6},
