@@ -66,7 +66,7 @@ def approve(client, channel, candidate, expected_revision=None):
               "actor":"qa", "reviewed_at":"2026-10-16T00:00:00Z"}))
 
 
-def test_openapi_exact_19_and_no_legacy(client):
+def test_openapi_preserves_exact_19_c2_and_registers_only_implemented_c3(client):
     import json
     from pathlib import Path
     registry=json.loads((Path(__file__).resolve().parents[2]/
@@ -74,7 +74,10 @@ def test_openapi_exact_19_and_no_legacy(client):
     accepted={(row["method"],row["path"]) for row in registry if row["contract_status"]=="ACCEPTED"}
     actual={(method.upper(),path) for path,definition in app.openapi()["paths"].items()
             for method in definition if method.lower() in {"get","post","put","patch","delete"}}
-    assert len(accepted)==19
+    c2={(row["method"],row["path"]) for row in registry
+        if row["phase"]=="C2" and row["contract_status"]=="ACCEPTED"}
+    assert len(c2)==19
+    assert c2.issubset(actual)
     assert actual==accepted
     for row in registry:
         if row["contract_status"]=="PROPOSED":
@@ -112,8 +115,8 @@ def test_channel_dna_project_restart_and_replay(client):
     wf=data(client.get(f"/api/v1/projects/{project['project_id']}/workflow"))
     assert tuple(s["stage_key"] for s in wf["stages"])==STAGES
     assert len(wf["stages"])==7
-    assert wf["stages"][0]["readiness"]=="blocked"
-    assert "REQUIRES_C3_AUTHORING" in wf["stages"][0]["blocker_codes"]
+    assert wf["stages"][0]["readiness"]=="ready"
+    assert "TOPIC_IDEAS_MISSING" in wf["stages"][0]["blocker_codes"]
     for stage in wf["stages"][1:]:
         assert stage["readiness"]=="blocked" and stage["blocker_codes"]
     assert all(s["head_revision"]==0 for s in wf["stages"])

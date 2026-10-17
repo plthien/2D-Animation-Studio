@@ -7,12 +7,16 @@ import {StatusBadge} from '../components/ui/StatusBadge';
 import {ErrorBanner} from '../components/ui/ErrorBanner';
 import {EmptyState} from '../components/ui/EmptyState';
 import {Clapperboard} from 'lucide-react';
+import {AuthoringPanel} from '../features/studio/AuthoringPanel';
+import {AssetsPanel} from '../features/studio/AssetsPanel';
+import {useQueryClient} from '@tanstack/react-query';
 const LABELS:Record<string,string>={
  authoring:'Authoring',resolver:'Resolver',generation:'Generation',
  rigging:'Rigging',director:'Director',motion:'Motion',delivery:'Delivery'
 };
 export function StudioPage({workspace,onNavigate}:{workspace:WorkspaceContext;onNavigate:(v:AppView)=>void}){
  const [selected,setSelected]=useState('authoring');
+ const queryClient=useQueryClient();
  const proj=workspace.selectedProject;
  const result=useQuery({queryKey:['workflow',proj?.project_id],
   queryFn:()=>apiClient.workflow(proj!.project_id),enabled:Boolean(proj),refetchInterval:30000});
@@ -35,7 +39,7 @@ export function StudioPage({workspace,onNavigate}:{workspace:WorkspaceContext;on
     <div><p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">{current.owner_phase} · Animation pipeline</p>
      <h2 className="mt-2 text-2xl font-semibold text-slate-50">{LABELS[current.stage_key]}</h2>
      <p className="mt-2 text-sm text-slate-400">
-      Current persisted approval is separate from computed readiness. No action is fabricated in C2.
+      Persisted approval and computed readiness are tracked independently.
      </p></div>
     <div className="flex gap-2"><StatusBadge status={current.approval_status} label={'Approval: '+current.approval_status}/>
      <StatusBadge status={current.readiness} label={'Readiness: '+current.readiness}/></div>
@@ -54,13 +58,13 @@ export function StudioPage({workspace,onNavigate}:{workspace:WorkspaceContext;on
      <code className="break-all text-xs">{current.computed_dependency_fingerprint}</code>
     </div>
    </div>
-   <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-5">
-    <h3 className="font-semibold text-amber-100">Stage execution unavailable in C2</h3>
-    <p className="mt-2 text-sm text-slate-300">Implementation owner: {current.owner_phase}. The stage shell is a real database projection, not an operational motion pipeline.</p>
+   {current.stage_key==='authoring'?<AuthoringPanel key={proj.project_id} projectId={proj.project_id} headRevision={current.head_revision} onCommitted={()=>void queryClient.invalidateQueries({queryKey:['workflow',proj.project_id]})}/>:current.stage_key==='resolver'||current.stage_key==='generation'?<AssetsPanel key={proj.project_id+'-'+current.stage_key} projectId={proj.project_id} channelId={proj.channel_id} mode={current.stage_key}/>:<div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-5">
+    <h3 className="font-semibold text-amber-100">Stage execution not yet implemented</h3>
+    <p className="mt-2 text-sm text-slate-300">Implementation owner: {current.owner_phase}. This stage remains blocked until its required feature phase is implemented and approved.</p>
     <div className="mt-3 flex flex-wrap gap-2">{(current.blocker_codes.length?current.blocker_codes:[current.owner_phase+'_ACTION_NOT_IMPLEMENTED']).map(code=>
      <span key={code} className="rounded-full border border-amber-500/20 px-3 py-1 font-mono text-xs text-amber-200">{code}</span>)}</div>
     <button type="button" disabled className="mt-4 rounded-2xl border border-white/10 px-4 py-2 text-sm text-slate-500 opacity-50">Generate / Execute (not available)</button>
-   </div>
+   </div>}
   </section>
  </div>;
 }
