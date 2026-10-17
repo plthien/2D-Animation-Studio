@@ -91,3 +91,87 @@ def test_migration_matches_every_frozen_create_sql(tmp_path: Path, monkeypatch):
         for table in APPLICATION_TABLES:
             assert conn.execute(f"PRAGMA table_info({table})").fetchall()
             assert conn.execute(f"PRAGMA foreign_key_list({table})").fetchall() or table == "channels"
+
+
+@pytest.mark.parametrize("mutation", [
+    "drop_channel_index",
+    "drop_project_index",
+    "unique_constraint",
+    "foreign_key",
+    "required_column",
+    "partial_predicate",
+])
+def test_existing_animation_schema_tamper_refused_without_writes(tmp_path, monkeypatch, mutation):
+    """Each frozen DDL mutation is detected before migration or startup writes."""
+    from app.animation.database import AnimationSchemaIntegrityError
+    from fastapi.testclient import TestClient
+    from app.main import app
+    path=tmp_path / ("tampered_" + mutation + ".db")
+    url="sqlite:///" + path.as_posix()
+    monkeypatch.setenv("DATABASE_URL",url)
+    monkeypatch.setenv("ARTIFACT_ROOT",str(tmp_path / "artifacts"))
+    migrate(url)
+
+    with sqlite3.connect(path) as conn:
+        # Use a disposable test DB and checkpoint before the corruption baseline.
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        conn.execute("PRAGMA journal_mode=DELETE")
+        if mutation == "drop_channel_index":
+            conn.execute("DROP INDEX ux_artifacts_channel_revision")
+        elif mutation == "drop_project_index":
+            conn.execute("DROP INDEX ux_artifacts_project_revision")
+        else:
+            targets = {
+                "unique_constraint": (
+                    "projects", "UNIQUE(channel_id, slug), UNIQUE(project_id, channel_id)",
+                    "UNIQUE(project_id, channel_id)",
+                ),
+                "foreign_key": (
+                    "projects", "channel_id TEXT NOT NULL REFERENCES channels(channel_id) ON DELETE RESTRICT",
+                    "channel_id TEXT NOT NULL",
+                ),
+                "required_column": (
+                    "projects", "name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 200),",
+                    "",
+                ),
+                "partial_predicate": (
+                    "ux_artifacts_channel_revision", "WHERE project_id IS NULL",
+                    "WHERE project_id IS NOT NULL",
+                ),
+            }
+            object_name,source,target=targets[mutation]
+            original=conn.execute("SELECT sql FROM sqlite_schema WHERE name=?",(object_name,)).fetchone()[0]
+            assert source in original, mutation
+            conn.execute("PRAGMA writable_schema=ON")
+            conn.execute("UPDATE sqlite_schema SET sql=? WHERE name=?",
+                         (original.replace(source,target),object_name))
+            conn.execute("PRAGMA writable_schema=OFF")
+            conn.execute("PRAGMA schema_version=100")
+        conn.commit()
+    paths=[path,Path(str(path)+"-wal"),Path(str(path)+"-shm"),Path(str(path)+"-journal")]
+    baseline={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in paths if p.exists()}
+
+    for operation in (lambda:guard_database(url),lambda:migrate(url)):
+        with pytest.raises(AnimationSchemaIntegrityError) as caught:
+            operation()
+        assert caught.value.code=="ANIMATION_SCHEMA_INTEGRITY_INVALID"
+        assert {str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in paths if p.exists()}==baseline
+    monkeypatch.setenv("AUTO_APPLY_MIGRATIONS","false")
+    with pytest.raises(AnimationSchemaIntegrityError):
+        with TestClient(app):
+            pass
+    assert {str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in paths if p.exists()}==baseline
+
+
+def test_existing_valid_database_manual_startup_and_restart(tmp_path,monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    path=tmp_path/"existing_animation.db"
+    url="sqlite:///"+path.as_posix()
+    monkeypatch.setenv("DATABASE_URL",url)
+    migrate(url)
+    monkeypatch.setenv("AUTO_APPLY_MIGRATIONS","false")
+    with TestClient(app) as client:
+        assert client.get("/health").status_code==200
+    with TestClient(app) as client:
+        assert client.get("/api/v1/system").status_code==200
