@@ -116,7 +116,15 @@ try {
   await copyStatus.waitFor({timeout:8000});
   const clipboardStatus=await copyStatus.innerText();
   assert(clipboardStatus==='Complete prompt copied','Clipboard UI status: '+clipboardStatus);
-  const actualClipboard=await page.evaluate(()=>navigator.clipboard.readText());
+  let actualClipboard;
+  try{actualClipboard=await page.evaluate(()=>navigator.clipboard.readText());}
+  catch{
+   // A real keyboard paste verifies OS clipboard without mocking provider or clipboard.
+   const paste=page.getByTestId('c3-authoring').locator('textarea');
+   await paste.focus();
+   await page.keyboard.press('Control+V');
+   actualClipboard=await paste.inputValue();
+  }
   const begin='=== BEGIN AUTHORING PACKAGE JSON ===';
   const end='=== END AUTHORING PACKAGE JSON ===';
   assert(actualClipboard.includes(begin)&&actualClipboard.includes(end),'Clipboard must contain backend-owned full source package');
