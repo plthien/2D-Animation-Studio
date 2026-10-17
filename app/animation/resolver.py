@@ -197,51 +197,145 @@ def publish_requirements(pid: str) -> dict:
     return s.document_publish(doc,rel,commit)
 
 
+def _exact_snapshot(con, pid: str) -> tuple[dict, list[dict]]:
+    """Re-evaluate every current dependency and exact approved pin under ONE SQLite snapshot."""
+    state = _resolution_in_connection(con, pid)
+    if state["resolved_count"] != state["total_count"] or not state["total_count"]:
+        s.error("STALE_HEAD", "Incomplete or incompatible resolver pin set")
+    pins = []
+    seen = set()
+    for entry in state["requirements"]:
+        req, b = entry["requirement"], entry["binding"]
+        if b is None or req["requirement_id"] in seen:
+            s.error("STALE_HEAD", "Duplicate or missing requirement pin")
+        seen.add(req["requirement_id"])
+        if b["channel_id"] != state["source"].get("channel_id", b["channel_id"]):
+            # Exact channel is also verified by the joined asset and project below.
+            s.error("STALE_HEAD", "Pin channel differs")
+        version = con.execute(
+            """SELECT v.*,a.kind,a.semantic_key,a.view_key,a.channel_id AS owner_channel
+               FROM asset_versions v JOIN assets a ON a.asset_id=v.asset_id
+               WHERE v.asset_version_id=? AND v.asset_id=? AND v.channel_id=?""",
+            (b["asset_version_id"], b["asset_id"], b["channel_id"]),
+        ).fetchone()
+        if (version is None or version["owner_channel"] != b["channel_id"]
+                or version["status"] != "approved"
+                or b["source_fingerprint"] != state["requirements_fingerprint"]
+                or not compatible(req, version, state["source"]["visual_style_hash"])):
+            s.error("STALE_HEAD", "Pinned version no longer compatible")
+        pins.append({
+            "requirement_id": req["requirement_id"],
+            "asset_version_id": version["asset_version_id"],
+            "asset_channel_id": b["channel_id"],
+            "kind": version["kind"], "semantic_key": version["semantic_key"],
+            "view": version["view_key"], "visual_style_hash": version["visual_style_hash"],
+            "capability_hash": version["capability_hash"], "approval_status": "approved",
+        })
+    pins.sort(key=lambda p: p["requirement_id"])
+    if len(pins) != state["total_count"]:
+        s.error("STALE_HEAD", "Missing expected pins")
+    return state, pins
+
+
+def _activate_resolution(con, pid: str, row, requirements_artifact: dict,
+                         expected_key: str, expected_pins: list[dict]) -> dict:
+    """Revalidate immutable artifact and CAS project head; reuse never leaves stale head."""
+    if (row["project_id"] != pid or row["channel_id"] != requirements_artifact["channel_id"]
+            or row["approval_status"] != "approved"
+            or json.loads(row["metadata_json"]).get("source_fingerprint") != expected_key):
+        s.error("STALE_HEAD", "Resolution artifact owner/source mismatch")
+    doc = a.verified_doc(row)
+    if (doc["requirements_artifact_id"] != requirements_artifact["artifact_id"]
+            or s.canon(doc["pins"]) != s.canon(expected_pins)):
+        s.error("STALE_HEAD", "Existing resolution bytes do not match active pins")
+    state, current_pins = _exact_snapshot(con, pid)
+    if s.canon(current_pins) != s.canon(expected_pins):
+        s.error("STALE_HEAD", "Pins changed during head activation")
+    head = con.execute(
+        "SELECT * FROM project_stage_heads WHERE project_id=? AND stage_key='resolver'",
+        (pid,),
+    ).fetchone()
+    if head is None:
+        s.error("LINEAGE_MISMATCH", "Resolver stage head missing", 422)
+    if (head["artifact_id"] != row["artifact_id"]
+            or head["dependency_fingerprint"] != expected_key
+            or head["approval_status"] != "approved"):
+        updated = con.execute(
+            """UPDATE project_stage_heads SET artifact_id=?,approval_status='approved',
+               dependency_fingerprint=?,revision=revision+1,updated_at=?
+               WHERE project_id=? AND stage_key='resolver'
+                 AND revision=? AND artifact_id IS ?""",
+            (row["artifact_id"], expected_key, s.now(), pid, head["revision"], head["artifact_id"]),
+        )
+        if updated.rowcount != 1:
+            s.error("STALE_HEAD", "Resolver head CAS failed")
+    return s.artifact_view(row)
+
+
 def publish_resolution(pid: str) -> dict | None:
-    state=resolution(pid)
-    if state["resolved_count"]!=state["total_count"]:return None
-    requirements_artifact=publish_requirements(pid)
-    pins=[]
     with s.reader() as con:
-        for entry in state["requirements"]:
-            b=entry["binding"]
-            v=con.execute("""SELECT v.*,a.kind,a.semantic_key,a.view_key FROM asset_versions v
-                              JOIN assets a ON a.asset_id=v.asset_id WHERE v.asset_version_id=?""",
-                          (b["asset_version_id"],)).fetchone()
-            pins.append({"requirement_id":entry["requirement"]["requirement_id"],
-             "asset_version_id":v["asset_version_id"],"asset_channel_id":requirements_artifact["channel_id"],
-             "kind":v["kind"],"semantic_key":v["semantic_key"],"view":v["view_key"],
-             "visual_style_hash":v["visual_style_hash"],"capability_hash":v["capability_hash"],
-             "approval_status":"approved"})
-        key=s.sha({"requirements_sha":requirements_artifact["sha256"],"pins":pins})
-        old=con.execute("""SELECT * FROM artifacts WHERE project_id=? AND kind='asset_resolution.v1'
-            AND json_extract(metadata_json,'$.source_fingerprint')=?""",(pid,key)).fetchone()
-        if old:return s.artifact_view(old)
-        revision=con.execute("""SELECT COALESCE(MAX(revision),0)+1 FROM artifacts
-          WHERE project_id=? AND kind='asset_resolution.v1'""",(pid,)).fetchone()[0]
-    aid=s.uid("ar")
-    doc={"schema_version":"asset_resolution.v1","artifact_id":aid,
-         "channel_id":requirements_artifact["channel_id"],"project_id":pid,
-         "revision":revision,"created_at":s.now(),
-         "requirements_artifact_id":requirements_artifact["artifact_id"],"pins":pins}
-    rel=f"projects/{pid}/resolver/resolutions/{aid}.json"
-    def commit(con,digest,size):
-        if resolution(pid)["resolved_count"]!=state["total_count"]:
-            s.error("STALE_HEAD","Pins changed during resolution publication")
-        old=con.execute("""SELECT * FROM artifacts WHERE project_id=? AND kind='asset_resolution.v1'
-            AND json_extract(metadata_json,'$.source_fingerprint')=?""",(pid,key)).fetchone()
-        if old:return s.artifact_view(old)
-        s.add_artifact(con,aid=aid,channel_id=requirements_artifact["channel_id"],project_id=pid,
-            kind="asset_resolution.v1",schema="asset_resolution.v1",logical="asset_resolution",
-            revision=revision,status="approved",checksum=digest,size=size,relative=rel,
-            metadata={"source_fingerprint":key})
-        con.execute("UPDATE artifacts SET parents_json=?,source_fingerprints_json=? WHERE artifact_id=?",
-           (s.canon([requirements_artifact["artifact_id"]]).decode(),
-            s.canon({"requirements":state["requirements_fingerprint"]}).decode(),aid))
-        head=con.execute("SELECT revision FROM project_stage_heads WHERE project_id=? AND stage_key='resolver'",(pid,)).fetchone()
-        con.execute("""UPDATE project_stage_heads SET artifact_id=?,approval_status='approved',
-            revision=revision+1,dependency_fingerprint=?,updated_at=?
-            WHERE project_id=? AND stage_key='resolver' AND revision=?""",
-            (aid,key,s.now(),pid,head["revision"]))
-        return s.artifact_view(con.execute("SELECT * FROM artifacts WHERE artifact_id=?",(aid,)).fetchone())
-    return s.document_publish(doc,rel,commit)
+        try:
+            state, pins = _exact_snapshot(con, pid)
+        except s.DomainError as exc:
+            if exc.code == "STALE_HEAD" and "Incomplete" in exc.message:
+                return None
+            raise
+    requirement = publish_requirements(pid)
+    key = s.sha({"requirements_sha": requirement["sha256"], "pins": pins})
+    with s.writer() as con:
+        current, actual_pins = _exact_snapshot(con, pid)
+        if (current["requirements_fingerprint"] != state["requirements_fingerprint"]
+                or current["source"] != state["source"]
+                or s.canon(actual_pins) != s.canon(pins)):
+            s.error("STALE_HEAD", "Exact resolver snapshot changed before publication")
+        old = con.execute(
+            """SELECT * FROM artifacts WHERE project_id=? AND kind='asset_resolution.v1'
+               AND json_extract(metadata_json,'$.source_fingerprint')=?""",
+            (pid, key),
+        ).fetchone()
+        if old:
+            return _activate_resolution(con, pid, old, requirement, key, pins)
+        revision = con.execute(
+            """SELECT COALESCE(MAX(revision),0)+1 FROM artifacts
+               WHERE project_id=? AND kind='asset_resolution.v1'""",
+            (pid,),
+        ).fetchone()[0]
+    aid = s.uid("ar")
+    doc = {"schema_version": "asset_resolution.v1", "artifact_id": aid,
+           "channel_id": requirement["channel_id"], "project_id": pid,
+           "revision": revision, "created_at": s.now(),
+           "requirements_artifact_id": requirement["artifact_id"], "pins": pins}
+    rel = f"projects/{pid}/resolver/resolutions/{aid}.json"
+
+    def commit(con, digest, size):
+        current, actual_pins = _exact_snapshot(con, pid)
+        if (current["requirements_fingerprint"] != state["requirements_fingerprint"]
+                or current["source"] != state["source"]
+                or s.canon(actual_pins) != s.canon(pins)):
+            s.error("STALE_HEAD", "Exact resolver snapshot changed during publication")
+        existing = con.execute(
+            """SELECT * FROM artifacts WHERE project_id=? AND kind='asset_resolution.v1'
+               AND json_extract(metadata_json,'$.source_fingerprint')=?""",
+            (pid, key),
+        ).fetchone()
+        if existing:
+            return _activate_resolution(con, pid, existing, requirement, key, pins)
+        next_rev = con.execute(
+            """SELECT COALESCE(MAX(revision),0)+1 FROM artifacts
+               WHERE project_id=? AND kind='asset_resolution.v1'""", (pid,)
+        ).fetchone()[0]
+        if next_rev != revision:
+            s.error("STALE_HEAD", "Resolution revision changed")
+        s.add_artifact(con, aid=aid, channel_id=requirement["channel_id"], project_id=pid,
+            kind="asset_resolution.v1", schema="asset_resolution.v1",
+            logical="asset_resolution", revision=revision, status="approved",
+            checksum=digest, size=size, relative=rel, metadata={"source_fingerprint": key})
+        con.execute(
+            "UPDATE artifacts SET parents_json=?,source_fingerprints_json=? WHERE artifact_id=?",
+            (s.canon([requirement["artifact_id"]]).decode(),
+             s.canon({"requirements": state["requirements_fingerprint"]}).decode(), aid),
+        )
+        row = con.execute("SELECT * FROM artifacts WHERE artifact_id=?", (aid,)).fetchone()
+        return _activate_resolution(con, pid, row, requirement, key, pins)
+
+    return s.document_publish(doc, rel, commit)
