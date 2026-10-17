@@ -1,1 +1,0 @@
-Disposable source-only snapshot for reproducing exact C2 branch tests; excludes runtime secrets and untracked data.

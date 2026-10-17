@@ -132,3 +132,51 @@ python tools/c2_g0_compare.py
 Also require the `C2_VERIFIED_HEAD` log to match the PR HEAD, production+full audit JSON, fail-closed security policy result, and real process-tree test with no skip/xfail. Early post-repair CI runs contain failures and execution stalls; they are **not** final acceptance proof. Per-test watchdog coverage was added and native Windows test execution was moved behind a 25-second subprocess watchdog so hangs are reported as failures rather than concealed. Exact-HEAD CI must still finish successfully.
 
 **Owner merge-readiness:** NOT READY. Keep existing PR #4 Draft. The Windows 11 consumer acceptance gap from C1/C12 remains visible and is not replaced by Windows Server CI evidence. No C3–C12 functional implementation was added. The repo owner must review any security exceptions or approved major-upgrade work before a merge recommendation.
+
+
+---
+
+## 2026-10-17 — Final security upgrade and cancelled-run investigation
+
+**Audited HEAD:** `ccc3c4e6a46f6d6b3b00bf07fb7ac176a7c08aff`. The final PR commit after this evidence/cleanup edit must be confirmed separately by GitHub Actions. **No merge was performed.**
+
+### Cancelled Windows run 38987765095
+
+The [run](https://github.com/plthien/2D-Animation-Studio/actions/runs/38987765095) ended `cancelled`; job status was `Test animation C2 platform` in progress. GitHub's archived log download returned `404 BlobNotFound`. The recorded metadata does not distinguish manual cancellation, external interruption or test stall; **root cause of that cancellation is unverified**. Earlier C2 runs also stayed in pytest, prompting an independent reproduction. Do not conflate `cancelled` with `failed` or `passed`.
+
+### Independently reproduced platform defects and repairs
+
+A source-only exact-revision archive was used with disposable SQLite and no user data. The identified source defect was treating `with sqlite3.connect(...)` as a connection close; Python's sqlite context manager commits/rolls back but does not close. Open read-only guards and the migration postcheck could hold SQLite locks. `app/animation/database.py` now uses `contextlib.closing` and read-only SQLite `writable_schema` inspection to distinguish recognized malformed animation DDL from unrelated YTB databases before any mutation. A Win32 fake required `GetCurrentProcess` support in the deterministic test double.
+
+Local Linux-based reproducer result: **46 passed / 1 skipped** (the Windows-only Job Object integration test cannot run on Linux). This is *debugging evidence*, not C2 Windows acceptance. It did demonstrate all six frozen-schema mutation tests, HTTP JSON tests, monotonic DNA tests and persisted byte guards passing. Applicable Win32 process safety still must pass in Windows CI with zero skips.
+
+### Security: controlled major toolchain upgrade, no exception
+
+Previous pinned graph from Windows security run [39002003012](https://github.com/plthien/2D-Animation-Studio/actions/runs/39002003012): production scan clean, full scan **nine flagged dependency nodes (six HIGH, three MODERATE)**, including `braces@3.0.3` and paths through Tailwind v3, plus esbuild/Vite v5 and PostCSS selector tooling. `braces` has no published patched release; no wildcard override, advisory suppression or owner exception was added.
+
+The [isolated Windows toolchain upgrade run 39002408890](https://github.com/plthien/2D-Animation-Studio/actions/runs/39002408890) finished **SUCCESS** and published commit `5cdc8b8abec5437e760158a9142c224c3472d0aa` on this PR only. Targeted changes:
+
+- `vite` 5.4.21 → **8.3.4** (Rolldown rather than old esbuild-based bundler).
+- `@vitejs/plugin-react` 4.7.0 → **6.1.2**.
+- `tailwindcss` 3.4.19 → **4.3.3**, with `@tailwindcss/postcss` **4.3.3** and native CSS `@import` / `@config` preserving the existing `tailwind.config.js` theme.
+- Removed obsolete direct `autoprefixer` dependency; other pins preserved.
+- Retained Vite loopback binding and restricted local-origin CORS.
+
+The trial executed pinned `npm ci --ignore-scripts`, frontend build, production and full npm audit, real Chromium Channel → DNA → Project → refresh → API restart, and ten G0 comparison pairs. **Production audit: zero findings; full audit: zero findings.** Screenshot side-by-side visual inspection showed no obvious Cockpit hierarchy loss; expected animation-only domain changes remain. Python pip-audit and actual Windows launcher must still pass against the final immutable HEAD.
+
+The independent policy tests `node --test tests/c2/security_gate.test.mjs` reported **10 PASS / zero FAIL** on the Windows security lane, covering valid clean reports, HIGH/MODERATE/CRITICAL, absent/malformed scanner output, count mismatch, lockfile mismatch and exact-owner-reviewed exception scope. No security exceptions are enabled in production. Audit report serialization was also fixed to produce valid trailing newline JSON.
+
+### Six-finding reconciliation
+
+| Finding | Final source repair | Acceptance authority |
+|---|---|---|
+| C2-B1 | Monotonic ChannelDNA revision and immutable rejected drafts | Local focused regression PASS; exact Windows HEAD pending |
+| C2-B2 | Full frozen DDL validation, closed SQLite connections, read-only corrupt-schema inspection | Local focused regression PASS; exact Windows HEAD pending |
+| C2-H1 | Single bounded strict raw HTTP JSON parser and real ASGI tests | Local focused regression PASS; exact Windows HEAD pending |
+| C2-H2 | Both platform and security Windows jobs checkout + assert triggering exact head | Final Windows logs pending |
+| C2-H3 | Pinned toolchain upgraded, zero npm prod/full audit findings, 10/10 security policy tests | Windows candidate PASS; final security job pending |
+| C2-M1 | Deterministic Win32 tests plus real owned descendant process-tree test | Exact Windows HEAD pending |
+
+**Remaining C2 gate:** complete clean `windows-latest` CI on final exact PR SHA, including 0-skipped applicable Win32 process ownership, Windows launcher, screenshots and independent Python/npm security job. Previous cancelled or pre-upgrade results are not final acceptance. Consumer Windows 11 evidence remains a separate C1/C12 gap, never fabricated from Windows Server.
+
+**Merge verdict at document-authorship time: C2 BLOCKED — NOT MERGE READY until final exact-HEAD Windows jobs are green.** After all pass, owner approval is still required; no automatic merge.

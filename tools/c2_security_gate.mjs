@@ -83,7 +83,7 @@ if (process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {
   // No repository owner has approved a security exception for this C2 PR.
   const result=checkAudits(load(prodPath),load(fullPath),lockfile());
   const out=join(dirname(fullPath),'npm-security-report.json');
-  writeFileSync(out,JSON.stringify(result,null,2)+'\\n');
+  writeFileSync(out,JSON.stringify(result,null,2)+'\n');
   console.log('C2 security report:',out);
   console.log('C2 advisory counts:',JSON.stringify({production:result.production.length,full:result.full.length}));
   if(result.errors.length) {
