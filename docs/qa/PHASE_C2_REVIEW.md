@@ -82,4 +82,53 @@ The source and CI results are **not** release acceptance. C3–C12 actions remai
 - **DEFERRED (C3–C12)**: external authoring, paid image generation, native rigging, motion, multi-shot rendering and voice-last delivery are future functional phases; their shells cannot claim working generation.
 - **LOW**: updated frontend and API library deprecation warnings in hosted CI; not proof of runtime failure.
 
-**Merge verdict:** implementation now passes the executable Windows C2 gates at `b104d654`; final exact-HEAD run and independent code/security review are still required. Keep PR #4 Draft pending owner merge approval, with the disclosed moderate npm advisory and C1 consumer Windows 11 evidence gap retained. Never merge automatically.
+**Historical C2 baseline verdict (prior to new targeted audit):** Windows platform tests passed at `f488c9ee`; the targeted six-finding audit below supersedes that result. No owner merge approval has been given.
+
+
+---
+
+## C2 targeted six-finding repair — 2026-10-17 (unverified final HEAD)
+
+**Source audit authority:** user task against `f488c9ee4b9cb74517a7b2c0a42308dfc33da5ba`.
+**Repair branch:** `feat/c2-atomic-animation-cutover`; latest implementation SHA before this QA edit: `19a9baca24b0d1090626fc9a7338ecb3bf577d3b`.
+**Decision:** **C2 BLOCKED pending exact-head Windows targeted regression and security acceptance.** This section does not change historical PASS evidence into newly proven PASS.
+
+| Finding | Code + tests implemented | Acceptance status |
+|---|---|---|
+| C2-B1 BLOCKER | `service.approve_dna` now requires candidate revision strictly greater than current approved revision; idempotent current-head replay retained. New tests assert rollback rejection and unchanged head, draft metadata, file SHA, cross-channel/wrong-SHA errors. | CODED — exact-HEAD regression not yet verified |
+| C2-B2 BLOCKER | `database.verify_frozen_schema` compares SQLite DDL, indices (including partial predicates), structural PRAGMAs, FK integrity and Alembic revision against the 14-table normative DDL. Both automatic and manual startup pass through read-only guard. Six independent tampering regressions added. | CODED — exact-HEAD regression not yet verified |
+| C2-H1 HIGH | Central `StrictC2JSONRoute` checks content type and 1 MiB raw-body bound, caches the same parsed JSON for FastAPI/Pydantic and rejects duplicate/nonfinite/overflow/malformed JSON with typed HTTP 422. Real TestClient raw-byte tests added. | CODED — exact-HEAD regression not yet verified |
+| C2-H2 HIGH | C2 workflow fetches event PR head SHA, checkout ref is explicit and PowerShell verifies `git rev-parse HEAD == EXPECTED_HEAD`. Docs/qa and tools changes trigger the gate. | IMPLEMENTED — exact-HEAD run required |
+| C2-H3 HIGH | Mandatory Python and npm production/full audits without `continue-on-error`; JSON inventories and fail-closed security policy; compatible-only npm lockfile fix committed (`d18f826`), `npm ci` verified; Vite server CORS constrained to loopback. | **BLOCKED — unreviewed high-severity full-graph advisories** |
+| C2-M1 MEDIUM | Fake Win32 API validates Job Object configuration, assignment-failure cleanup and idempotent close; real Windows parent/descendant kill-on-close and unrelated-process isolation executed with bounded subprocess watchdog. | CODED — exact-HEAD Windows execution required |
+
+### Security inventory and review disposition
+
+One-time [compatible-only Windows lockfile remediation run](https://github.com/plthien/2D-Animation-Studio/actions/runs/38987497894) completed **SUCCESS**. It used `npm audit fix --package-lock-only --ignore-scripts`, explicitly without `--force`, installed the resulting lockfile using `npm ci` and committed only `package-lock.json` on PR #4. The temporary writer workflow and trigger were then removed.
+
+The compatible-only resolver still reported **9 npm findings (6 HIGH, 3 MODERATE)** in the full installed dependency tree:
+
+- `braces@3.0.3`, HIGH `GHSA-vfj7-8cjw-p6xm`, via `micromatch/chokidar/fast-glob` and `tailwindcss@3`. npm recommends breaking Tailwind v4 migration. No compatible published patched `braces` version was confirmed at review time. These packages operate on repository-owned CSS/globs; C2 does not expose attacker-controlled CSS compilation via HTTP, but owner review of that reachability/mitigation is pending.
+- `esbuild@0.21.5`, MODERATE `GHSA-67mh-4wv8-2f99`, via `vite@5.4.21`. npm proposes breaking Vite v8. C2 now binds the Vite dev server to loopback and restricts CORS origin. An explicit updated-toolchain evaluation is needed; a green Python API test does not resolve this advisory.
+- `postcss-selector-parser@6.1.4`, MODERATE `GHSA-rj75-hqrm-r3gf`, via Tailwind/PostCSS compile tooling. The latest patched selector parser is 7.1.6, but changing Tailwind's dependency tree requires compatibility validation. C2's CSS inputs are repository-controlled.
+- The production moderate `yaml` advisory `GHSA-48c2-rrv3-qjmp` was addressed by a compatible lockfile update from `yaml@1.10.2` to `yaml@1.10.3`; exact-head production audit must reverify.
+
+No full-graph HIGH exception has been accepted. `tools/c2_security_gate.mjs` blocks unknown/unreviewed high and moderate findings and scanner failures; precise advisory/package/version inventory is uploaded even on failed CI. **Never interpret an audit invocation or a CI `continue-on-error` as security PASS.** A major Tailwind/Vite migration was not introduced into this bounded C2 repair without an approved compatibility plan.
+
+### Required exact-head evidence
+
+Run from the final PR commit on `windows-latest`/PowerShell:
+
+```powershell
+python -m pytest -q --timeout=45 --timeout-method=thread tests/c2
+python tools/check_c2_cutover.py
+npm.cmd ci
+npm.cmd run build
+node tools/c2_browser.mjs
+python tools/c2_g0_compare.py
+./tests/c2/windows_launcher_smoke.ps1
+```
+
+Also require the `C2_VERIFIED_HEAD` log to match the PR HEAD, production+full audit JSON, fail-closed security policy result, and real process-tree test with no skip/xfail. Early post-repair CI runs contain failures and execution stalls; they are **not** final acceptance proof. Per-test watchdog coverage was added and native Windows test execution was moved behind a 25-second subprocess watchdog so hangs are reported as failures rather than concealed. Exact-HEAD CI must still finish successfully.
+
+**Owner merge-readiness:** NOT READY. Keep existing PR #4 Draft. The Windows 11 consumer acceptance gap from C1/C12 remains visible and is not replaced by Windows Server CI evidence. No C3–C12 functional implementation was added. The repo owner must review any security exceptions or approved major-upgrade work before a merge recommendation.
