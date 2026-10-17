@@ -41,8 +41,8 @@ export function GlobalSidebar({
             <Activity className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-sm font-semibold text-slate-50">YouTube AI Studio</div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Cockpit V3</div>
+            <div className="text-sm font-semibold text-slate-50">2D Animation Studio</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Animation Cockpit</div>
           </div>
         </div>
       </div>

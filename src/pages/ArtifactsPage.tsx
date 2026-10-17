@@ -1,46 +1,28 @@
-import { useQuery } from '@tanstack/react-query';
-import { apiClient, ApiError } from '../api/client';
-import { ErrorBanner } from '../components/ui/ErrorBanner';
-import { SectionCard } from '../components/ui/SectionCard';
-import { StatusBadge } from '../components/ui/StatusBadge';
-
-function errorMessage(error: unknown): string | null {
-  if (!error) return null;
-  if (error instanceof ApiError) return `${error.errorCode}: ${error.message}`;
-  if (error instanceof Error) return error.message;
-  return 'Unknown error';
-}
-
-export function ArtifactsPage() {
-  const artifactsQuery = useQuery({ queryKey: ['artifacts'], queryFn: () => apiClient.listArtifacts() });
-  const artifacts = artifactsQuery.data?.items ?? [];
-
-  return (
-    <SectionCard title="Artifacts" description="Browse stored artifacts and keep lineage visible without turning the screen into a raw storage dump.">
-      <div className="space-y-4">
-        {errorMessage(artifactsQuery.error) ? <ErrorBanner message={errorMessage(artifactsQuery.error)!} /> : null}
-        {artifacts.length === 0 ? (
-          <div className="rounded-[1.25rem] border border-dashed border-white/10 bg-white/[0.02] p-6 text-sm leading-6 text-slate-400">
-            No artifacts found yet. Topic ideas, scripts, story context, and future post-script artifacts will appear here as the pipeline progresses.
-          </div>
-        ) : (
-          artifacts.map((artifact) => (
-            <article key={artifact.artifact_id} className="rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-4">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                <div className="space-y-2">
-                  <div className="text-sm font-semibold text-slate-50">{artifact.logical_id}</div>
-                  <div className="font-mono text-xs text-slate-500">{artifact.artifact_id}</div>
-                  <div className="text-sm text-slate-400">{artifact.path ?? 'No file path'}</div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge status="ready" label={artifact.artifact_type} />
-                  <StatusBadge status={artifact.status} />
-                </div>
-              </div>
-            </article>
-          ))
-        )}
-      </div>
-    </SectionCard>
-  );
+import {useState} from 'react';
+import {useQuery} from '@tanstack/react-query';
+import type {WorkspaceContext} from '../app/workspace';
+import {apiClient} from '../api/client';
+import {SectionCard} from '../components/ui/SectionCard';
+import {StatusBadge} from '../components/ui/StatusBadge';
+import {ErrorBanner} from '../components/ui/ErrorBanner';
+import {TextInput} from '../features/channels/forms';
+export function ArtifactsPage({workspace}:{workspace:WorkspaceContext}){
+ const [id,setId]=useState('');const [lookup,setLookup]=useState('');
+ const data=useQuery({queryKey:['artifact',lookup,workspace.selectedChannelId],
+  queryFn:()=>apiClient.artifact(lookup,workspace.selectedChannelId),enabled:Boolean(lookup&&workspace.selectedChannelId),retry:false});
+ return <SectionCard title="Immutable artifact metadata" description="Find an artifact by its exact ID. No unreviewed filesystem path is opened.">
+  <form onSubmit={e=>{e.preventDefault();setLookup(id.trim());}} className="flex gap-3">
+   <TextInput placeholder="Artifact ID" value={id} onChange={e=>setId(e.target.value)}/>
+   <button type="submit" className="rounded-2xl border border-cyan-400/30 bg-cyan-500/15 px-4 py-2 text-cyan-100">Inspect</button>
+  </form>
+  {!workspace.selectedChannelId&&<p className="mt-3 text-slate-400">Select a channel first.</p>}
+  {data.error&&<ErrorBanner message={String(data.error)}/>}
+  {data.data&&<div className="mt-4 space-y-3 rounded-2xl border border-white/10 p-4 text-sm text-slate-300">
+   <div className="flex justify-between"><strong>{data.data.kind}</strong><StatusBadge status={data.data.approval_status}/></div>
+   <div>ID: {data.data.artifact_id} · Revision {data.data.revision}</div>
+   <div>SHA-256: <code className="break-all text-xs">{data.data.sha256}</code></div>
+   <div>Size: {data.data.byte_size} bytes</div>
+   <div>Relative handle: {data.data.relative_artifact_handle}</div>
+  </div>}
+ </SectionCard>;
 }

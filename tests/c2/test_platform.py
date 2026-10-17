@@ -1,0 +1,491 @@
+"""C2 correctness gates: real API, schema, replay, CAS and legacy isolation."""
+from __future__ import annotations
+
+import concurrent.futures
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.animation import service
+from app.animation.database import APPLICATION_TABLES
+from app.main import app
+
+STAGES = ("authoring", "resolver", "generation", "rigging", "director", "motion", "delivery")
+
+
+@pytest.fixture
+def client(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///" + (tmp_path / "animation.db").as_posix())
+    monkeypatch.setenv("ARTIFACT_ROOT", str(tmp_path / "artifacts"))
+    monkeypatch.setenv("AUTO_APPLY_MIGRATIONS", "true")
+    with TestClient(app) as c:
+        yield c
+
+
+def data(response, code=200):
+    assert response.status_code == code, response.text
+    value = response.json()
+    assert set(value) == {"data", "meta"}
+    assert value["meta"]["schema_version"] == "api.v1"
+    return value["data"]
+
+
+def error(response, status, code):
+    assert response.status_code == status, response.text
+    value = response.json()
+    assert value["error"]["code"] == code
+    assert value["error"]["request_id"].startswith("req_")
+
+
+def new_channel(client, name="Animation Alpha", slug="alpha", key="channel-1"):
+    return data(client.post("/api/v1/channels", json={"name":name,"slug":slug},
+                            headers={"Idempotency-Key":key}), 201)
+
+
+def dna():
+    return {"schema_version":"channel_dna.v2",
+            "identity":{"name":"Animation Alpha","audience":"English entertainment viewers"},
+            "visual":{"style":"Hand-drawn flat 2D with uneven outlines","palette":["#123456","#F0E0D0"]},
+            "performance":{"tone":"expressive and witty","motion_density":"medium"},
+            "narration":{"language":"en","voice_character":"friendly male narrator"}}
+
+
+def publish_dna(client, channel, key="dna-1", expected_revision=None, expected_aid=None):
+    return data(client.put(
+        f"/api/v1/channels/{channel['channel_id']}/dna",
+        json={"channel_dna":dna(), "expected_head_revision":expected_revision,
+              "expected_head_artifact_id":expected_aid},
+        headers={"Idempotency-Key":key}), 201)
+
+
+def approve(client, channel, candidate, expected_revision=None):
+    return data(client.post(
+        f"/api/v1/channels/{channel['channel_id']}/dna/{candidate['artifact_id']}/approve",
+        json={"expected_head_revision":expected_revision, "expected_sha256":candidate["sha256"],
+              "actor":"qa", "reviewed_at":"2026-10-16T00:00:00Z"}))
+
+
+def test_openapi_exact_19_and_no_legacy(client):
+    import json
+    from pathlib import Path
+    registry=json.loads((Path(__file__).resolve().parents[2]/
+                         "contracts/animation/api/endpoints.json").read_text(encoding="utf-8"))
+    accepted={(row["method"],row["path"]) for row in registry if row["contract_status"]=="ACCEPTED"}
+    actual={(method.upper(),path) for path,definition in app.openapi()["paths"].items()
+            for method in definition if method.lower() in {"get","post","put","patch","delete"}}
+    assert len(accepted)==19
+    assert actual==accepted
+    for row in registry:
+        if row["contract_status"]=="PROPOSED":
+            assert (row["method"],row["path"]) not in actual
+    assert data(client.get("/health"))["status"]=="ok"
+    assert data(client.get("/api/v1/system"))["animation_generation_ready"] is False
+    for path in ("/api/v4/voice/generate","/api/v4/scene-assets","/api/v1/projects/p/voice/generate"):
+        assert client.post(path, json={}).status_code==404
+
+
+def test_channel_dna_project_restart_and_replay(client):
+    ch = new_channel(client)
+    assert new_channel(client)==ch
+    error(client.post("/api/v1/channels",json={"name":"different","slug":"different"},
+                      headers={"Idempotency-Key":"channel-1"}),409,"IDEMPOTENCY_CONFLICT")
+    error(client.post("/api/v1/channels",json={"name":"another","slug":"alpha"},
+                      headers={"Idempotency-Key":"channel-2"}),409,"DUPLICATE_SLUG")
+    head=data(client.get(f"/api/v1/channels/{ch['channel_id']}/dna"))
+    assert head["head_revision"] is None
+    candidate=publish_dna(client,ch)
+    assert candidate["revision"]==1 and candidate["approval_status"]=="draft"
+    assert publish_dna(client,ch)==candidate
+    error(client.put(f"/api/v1/channels/{ch['channel_id']}/dna",json={
+          "channel_dna":{**dna(),"identity":{"name":"changed","audience":"viewers"}},
+          "expected_head_revision":None,"expected_head_artifact_id":None},
+          headers={"Idempotency-Key":"dna-1"}),409,"IDEMPOTENCY_CONFLICT")
+    accepted=approve(client,ch,candidate)
+    assert accepted["head_artifact_id"]==candidate["artifact_id"]
+    assert accepted["head_revision"]==1
+    assert accepted["channel"]["visual_style_hash"] != "0"*64
+    assert approve(client,ch,candidate)["head_artifact_id"]==candidate["artifact_id"]
+    project=data(client.post("/api/v1/projects",json={
+        "channel_id":ch["channel_id"],"name":"Pilot","slug":"pilot"},
+        headers={"Idempotency-Key":"project-1"}),201)
+    wf=data(client.get(f"/api/v1/projects/{project['project_id']}/workflow"))
+    assert tuple(s["stage_key"] for s in wf["stages"])==STAGES
+    assert len(wf["stages"])==7
+    assert wf["stages"][0]["readiness"]=="blocked"
+    assert "REQUIRES_C3_AUTHORING" in wf["stages"][0]["blocker_codes"]
+    for stage in wf["stages"][1:]:
+        assert stage["readiness"]=="blocked" and stage["blocker_codes"]
+    assert all(s["head_revision"]==0 for s in wf["stages"])
+    assert data(client.post("/api/v1/projects",json={
+        "channel_id":ch["channel_id"],"name":"Pilot","slug":"pilot"},
+        headers={"Idempotency-Key":"project-1"}),201)==project
+    assert data(client.get(f"/api/v1/projects/{project['project_id']}"))==project
+    assert data(client.get("/api/v1/projects",params={"channel_id":ch["channel_id"]}))["items"]==[project]
+    assert data(client.get("/api/v1/jobs",params={"project_id":project["project_id"]}))["items"]==[]
+    error(client.get("/api/v1/jobs/nonexistent",params={"project_id":project["project_id"]}),404,"NOT_FOUND")
+    meta=data(client.get(f"/api/v1/artifacts/{candidate['artifact_id']}",params={"channel_id":ch["channel_id"]}))
+    assert meta["sha256"]==candidate["sha256"]
+    error(client.get(f"/api/v1/artifacts/{candidate['artifact_id']}",params={"channel_id":"ch_another"}),404,"NOT_FOUND")
+    # Restart the actual database connection and assert both identities still exist.
+    with service.reader() as con:
+        assert con.execute("PRAGMA foreign_key_check").fetchall()==[]
+        assert con.execute("SELECT COUNT(*) FROM project_stage_heads").fetchone()[0]==7
+        assert con.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetchone()[0]==15
+    assert data(client.get(f"/api/v1/projects/{project['project_id']}/workflow"))==wf
+
+
+def test_stale_approval_and_candidate_immutability(client):
+    ch = new_channel(client)
+    draft1=publish_dna(client,ch,key="dna-1")
+    draft2=publish_dna(client,ch,key="dna-2")
+    assert draft2["revision"]==2
+    approve(client,ch,draft1)
+    error(client.post(f"/api/v1/channels/{ch['channel_id']}/dna/{draft2['artifact_id']}/approve",
+        json={"expected_head_revision":None,"expected_sha256":draft2["sha256"],
+              "actor":"qa","reviewed_at":"2026-10-16T00:00:00Z"}),409,"STALE_HEAD")
+    assert data(client.get(f"/api/v1/artifacts/{draft2['artifact_id']}",params={"channel_id":ch["channel_id"]}))["approval_status"]=="draft"
+    assert data(client.get(f"/api/v1/artifacts/{draft1['artifact_id']}",params={"channel_id":ch["channel_id"]}))["approval_status"]=="approved"
+
+
+def test_archive_and_validation(client):
+    ch=new_channel(client)
+    error(client.get("/api/v1/channels",params={"limit":0}),422,"VALIDATION_FAILED")
+    error(client.get("/api/v1/projects",params={}),422,"VALIDATION_FAILED")
+    error(client.post("/api/v1/channels",json={"name":"","slug":"xx"},
+                      headers={"Idempotency-Key":"bad"}),422,"VALIDATION_FAILED")
+    error(client.post("/api/v1/channels",json={"name":"x","slug":"x"},
+                      headers={}),422,"VALIDATION_FAILED")
+    res=data(client.request("DELETE", f"/api/v1/channels/{ch['channel_id']}",
+                  json={"expected_updated_at":ch["updated_at"]}))
+    assert res["status"]=="archived"
+    repeated=data(client.request("DELETE",f"/api/v1/channels/{ch['channel_id']}",
+                    json={"expected_updated_at":ch["updated_at"]}))
+    assert repeated["status"]=="archived"
+    error(client.post("/api/v1/projects",json={"channel_id":ch["channel_id"],
+                      "name":"x","slug":"x"},headers={"Idempotency-Key":"x"}),409,"OWNERSHIP_CONFLICT")
+
+
+def test_origin_and_host_rejection(client):
+    error(client.get("/health",headers={"Origin":"https://attacker.example"}),403,"ORIGIN_REJECTED")
+    error(client.get("/health",headers={"host":"attacker.example"}),403,"LOCAL_ONLY")
+
+
+def test_preflushed_sqlalchemy_transaction_conflict(client, tmp_path):
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.orm import Session
+    eng=create_engine("sqlite:///" + (tmp_path/"other.db").as_posix())
+    with eng.begin() as c:
+        c.execute(text("CREATE TABLE scratch (id INTEGER PRIMARY KEY)"))
+    with Session(eng) as session:
+        session.execute(text("INSERT INTO scratch (id) VALUES (1)"))
+        session.flush()
+        assert session.in_transaction()
+        with pytest.raises(service.DomainError) as got:
+            service.document_publish({"test":True},"transaction-owner-attempt.json",lambda *_: None,session=session)
+        assert got.value.code=="TRANSACTION_OWNERSHIP_CONFLICT"
+    eng.dispose()
+    assert not (service.artifact_root() / "transaction-owner-attempt.json").exists()
+
+
+def test_artifact_path_rejects_traversal_and_symlinks(client,tmp_path):
+    with pytest.raises(service.DomainError):
+        service.bounded_path("../escape.txt")
+    with pytest.raises(service.DomainError):
+        service.bounded_path("/root/outside.txt")
+    root=service.artifact_root()
+    root.mkdir(parents=True, exist_ok=True)
+    external=tmp_path/"other"
+    external.mkdir()
+    link=root/"link"
+    try:
+        link.symlink_to(external, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        # Ordinary Windows runner tokens cannot always create symlinks.
+        # Directory junctions are real reparse points and must be rejected too.
+        import os
+        import subprocess
+        if os.name != "nt":
+            pytest.fail("Unable to create the required symlink-containment fixture")
+        result = subprocess.run(
+            ["cmd.exe", "/d", "/c", "mklink", "/J", str(link), str(external)],
+            capture_output=True, text=True, check=False,
+        )
+        assert result.returncode == 0, (
+            "Cannot run Windows symlink/junction safety gate: " + result.stderr + result.stdout
+        )
+        assert getattr(link, "is_junction", lambda: False)(), "Test fixture is not a junction"
+    with pytest.raises(service.DomainError):
+        service.bounded_path("link/escape.json")
+
+
+def test_scope_required_for_artifact_and_job(client):
+    ch = new_channel(client)
+    candidate = publish_dna(client, ch)
+    error(client.get(f"/api/v1/artifacts/{candidate['artifact_id']}"),422,"VALIDATION_FAILED")
+    error(client.get("/api/v1/jobs/example"),422,"VALIDATION_FAILED")
+    error(client.get(f"/api/v1/artifacts/{candidate['artifact_id']}",
+                     params={"channel_id":"ch_other"}),404,"NOT_FOUND")
+
+
+def test_independent_connection_approval_cas_winner_and_loser(client):
+    from concurrent.futures import ThreadPoolExecutor
+    ch = new_channel(client)
+    first=publish_dna(client,ch,key="first")
+    second=publish_dna(client,ch,key="second")
+    def try_approve(candidate):
+        try:
+            return service.approve_dna(
+                ch["channel_id"],candidate["artifact_id"],expected_revision=None,
+                expected_sha=candidate["sha256"],actor="qa",reviewed_at="2026-10-16T00:00:00Z")
+        except service.DomainError as exc:
+            return exc.code
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results=list(executor.map(try_approve,[first,second]))
+    assert sum(isinstance(r,dict) for r in results)==1
+    assert results.count("STALE_HEAD")==1
+    head=data(client.get(f"/api/v1/channels/{ch['channel_id']}/dna"))
+    assert head["head_artifact_id"] in {first["artifact_id"],second["artifact_id"]}
+    loser_id=next(x["artifact_id"] for x in (first,second) if x["artifact_id"]!=head["head_artifact_id"])
+    loser=data(client.get(f"/api/v1/artifacts/{loser_id}",
+                          params={"channel_id":ch["channel_id"]}))
+    assert loser["approval_status"]=="draft"
+    # Both attempts' immutable draft bytes remain intact, no loser deleted winner.
+    for item in (first,second):
+        path=service.bounded_path(item["relative_artifact_handle"])
+        assert service.filehash(path)==(item["sha256"],item["byte_size"])
+
+
+def test_db_cross_channel_composite_ownership_fk(client):
+    import sqlite3
+    left = new_channel(client, name="Left",slug="left",key="left")
+    right = new_channel(client,name="Right",slug="right",key="right")
+    project=data(client.post("/api/v1/projects",json={
+        "channel_id":left["channel_id"],"name":"Foreign Key Project","slug":"fk-test"},
+        headers={"Idempotency-Key":"fk-project"}),201)
+    with pytest.raises(sqlite3.IntegrityError):
+        with service.writer() as con:
+            service.add_artifact(
+                con,aid=service.uid("ar"),channel_id=right["channel_id"],
+                project_id=project["project_id"],kind="test.ownership.v1",
+                schema="test.ownership.v1",logical="cross-channel",
+                revision=1,status="draft",checksum="0"*64,size=0,
+                relative="test/cross-channel.json",metadata={})
+    with service.reader() as con:
+        assert con.execute("PRAGMA foreign_key_check").fetchall()==[]
+        assert con.execute(
+            "SELECT COUNT(*) FROM artifacts WHERE logical_key='cross-channel'"
+        ).fetchone()[0]==0
+
+
+def test_failed_publish_rolls_back_owned_file(client):
+    ch = new_channel(client)
+    aid = service.uid("ar")
+    relative=f"channels/{ch['channel_id']}/failure/{aid}.json"
+    def callback(con, checksum, size):
+        service.add_artifact(
+            con,aid=aid,channel_id=ch["channel_id"],project_id=None,
+            kind="platform.test.v1",schema="platform.test.v1",
+            logical="rollback",revision=1,status="draft",
+            checksum=checksum,size=size,relative=relative,metadata={})
+        # Force a database constraint error after the metadata insert.
+        con.execute("INSERT INTO channels (channel_id) VALUES ('bad')")
+    with pytest.raises(Exception):
+        service.document_publish({"hello":"world"},relative,callback)
+    assert not service.bounded_path(relative).exists()
+    with service.reader() as con:
+        assert not con.execute("SELECT 1 FROM artifacts WHERE artifact_id=?",(aid,)).fetchone()
+
+
+def test_bounded_publication_prevents_unbounded_json_work(client):
+    ch=new_channel(client)
+    relative=f"channels/{ch['channel_id']}/oversized.json"
+    with pytest.raises(service.DomainError) as got:
+        service.document_publish({"huge":"X"*1_048_576},relative,lambda *_:None)
+    assert got.value.code=="IMPORT_TOO_LARGE"
+    assert not service.bounded_path(relative).exists()
+
+
+def test_selective_dna_hash_domains_preserve_unaffected_stage_fingerprints(client):
+    ch=new_channel(client)
+    candidate=publish_dna(client,ch)
+    approve(client,ch,candidate)
+    pr=data(client.post("/api/v1/projects",json={
+        "channel_id":ch["channel_id"],"name":"Selective","slug":"selective"},
+        headers={"Idempotency-Key":"selective-project"}),201)
+    pid=pr["project_id"]
+    def fingerprints():
+        return {stage["stage_key"]:stage["computed_dependency_fingerprint"]
+                for stage in data(client.get(f"/api/v1/projects/{pid}/workflow"))["stages"]}
+    before=fingerprints()
+    previous=candidate
+    src=dna()
+    changes=[
+        ("visual",{"style":"A new uneven graphite contour and palette","palette":["#111111"]},
+         {"resolver","generation","rigging","director","motion","delivery"}),
+        ("performance",{"tone":"deliberate punchy timing","motion_density":"high"},
+         {"director","motion","delivery"}),
+        ("narration",{"language":"en","voice_character":"a new witty narrator"},
+         {"delivery"}),
+    ]
+    for domain, value, affected in changes:
+        src[domain]=value
+        revision=data(client.get(f"/api/v1/channels/{ch['channel_id']}/dna"))["head_revision"]
+        saved=service.save_dna(ch["channel_id"],src,revision,previous["artifact_id"],"key-"+domain)
+        service.approve_dna(ch["channel_id"],saved["artifact_id"],
+                            expected_revision=revision,expected_sha=saved["sha256"],
+                            actor="qa",reviewed_at="2026-10-16T00:00:00Z")
+        after=fingerprints()
+        assert {key for key in STAGES if before[key]!=after[key]}==affected,domain
+        previous=saved
+        before=after
+    with service.reader() as conn:
+        assert {row["approval_status"] for row in conn.execute(
+            "SELECT approval_status FROM project_stage_heads WHERE project_id=?",(pid,)
+        )}=={"draft"}
+
+
+def test_project_archive_repeat_safe_and_scoped(client):
+    ch=new_channel(client)
+    left=data(client.post("/api/v1/projects",json={
+        "channel_id":ch["channel_id"],"name":"A","slug":"a"},
+        headers={"Idempotency-Key":"one"}),201)
+    second=data(client.post("/api/v1/projects",json={
+        "channel_id":ch["channel_id"],"name":"B","slug":"b"},
+        headers={"Idempotency-Key":"two"}),201)
+    archived=data(client.request("DELETE",f"/api/v1/projects/{left['project_id']}",
+        json={"expected_updated_at":left["updated_at"]}))
+    assert archived["status"]=="archived"
+    assert data(client.request("DELETE",f"/api/v1/projects/{left['project_id']}",
+        json={"expected_updated_at":left["updated_at"]}))==archived
+    persisted=data(client.get("/api/v1/projects",params={"channel_id":ch["channel_id"]}))["items"]
+    assert len(persisted)==2
+    assert {item["status"] for item in persisted}=={"archived","active"}
+
+
+def test_dna_head_strictly_monotonic_and_rejection_immutable(client):
+    """Old draft cannot replace newer approved head even with a fresh expected CAS."""
+    import hashlib
+    ch=new_channel(client)
+    first=publish_dna(client,ch,key="monotonic-first")
+    second=publish_dna(client,ch,key="monotonic-second")
+    assert second["revision"]==first["revision"]+1
+    first_path=service.bounded_path(first["relative_artifact_handle"])
+    first_bytes=first_path.read_bytes()
+    approve(client,ch,second)
+    head_url=f"/api/v1/channels/{ch['channel_id']}/dna"
+    before=data(client.get(head_url))
+    with service.reader() as con:
+        artifacts_before=[tuple(r) for r in con.execute(
+            "SELECT artifact_id,revision,approval_status,sha256,byte_size FROM artifacts WHERE kind='channel_dna.v2' ORDER BY revision"
+        )]
+    response=client.post(
+        f"/api/v1/channels/{ch['channel_id']}/dna/{first['artifact_id']}/approve",
+        json={"expected_head_revision":second["revision"],"expected_sha256":first["sha256"],
+              "actor":"qa","reviewed_at":"2026-10-16T00:00:00Z"},
+    )
+    error(response,409,"STALE_HEAD")
+    assert response.json()["error"]["details"]["current_head_revision"]==second["revision"]
+    assert response.json()["error"]["details"]["current_head_artifact_id"]==second["artifact_id"]
+    assert data(client.get(head_url))==before
+    assert first_path.read_bytes()==first_bytes
+    assert hashlib.sha256(first_bytes).hexdigest()==first["sha256"]
+    with service.reader() as con:
+        artifacts_after=[tuple(r) for r in con.execute(
+            "SELECT artifact_id,revision,approval_status,sha256,byte_size FROM artifacts WHERE kind='channel_dna.v2' ORDER BY revision"
+        )]
+    assert artifacts_after==artifacts_before
+    assert approve(client,ch,second,expected_revision=None)["head_revision"]==second["revision"]
+    # Reusing old bytes as a *new* candidate is legitimate, rolling back a pointer is not.
+    third=publish_dna(client,ch,key="monotonic-third",expected_revision=2,expected_aid=second["artifact_id"])
+    assert third["revision"]==3
+    assert approve(client,ch,third,expected_revision=2)["head_revision"]==3
+
+
+def test_dna_approval_first_then_newer_and_wrong_channel_sha(client):
+    first_channel=new_channel(client)
+    draft1=publish_dna(client,first_channel,key="head-one")
+    assert approve(client,first_channel,draft1)["head_revision"]==1
+    draft2=publish_dna(client,first_channel,key="head-two",
+        expected_revision=1,expected_aid=draft1["artifact_id"])
+    wrong=new_channel(client,name="Other",slug="other",key="other-channel")
+    other_draft=publish_dna(client,wrong,key="other-dna")
+    error(client.post(
+        f"/api/v1/channels/{first_channel['channel_id']}/dna/{other_draft['artifact_id']}/approve",
+        json={"expected_head_revision":1,"expected_sha256":other_draft["sha256"],
+              "actor":"qa","reviewed_at":"2026-10-16T00:00:00Z"},
+    ),404,"NOT_FOUND")
+    error(client.post(
+        f"/api/v1/channels/{first_channel['channel_id']}/dna/{draft2['artifact_id']}/approve",
+        json={"expected_head_revision":1,"expected_sha256":"0"*64,
+              "actor":"qa","reviewed_at":"2026-10-16T00:00:00Z"},
+    ),422,"LINEAGE_MISMATCH")
+    assert approve(client,first_channel,draft2,expected_revision=1)["head_revision"]==2
+
+
+@pytest.mark.parametrize("bad", [
+    b'{"name":"Safe","name":"Hijack","slug":"safe"}',
+    b'{"name":"x","slug":"x","meta":{"nested":1,"nested":2}}',
+    b'{"name":"x","slug":"x","extra":NaN}',
+    b'{"name":"x","slug":"x","extra":Infinity}',
+    b'{"name":"x","slug":"x","extra":-Infinity}',
+    b'{"name":"x","slug":"x","extra":1e9999}',
+    b'{"name":"unterminated","slug":',
+    b'{"name":"x","slug":"x","extra":"\\xff"}',
+    b'["not-an-object"]',
+])
+def test_http_strict_json_rejects_raw_bytes_before_any_database_write(client,bad):
+    before=data(client.get("/api/v1/channels"))
+    with service.reader() as con:
+        n=con.execute("SELECT COUNT(*) FROM artifacts").fetchone()[0]
+    response=client.post("/api/v1/channels",content=bad,headers={
+        "Content-Type":"application/json","Idempotency-Key":"raw-case"})
+    error(response,422,"VALIDATION_FAILED")
+    assert response.json()["error"]["message"]=="Request validation failed"
+    assert data(client.get("/api/v1/channels"))==before
+    with service.reader() as con:
+        assert con.execute("SELECT COUNT(*) FROM artifacts").fetchone()[0]==n
+
+
+def test_http_strict_dna_nested_duplicate_rejected_without_artifact_change(client):
+    import json
+    ch=new_channel(client)
+    url=f"/api/v1/channels/{ch['channel_id']}/dna"
+    original_head=data(client.get(url))
+    original_files=list(service.artifact_root().rglob("*.json"))
+    original_bytes={str(p):p.read_bytes() for p in original_files}
+    valid=dna()
+    raw=json.dumps({"channel_dna":valid,"expected_head_revision":None,
+                    "expected_head_artifact_id":None})
+    raw=raw.replace('"style": "Hand-drawn flat 2D with uneven outlines"',
+                    '"style": "Old", "style": "Hand-drawn flat 2D with uneven outlines"')
+    assert raw.count('"style"')==2
+    response=client.put(url,content=raw.encode(),headers={
+        "Content-Type":"application/json","Idempotency-Key":"duplicate-nested"})
+    error(response,422,"VALIDATION_FAILED")
+    assert data(client.get(url))==original_head
+    assert {str(p):p.read_bytes() for p in service.artifact_root().rglob("*.json")}==original_bytes
+
+
+@pytest.mark.parametrize("headers,content", [
+    ({"Content-Type":"text/plain","Idempotency-Key":"ctype"},b'{"name":"A","slug":"a"}'),
+    ({"Content-Type":"application/json","Idempotency-Key":"oversize"},
+     b'{"name":"A","slug":"a","padding":"' + b'x' * 1_048_577 + b'"}'),
+    ({"Content-Type":"application/json","Content-Length":"2000000","Idempotency-Key":"declared"},
+     b'{"name":"A","slug":"a"}'),
+])
+def test_http_boundary_rejects_wrong_content_type_and_size(client,headers,content):
+    before=data(client.get("/api/v1/channels"))
+    error(client.post("/api/v1/channels",content=content,headers=headers),422,"VALIDATION_FAILED")
+    assert data(client.get("/api/v1/channels"))==before
+
+
+def test_http_strict_json_valid_unicode_and_parser_finite_decimal(client):
+    from app.animation.strict_json import parse_strict_document
+    assert parse_strict_document('{"city":"Đà Nẵng","ratio":0.75,"nested":{"value":-1.2e-3}}')=={
+        "city":"Đà Nẵng","ratio":0.75,"nested":{"value":-0.0012}}
+    result=client.post("/api/v1/channels",
+        content='{"name":"Đà Nẵng animation","slug":"da-nang"}'.encode("utf-8"),
+        headers={"Content-Type":"application/json; charset=utf-8",
+                 "Idempotency-Key":"utf8-channel"})
+    assert data(result,201)["name"]=="Đà Nẵng animation"

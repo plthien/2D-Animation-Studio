@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from app.api.errors import AppError
+from app.animation.provider_errors import ProviderTransportError
 from app.core.diagnostic_redaction import sanitize_diagnostic_value
 from app.modules.media.bounded_http_transport import (
     BoundedHttpTransport,
@@ -59,7 +59,7 @@ class GLabsWebhookClient:
             # total-deadline boundary.
             self.timeout = self.policy.control_plane_io_timeout_seconds
         except (KeyError, TypeError, ValueError, OverflowError) as exc:
-            raise AppError(
+            raise ProviderTransportError(
                 "MEDIA_PROVIDER_CONFIG_INVALID",
                 "Media provider configuration is invalid.",
                 409,
@@ -106,7 +106,7 @@ class GLabsWebhookClient:
     def download_file(self, url: str, destination: Path, max_bytes: int) -> DownloadMetadata:
         self.validate_result_url(url)
         if type(max_bytes) is not int or max_bytes <= 0:
-            raise AppError(
+            raise ProviderTransportError(
                 "MEDIA_PROVIDER_CONFIG_INVALID",
                 "Media download byte limit is invalid.",
                 409,
@@ -134,7 +134,7 @@ class GLabsWebhookClient:
                 size_bytes=metadata.size_bytes,
                 sha256=metadata.sha256,
             )
-        except AppError:
+        except ProviderTransportError:
             self._remove_partial(destination)
             raise
         except BoundedTransportDeadline as exc:
@@ -204,10 +204,10 @@ class GLabsWebhookClient:
                 expected_status=expected_status,
             )
             return dict(body)
-        except AppError:
+        except ProviderTransportError:
             raise
         except BoundedTransportDeadline as exc:
-            raise AppError(
+            raise ProviderTransportError(
                 "MEDIA_PROVIDER_REQUEST_TIMEOUT",
                 "Media provider request timed out.",
                 504,
@@ -216,7 +216,7 @@ class GLabsWebhookClient:
         except BoundedTransportHttpError as exc:
             details = {"status_code": exc.status_code, "body": self._safe_error_body(exc.body)}
             if exc.status_code in {401, 403}:
-                raise AppError(
+                raise ProviderTransportError(
                     "MEDIA_PROVIDER_AUTH_FAILED",
                     "Media provider authentication failed.",
                     502,
@@ -224,7 +224,7 @@ class GLabsWebhookClient:
                     details=details,
                 ) from exc
             if exc.status_code == 400:
-                raise AppError(
+                raise ProviderTransportError(
                     "MEDIA_PROVIDER_INVALID_REQUEST",
                     "Media provider rejected the request as invalid.",
                     502,
@@ -232,14 +232,14 @@ class GLabsWebhookClient:
                     details=details,
                 ) from exc
             if exc.status_code == 429:
-                raise AppError(
+                raise ProviderTransportError(
                     "MEDIA_PROVIDER_QUOTA_EXHAUSTED",
                     "Media provider quota or request capacity is exhausted.",
                     502,
                     retryable=True,
                     details=details,
                 ) from exc
-            raise AppError(
+            raise ProviderTransportError(
                 "MEDIA_PROVIDER_UPSTREAM_ERROR",
                 "Media provider returned an HTTP error.",
                 502,
@@ -247,7 +247,7 @@ class GLabsWebhookClient:
                 details=details,
             ) from exc
         except BoundedTransportRequestTooLarge as exc:
-            raise AppError(
+            raise ProviderTransportError(
                 "MEDIA_PROVIDER_CONFIG_INVALID",
                 "Media provider request exceeds the internal control-plane byte limit.",
                 409,
@@ -269,21 +269,21 @@ class GLabsWebhookClient:
                 public = "Media provider returned a malformed response."
             raise self._upstream_contract_error(public) from exc
         except BoundedTransportUnavailable as exc:
-            raise AppError(
+            raise ProviderTransportError(
                 "MEDIA_PROVIDER_UNAVAILABLE",
                 "Media provider is unavailable.",
                 502,
                 retryable=True,
             ) from exc
         except (TypeError, ValueError, OverflowError) as exc:
-            raise AppError(
+            raise ProviderTransportError(
                 "MEDIA_PROVIDER_CONFIG_INVALID",
                 "Media provider request could not be prepared.",
                 409,
                 retryable=False,
             ) from exc
         except Exception as exc:
-            raise AppError(
+            raise ProviderTransportError(
                 "MEDIA_PROVIDER_UNAVAILABLE",
                 "Media provider request failed.",
                 502,
@@ -337,8 +337,8 @@ class GLabsWebhookClient:
         )
 
     @staticmethod
-    def _upstream_contract_error(message: str) -> AppError:
-        return AppError(
+    def _upstream_contract_error(message: str) -> ProviderTransportError:
+        return ProviderTransportError(
             "MEDIA_PROVIDER_UPSTREAM_ERROR",
             message,
             502,
@@ -352,7 +352,7 @@ class GLabsWebhookClient:
         url: str | None = None,
         status_code: int | None = None,
         reason: Any = None,
-    ) -> AppError:
+    ) -> ProviderTransportError:
         details: dict[str, Any] = {}
         if url is not None:
             details["url"] = url
@@ -360,7 +360,7 @@ class GLabsWebhookClient:
             details["status_code"] = status_code
         if reason is not None:
             details["reason"] = sanitize_diagnostic_value(str(reason), max_string_chars=512)
-        return AppError(
+        return ProviderTransportError(
             "MEDIA_RESULT_DOWNLOAD_FAILED",
             message,
             502,

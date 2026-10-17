@@ -4,7 +4,7 @@ import hashlib
 from io import BytesIO
 from typing import Any
 
-from app.api.errors import AppError
+from app.animation.provider_errors import ProviderTransportError
 
 MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024
 SUPPORTED_IMAGE_UPLOAD_MIME_TYPES = {
@@ -55,14 +55,14 @@ def validate_uploaded_image(
     sharing domain publication semantics.
     """
     if not content:
-        raise AppError(
+        raise ProviderTransportError(
             f"{error_prefix}_EMPTY",
             f"Uploaded {image_label} must not be empty.",
             400,
             retryable=False,
         )
     if len(content) > MAX_IMAGE_UPLOAD_BYTES:
-        raise AppError(
+        raise ProviderTransportError(
             f"{error_prefix}_TOO_LARGE",
             f"Uploaded {image_label} exceeds the maximum allowed size.",
             413,
@@ -71,7 +71,7 @@ def validate_uploaded_image(
         )
     declared = _normalize_content_type(declared_content_type)
     if declared is not None and declared not in SUPPORTED_IMAGE_UPLOAD_MIME_TYPES:
-        raise AppError(
+        raise ProviderTransportError(
             f"{error_prefix}_UNSUPPORTED_TYPE",
             f"Uploaded {image_label} must be JPEG, PNG, or WebP.",
             415,
@@ -79,7 +79,7 @@ def validate_uploaded_image(
         )
     signature_mime = _sniff_upload_image_mime(content[:16])
     if signature_mime not in SUPPORTED_IMAGE_UPLOAD_MIME_TYPES:
-        raise AppError(
+        raise ProviderTransportError(
             f"{error_prefix}_UNSUPPORTED_TYPE",
             f"Uploaded {image_label} must be JPEG, PNG, or WebP.",
             415,
@@ -89,7 +89,7 @@ def validate_uploaded_image(
     try:
         from PIL import Image, ImageOps, UnidentifiedImageError
     except ImportError as exc:  # pragma: no cover - supported runtime provides Pillow.
-        raise AppError(
+        raise ProviderTransportError(
             f"{error_prefix}_VALIDATOR_UNAVAILABLE",
             "Image upload validation is not available in this runtime.",
             500,
@@ -102,14 +102,14 @@ def validate_uploaded_image(
             image_format = str(image.format or "").upper()
             mime_type = _PIL_FORMAT_MIME_TYPES.get(image_format)
             if mime_type != signature_mime:
-                raise AppError(
+                raise ProviderTransportError(
                     f"{error_prefix}_UNSUPPORTED_TYPE",
                     f"Uploaded {image_label} type does not match its content.",
                     415,
                     retryable=False,
                 )
             if getattr(image, "is_animated", False) or int(getattr(image, "n_frames", 1) or 1) > 1:
-                raise AppError(
+                raise ProviderTransportError(
                     f"{error_prefix}_ANIMATED_UNSUPPORTED",
                     f"Animated images are not supported for {image_label} uploads.",
                     415,
@@ -117,7 +117,7 @@ def validate_uploaded_image(
                 )
             width, height = image.size
             if width < 1 or height < 1:
-                raise AppError(
+                raise ProviderTransportError(
                     f"{error_prefix}_DIMENSIONS_INVALID",
                     f"Uploaded {image_label} dimensions are invalid.",
                     400,
@@ -131,17 +131,17 @@ def validate_uploaded_image(
             if image_format in {"JPEG", "WEBP"}:
                 save_options["quality"] = 95
             normalized_image.save(output, **save_options)
-    except AppError:
+    except ProviderTransportError:
         raise
     except UnidentifiedImageError as exc:
-        raise AppError(
+        raise ProviderTransportError(
             f"{error_prefix}_DECODE_FAILED",
             f"Uploaded {image_label} file could not be decoded as an image.",
             415,
             retryable=False,
         ) from exc
     except Exception as exc:
-        raise AppError(
+        raise ProviderTransportError(
             f"{error_prefix}_DECODE_FAILED",
             f"Uploaded {image_label} file could not be decoded as an image.",
             415,
@@ -150,7 +150,7 @@ def validate_uploaded_image(
 
     normalized = output.getvalue()
     if not normalized or len(normalized) > MAX_IMAGE_UPLOAD_BYTES:
-        raise AppError(
+        raise ProviderTransportError(
             f"{error_prefix}_TOO_LARGE",
             f"Uploaded {image_label} exceeds the maximum allowed size after validation.",
             413,
@@ -158,7 +158,7 @@ def validate_uploaded_image(
             details={"max_bytes": MAX_IMAGE_UPLOAD_BYTES},
         )
     if _sniff_upload_image_mime(normalized[:16]) != mime_type:
-        raise AppError(
+        raise ProviderTransportError(
             f"{error_prefix}_DECODE_FAILED",
             f"Uploaded {image_label} could not be normalized safely.",
             415,
