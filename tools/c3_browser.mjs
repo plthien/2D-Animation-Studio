@@ -101,7 +101,9 @@ try {
   await page.getByRole('button',{name:'Create prompt reservation'}).click();
   const pkg=(await (await promptResponse).json()).data;
   await page.getByRole('button',{name:'Copy complete prompt'}).click();
-  await page.getByText('Complete prompt copied').waitFor();
+  await page.getByRole('status').first().waitFor({timeout:8000});
+  const clipboardStatus=await page.getByRole('status').first().innerText();
+  assert(clipboardStatus==='Complete prompt copied','Clipboard UI status: '+clipboardStatus);
   const actualClipboard=await page.evaluate(()=>navigator.clipboard.readText());
   const begin='=== BEGIN AUTHORING PACKAGE JSON ===';
   const end='=== END AUTHORING PACKAGE JSON ===';
