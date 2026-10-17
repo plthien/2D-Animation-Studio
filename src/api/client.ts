@@ -106,6 +106,7 @@ export const apiClient = {
   glabsPrepare:(pid:string,body:{requirement_id:string;prompt:string;negative_prompt:string;model:string;aspect_ratio:string;cost_ceiling_usd:number})=>request<GLabsQuote>('POST',`/api/v1/projects/${pid}/generation/prepare`,body),
   glabsConfirm:(pid:string,quote:GLabsQuote, key:string)=>request<GLabsOperation>('POST',`/api/v1/projects/${pid}/generation/confirm`,{quote:quote.quote,fingerprint:quote.fingerprint,explicitly_approved:true},key),
   glabsAdvance:(pid:string,oid:string)=>request<GLabsOperation>('POST',`/api/v1/projects/${pid}/generation/operations/${oid}/advance`,{}),
+  glabsReconcile:(pid:string,oid:string,provider_task_id:string)=>request<GLabsOperation>('POST',`/api/v1/projects/${pid}/generation/operations/${oid}/reconcile`,{provider_task_id,confirmed_owner_match:true}),
   glabsCancel:(pid:string,oid:string)=>request<GLabsOperation>('POST',`/api/v1/projects/${pid}/generation/operations/${oid}/cancel`,{}),
   glabsStatus:(pid:string,oid:string)=>request<GLabsOperation>('GET',`/api/v1/projects/${pid}/generation/operations/${oid}`),
   glabsOperations:(pid:string)=>request<Page<Pick<GLabsOperation,'operation_id'|'status'>>>('GET',`/api/v1/projects/${pid}/generation/operations`),
