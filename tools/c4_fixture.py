@@ -92,7 +92,15 @@ if __name__=="__main__":
         parts=make_parts(who)
         for role,img in parts.items():
             img.save(directory/(who+"-"+role+".png"))
-        draw(who).save(directory/("actor-"+who+".png"))
+        source=draw(who)
+        source.save(directory/("actor-"+who+".png"))
+        overlay=source.copy()
+        overlay_draw=ImageDraw.Draw(overlay)
+        for role,point in PIVOTS.items():
+            x,y=point
+            overlay_draw.ellipse((x-4,y-4,x+4,y+4),fill="#00ffff",outline="#122537")
+            overlay_draw.text((x+5,y-4),role[:9],fill="#f5edff")
+        overlay.save(directory/("actor-"+who+"-joint-overlay.png"))
     (directory/"rig-joints.json").write_text(json.dumps({
         "pivots":{role:{"x":point[0]/320,"y":point[1]/400} for role,point in PIVOTS.items()},
         "layers":LAYERS
