@@ -198,6 +198,8 @@ try{
  const directorPkg=await api('POST','/api/v1/projects/'+pid+'/director/prompt',{});
  const actions=[
   ['walk_a','walk_to',0,56,'anchor_approach',null,'none'],
+  ['look_a','look_at',4,20,'prop_orb',null,'none'],
+  ['point_a','point_at',20,46,'prop_orb',null,'right'],
   ['reach_a','reach_for',56,90,'prop_orb','prop_orb','left'],
   ['grab_a','grab',90,104,'prop_orb','prop_orb','left'],
   ['carry_a','carry_to',104,166,'anchor_delivery','prop_orb','left'],
