@@ -261,6 +261,8 @@ try{
   localStorage.setItem('animationSelectedProjectId',pr);},[cid,pidB]);
  await reusePage.goto('http://127.0.0.1:5173/studio',{waitUntil:'networkidle'});
  await reusePage.locator('.pipeline-step').nth(3).click();
+ if(await reusePage.getByRole('button',{name:'Edit draft '+rigRecords.a.rig_id.slice(0,14)}).count())
+  throw Error('Cross-project read-only rig incorrectly exposes originating editable draft');
  await reusePage.getByRole('button',{name:'Play approved '+rigRecords.a.rig_version_id.slice(0,13)}).click();
  await reusePage.getByTestId('c4-official-runtime').getByText('Official loader succeeded in current browser session (not backend approval proof)').waitFor({timeout:30000});
  await reusePage.getByTestId('c4-official-runtime').locator('canvas').screenshot({path:join(evidence,'rig-a-reused-in-project-b.png')});
