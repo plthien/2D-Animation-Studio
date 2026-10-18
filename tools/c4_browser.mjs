@@ -171,8 +171,9 @@ try{
   if(uiEdited.draft_revision!==4||Math.abs(uiEdited.parts.head.pivot.x-.62)>.03)
    throw Error('UI raster/pivot pointer edits not persisted');
   const n=await partFix(pid,draft.rig_id,who);
-  const exported=await api('POST','/api/v1/projects/'+pid+'/rigging/rigs/'+draft.rig_id+'/export',{expected_revision:n});
-  if(exported.loader_verified!==false)throw Error('Unverified loader was reported as verified');
+  const correctedDraft=await api('GET','/api/v1/projects/'+pid+'/rigging/rigs/'+draft.rig_id);
+  if(correctedDraft.draft_revision!==n||Object.values(correctedDraft.parts).some(p=>!p.reviewed))
+   throw Error('Corrected source draft is not fully reviewed and persisted');
   await page.reload({waitUntil:'networkidle'});
   await page.locator('.pipeline-step').nth(3).click();
   await page.getByTestId('c4-rigging-workshop').getByRole('button',{name:'Reopen draft '+draft.rig_id.slice(0,14)}).click();
