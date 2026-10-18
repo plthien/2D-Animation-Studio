@@ -548,7 +548,7 @@
     "path": "/api/v1/projects/{project_id}/director/prompt",
     "phase": "C5",
     "owner": "director",
-    "contract_status": "PROPOSED",
+    "contract_status": "ACCEPTED",
     "request_dto": "DirectorPromptRequest",
     "response_dto": "AuthoringPromptPackageResponse",
     "success": 201,
@@ -567,7 +567,7 @@
     "path": "/api/v1/projects/{project_id}/director/import",
     "phase": "C5",
     "owner": "director",
-    "contract_status": "PROPOSED",
+    "contract_status": "ACCEPTED",
     "request_dto": "AnimationPlanImportRequest",
     "response_dto": "ArtifactRevisionResponse",
     "success": 201,
@@ -587,19 +587,19 @@
     "path": "/api/v1/projects/{project_id}/motion/compile",
     "phase": "C5",
     "owner": "motion",
-    "contract_status": "PROPOSED",
+    "contract_status": "ACCEPTED",
     "request_dto": "MotionCompileRequest",
-    "response_dto": "OperationResponse",
-    "success": 202,
+    "response_dto": "ArtifactRevisionResponse",
+    "success": 201,
     "errors": [
       404,
       409,
       422
     ],
     "precondition": "approved animation plan+rig fingerprint",
-    "idempotency": "input fingerprint",
-    "authority": "operations",
-    "readiness": "motion running"
+    "idempotency": "same approved sources reuse artifact, CAS head",
+    "authority": "artifacts / project_stage_heads",
+    "readiness": "motion approved only after verified compile"
   },
   {
     "method": "POST",
@@ -1192,5 +1192,138 @@
     "idempotency": "Read-only, or CAS on project resolution revision",
     "authority": "artifacts / rig_versions / project_asset_bindings",
     "readiness": "All exact required actor pins must have compatible approved rigs"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{project_id}/director/validate",
+    "phase": "C5",
+    "owner": "director",
+    "contract_status": "ACCEPTED",
+    "request_dto": "DirectorImportRequest",
+    "response_dto": "ValidationReport",
+    "success": 200,
+    "errors": [
+      404,
+      409,
+      422
+    ],
+    "precondition": "current approved ShotPlan and approved rig selection, source fingerprints",
+    "idempotency": "one reservation/approved immutable head",
+    "authority": "artifacts / project_stage_heads / authoring_reservations",
+    "readiness": "validated current director/motion source"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{project_id}/director/{artifact_id}/approve",
+    "phase": "C5",
+    "owner": "director",
+    "contract_status": "ACCEPTED",
+    "request_dto": "DirectorApprovalRequest",
+    "response_dto": "ArtifactApprovalResponse",
+    "success": 200,
+    "errors": [
+      404,
+      409,
+      422
+    ],
+    "precondition": "current approved ShotPlan and approved rig selection, source fingerprints",
+    "idempotency": "one reservation/approved immutable head",
+    "authority": "artifacts / project_stage_heads / authoring_reservations",
+    "readiness": "validated current director/motion source"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{project_id}/director/history",
+    "phase": "C5",
+    "owner": "director",
+    "contract_status": "ACCEPTED",
+    "request_dto": "None",
+    "response_dto": "ArtifactHistoryResponse",
+    "success": 200,
+    "errors": [
+      404,
+      409,
+      422
+    ],
+    "precondition": "current approved ShotPlan and approved rig selection, source fingerprints",
+    "idempotency": "read-only",
+    "authority": "artifacts / project_stage_heads / authoring_reservations",
+    "readiness": "validated current director/motion source"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{project_id}/director/{artifact_id}",
+    "phase": "C5",
+    "owner": "director",
+    "contract_status": "ACCEPTED",
+    "request_dto": "None",
+    "response_dto": "ArtifactDocumentResponse",
+    "success": 200,
+    "errors": [
+      404,
+      409,
+      422
+    ],
+    "precondition": "current approved ShotPlan and approved rig selection, source fingerprints",
+    "idempotency": "read-only",
+    "authority": "artifacts / project_stage_heads / authoring_reservations",
+    "readiness": "validated current director/motion source"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{project_id}/motion/status",
+    "phase": "C5",
+    "owner": "motion",
+    "contract_status": "ACCEPTED",
+    "request_dto": "None",
+    "response_dto": "MotionStatusResponse",
+    "success": 200,
+    "errors": [
+      404,
+      409,
+      422
+    ],
+    "precondition": "current approved ShotPlan and approved rig selection, source fingerprints",
+    "idempotency": "read-only",
+    "authority": "artifacts / project_stage_heads / authoring_reservations",
+    "readiness": "validated current director/motion source"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{project_id}/motion/compilations/{artifact_id}",
+    "phase": "C5",
+    "owner": "motion",
+    "contract_status": "ACCEPTED",
+    "request_dto": "None",
+    "response_dto": "CompiledFilmResponse",
+    "success": 200,
+    "errors": [
+      404,
+      409,
+      422
+    ],
+    "precondition": "current approved ShotPlan and approved rig selection, source fingerprints",
+    "idempotency": "read-only",
+    "authority": "artifacts / project_stage_heads / authoring_reservations",
+    "readiness": "validated current director/motion source"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{project_id}/motion/compilations/{artifact_id}/shots/{shot_id}/frames/{frame_index}",
+    "phase": "C5",
+    "owner": "motion",
+    "contract_status": "ACCEPTED",
+    "request_dto": "None",
+    "response_dto": "MotionFrameResponse",
+    "success": 200,
+    "errors": [
+      404,
+      409,
+      422
+    ],
+    "precondition": "current approved ShotPlan and approved rig selection, source fingerprints",
+    "idempotency": "read-only",
+    "authority": "artifacts / project_stage_heads / authoring_reservations",
+    "readiness": "validated current director/motion source"
   }
 ]
