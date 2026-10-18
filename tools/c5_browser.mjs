@@ -234,7 +234,15 @@ try{
  await page.reload({waitUntil:'networkidle'});
  await page.locator('.pipeline-step').nth(5).click();
  await page.getByTestId('c5-motion').waitFor();
- await page.getByTestId('c5-spine-pixi-viewport').locator('canvas').waitFor({timeout:30000});
+ const motionContainer=page.getByTestId('c5-motion');
+ try{
+  await page.getByTestId('c5-spine-pixi-viewport').locator('canvas').waitFor({timeout:18000});
+ }catch(err){
+  const panelText=await motionContainer.innerText().catch(()=>'<motion panel unavailable>');
+  const status=await api('GET','/api/v1/projects/'+pid+'/motion/status');
+  console.error('C5 MOTION UI STATE',JSON.stringify({status,panelText,compiled:compiled.artifact_id}));
+  throw err;
+ }
  for(const [frame,label] of [[0,'idle'],[40,'walk'],[80,'reach'],[100,'grab'],
   [140,'carry'],[185,'place'],[206,'react'],[239,'rest']]){
   await page.getByRole('slider',{name:'Exact motion frame'}).fill(String(frame));
