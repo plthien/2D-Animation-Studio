@@ -97,16 +97,25 @@ try{
   const maskBefore=cryptoDigest(Buffer.from(await (await fetch(BASE+partBase)).arrayBuffer()));
   const box=await editCanvas.boundingBox();
   if(!box)throw Error('Mask canvas has no interactive box');
-  await workshop.getByRole('combobox',{name:'Tool'}).selectOption('erase');
-  await editCanvas.click({position:{x:Math.round(box.width*.50),y:Math.round(box.height*.18)}});
+  // Paint then erase THE SAME known pixel area. An arbitrary erase click
+  // can land on an already-empty mask and correctly leave its bytes unchanged.
+  // This asserts both tools modify actual persisted raster pixels.
+  const brushPoint={x:Math.round(box.width*.50),y:Math.round(box.height*.18)};
+  await workshop.getByRole('combobox',{name:'Tool'}).selectOption('paint');
+  await editCanvas.click({position:brushPoint});
   await workshop.getByText('Draft revision 2',{exact:false}).waitFor();
-  const maskAfter=cryptoDigest(Buffer.from(await (await fetch(BASE+partBase)).arrayBuffer()));
-  if(maskBefore===maskAfter)throw Error('Canvas eraser did not change real raster mask bytes');
+  const maskPainted=cryptoDigest(Buffer.from(await (await fetch(BASE+partBase)).arrayBuffer()));
+  if(maskBefore===maskPainted)throw Error('Canvas paint did not change real raster mask bytes');
+  await workshop.getByRole('combobox',{name:'Tool'}).selectOption('erase');
+  await editCanvas.click({position:brushPoint});
+  await workshop.getByText('Draft revision 3',{exact:false}).waitFor();
+  const maskErased=cryptoDigest(Buffer.from(await (await fetch(BASE+partBase)).arrayBuffer()));
+  if(maskPainted===maskErased)throw Error('Canvas erase did not change real raster mask bytes');
   await workshop.getByRole('combobox',{name:'Tool'}).selectOption('pivot');
   await editCanvas.click({position:{x:Math.round(box.width*.62),y:Math.round(box.height*.23)}});
-  await workshop.getByText('Draft revision 3',{exact:false}).waitFor();
+  await workshop.getByText('Draft revision 4',{exact:false}).waitFor();
   const uiEdited=await api('GET','/api/v1/projects/'+pid+'/rigging/rigs/'+draft.rig_id);
-  if(uiEdited.draft_revision!==3||Math.abs(uiEdited.parts.head.pivot.x-.62)>.03)
+  if(uiEdited.draft_revision!==4||Math.abs(uiEdited.parts.head.pivot.x-.62)>.03)
    throw Error('UI raster/pivot pointer edits not persisted');
   const n=await partFix(pid,draft.rig_id);
   const exported=await api('POST','/api/v1/projects/'+pid+'/rigging/rigs/'+draft.rig_id+'/export',{expected_revision:n});
