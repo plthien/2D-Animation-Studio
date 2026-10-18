@@ -1,0 +1,65 @@
+name: C5 Windows focused director and motion
+on:
+  push:
+    branches: [feat/c5-director-motion]
+  pull_request:
+    paths:
+      - 'app/animation/**'
+      - 'app/main.py'
+      - 'src/**'
+      - 'contracts/animation/api/**'
+      - 'tests/c5/**'
+      - 'tools/c5*'
+      - '.github/workflows/c5-director-motion.yml'
+  workflow_dispatch:
+jobs:
+  c5-focused:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact source HEAD
+        run: |
+          $expected = "${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
+          if ((git rev-parse HEAD).Trim() -ne $expected) { throw "C5_SHA_MISMATCH" }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install Python
+        run: |
+          python -m pip install -r requirements.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Focused C5 tests
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m pytest -q tests/c5
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Affected C4 rig regression
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m pytest -q tests/c4/test_rigging.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: API parity
+        run: |
+          python tools/check_c2_cutover.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Typecheck frontend
+        run: |
+          npm ci --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: C5 acceptance disclosure
+        run: Write-Host "This focused workflow does not certify nine-action motion, real C5 browser articulated/grip evidence or C5 merge readiness."
