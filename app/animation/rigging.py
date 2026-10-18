@@ -141,8 +141,9 @@ def start(pid, version):
             (pr["channel_id"], pid, rig_id)).fetchone()
         prior_revision = prior["revision"] if prior else 0
         if prior:
-            prior_path=s.bounded_path(prior["relative_path"])
-            previous=json.loads(prior_path.read_bytes())
+            _,_,prior_artifact,previous=_draft(con,pid,rig_id)
+            if prior_artifact["revision"]!=prior_revision:
+                s.error("STALE_HEAD","Concurrent rig draft revision changed")
             if previous["source_version"]==version:
                 return {"rig_id":rig_id,"draft_revision":prior_revision,"reopened":True}
         source_sha = source["source_sha256"]
