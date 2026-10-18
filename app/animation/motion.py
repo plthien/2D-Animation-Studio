@@ -236,3 +236,10 @@ def validate_motion(pid,plan):
         evidence.append({"shot_id":shot["shot_id"],"frame_count":shot["duration_frames"],
                          "world_state_sha256":s.sha(samples)})
     return evidence
+
+
+# The actual frame evaluator is versioned separately from low-level Spine joint geometry.
+# Keep the direct evaluate symbol for C5 callers; evaluation never uses prior frame state.
+def evaluate(shot,plan,bones_by_actor,frame):
+    from app.animation import motion_world
+    return motion_world.evaluate(shot,plan,bones_by_actor,frame)
