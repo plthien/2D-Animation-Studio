@@ -41,7 +41,7 @@ async function reserved(pid,kind,fill){
   expected_head_revision:revision,expected_sha256:stored.sha256});
  return stored;
 }
-async function buildTwoActorShotPlan(pid){
+async function buildTwoActorShotPlan(pid,actors=['character_a','character_b']){
  const ideas=await reserved(pid,'topic-ideas',pkg=>({
   channel_dna_artifact_id:pkg.dna_metadata.artifact_id,
   channel_dna_hash:pkg.dna_metadata.sha256,
@@ -49,13 +49,11 @@ async function buildTwoActorShotPlan(pid){
  const script=await reserved(pid,'script',()=>({
   topic_ideas_artifact_id:ideas.artifact_id,selected_idea_id:'idea_one',
   full_text:'Hello!',sections:[{section_id:'section_one',start_char:0,end_char:6,text:'Hello!'}]}));
- const state={actors:[
-  {actor_id:'character_a',x:0,y:0,facing:'right'},
-  {actor_id:'character_b',x:1,y:0,facing:'left'}],props:[]};
+ const state={actors:actors.map((id,i)=>({actor_id:id,x:i,y:0,facing:i?'left':'right'})),props:[]};
  await reserved(pid,'shot-plan',()=>({
   script_artifact_id:script.artifact_id,script_sha256:script.sha256,
-  actor_ids:['character_a','character_b'],prop_ids:[],location_ids:['location_one'],
-  shots:[{shot_id:'shot_one',duration_frames:48,actor_ids:['character_a','character_b'],
+  actor_ids:actors,prop_ids:[],location_ids:['location_one'],
+  shots:[{shot_id:'shot_one',duration_frames:48,actor_ids:actors,
    prop_ids:[],location_id:'location_one',
    utterance:{text:'Hello!',script_start:0,script_end:6},
    initial_world_state:state,final_world_state:state,spatial_anchors:[]}]}));
@@ -122,6 +120,7 @@ try{
  await page.getByTestId('animation-studio').waitFor();
  await page.locator('.pipeline-step').nth(3).click();
  await page.getByTestId('c4-rigging-workshop').waitFor();
+ const rigRecords={};
  for(const who of ['a','b']){
   const version=await sendImage(pid,who);
   await api('POST','/api/v1/projects/'+pid+'/assets/'+version.asset_version_id+'/review',{decision:'approved'});
@@ -180,6 +179,7 @@ try{
   await page.getByTestId('c4-proof-ready').waitFor({timeout:30000});
   await page.getByRole('button',{name:'Approve verified rig version'}).click();
   await page.getByTestId('c4-rig-approved').waitFor({timeout:30000});
+  rigRecords[who]={asset_version_id:version.asset_version_id,rig_id:draft.rig_id,rig_version_id:exported.rig_version_id};
   const pending=(await api('GET','/api/v1/projects/'+pid+'/workflow')).stages.find(x=>x.stage_key==='rigging');
   if(pending.readiness==='approved')throw Error('Rig version approval falsely approved all project actors');
   const sha=cryptoDigest(readFileSync(join(evidence,'rig-'+who+'-idle.png')));
@@ -200,6 +200,40 @@ try{
  const refreshed=(await api('GET','/api/v1/projects/'+pid+'/rigging/rigs')).items;
  const approved=refreshed.filter(r=>r.status==='approved');
  if(approved.length!==2)throw Error('Expected two independently approved immutable rig versions, got '+approved.length);
+ // Project B: reuse Project A's verified rig without editable draft ownership
+ // or a duplicate rig export. The B ShotPlan requires actor A only.
+ const projectB=await api('POST','/api/v1/projects',{
+  channel_id:cid,name:'G2 Reuse Project',slug:'g2-reuse'},'c4-project-reuse');
+ const pidB=projectB.project_id;
+ const sourceB=await buildTwoActorShotPlan(pidB,['character_a']);
+ const actorB=sourceB.requirements.find(x=>x.requirement.kind==='actor');
+ if(!actorB)throw Error('Project B approved ShotPlan has no actor');
+ await api('POST','/api/v1/projects/'+pidB+'/asset-bindings',{
+  requirement_id:actorB.requirement.requirement_id,
+  asset_version_id:rigRecords.a.asset_version_id,
+  expected_fingerprint:sourceB.requirements_fingerprint});
+ const reuse=await api('POST','/api/v1/projects/'+pidB+'/rigging/resolution/select',{
+  requirement_id:actorB.requirement.requirement_id,
+  rig_version_id:rigRecords.a.rig_version_id,expected_revision:0});
+ if(reuse.readiness!=='approved')throw Error('Approved project B single-actor rig mapping failed');
+ const stageB=(await api('GET','/api/v1/projects/'+pidB+'/workflow')).stages.find(x=>x.stage_key==='rigging');
+ if(stageB.readiness!=='approved')throw Error('Project B rig reuse readiness not approved');
+ const reusedRig=await api('GET','/api/v1/channels/'+cid+'/rigs/'+rigRecords.a.rig_id+
+  '/versions/'+rigRecords.a.rig_version_id+'/info');
+ if(reusedRig.asset_version_id!==rigRecords.a.asset_version_id||reusedRig.status!=='approved')
+  throw Error('Channel rig version identity changed during reuse');
+ const originalSkeleton=cryptoDigest(Buffer.from(await (await fetch(BASE+
+  '/api/v1/channels/'+cid+'/rigs/'+rigRecords.a.rig_id+'/versions/'+rigRecords.a.rig_version_id+'/skeleton.json')).arrayBuffer()));
+ const reusePage=await browser.newPage({viewport:{width:1440,height:900}});
+ await reusePage.addInitScript(([ch,pr])=>{localStorage.setItem('animationSelectedChannelId',ch);
+  localStorage.setItem('animationSelectedProjectId',pr);},[cid,pidB]);
+ await reusePage.goto('http://127.0.0.1:5173/studio',{waitUntil:'networkidle'});
+ await reusePage.locator('.pipeline-step').nth(3).click();
+ await reusePage.getByRole('button',{name:'Play approved '+rigRecords.a.rig_version_id.slice(0,13)}).click();
+ await reusePage.getByTestId('c4-official-runtime').getByText('Official loader succeeded in current browser session (not backend approval proof)').waitFor({timeout:30000});
+ await reusePage.getByTestId('c4-official-runtime').screenshot({path:join(evidence,'rig-a-reused-in-project-b.png')});
+ await reusePage.close();
+ console.log('G2 reuse Project A->B PASS',rigRecords.a.rig_version_id,'identical immutable skeleton',originalSkeleton);
  // Genuine backend restart with the SAME disposable SQLite/artifact root.
  stop(server);
  await new Promise(r=>setTimeout(r,1200));
@@ -209,6 +243,12 @@ try{
  const stable=afterRestart.items.filter(r=>r.status==='approved');
  if(stable.length!==2||stable.some(row=>!approved.some(old=>old.rig_version_id===row.rig_version_id)))
   throw Error('Approved immutable rig identities not preserved after backend restart');
+ const reloadedB=await api('GET','/api/v1/projects/'+pidB+'/rigging/resolution');
+ if(reloadedB.readiness!=='approved'||reloadedB.bindings[0]?.rig_version_id!==rigRecords.a.rig_version_id)
+  throw Error('Cross-project immutable rig selection did not persist after restart');
+ const afterSkeleton=cryptoDigest(Buffer.from(await (await fetch(BASE+
+  '/api/v1/channels/'+cid+'/rigs/'+rigRecords.a.rig_id+'/versions/'+rigRecords.a.rig_version_id+'/skeleton.json')).arrayBuffer()));
+ if(afterSkeleton!==originalSkeleton)throw Error('Reused immutable skeleton bytes changed after restart');
  const stageRestart=(await api('GET','/api/v1/projects/'+pid+'/workflow')).stages.find(x=>x.stage_key==='rigging');
  if(stageRestart.readiness!=='approved')throw Error('Rigging stage not ready after actual backend restart');
  await page.reload({waitUntil:'networkidle'});
