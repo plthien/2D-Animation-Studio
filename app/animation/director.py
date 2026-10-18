@@ -39,6 +39,7 @@ def _context(con,pid):
     chosen={x["requirement_id"]:x for x in rig_doc["bindings"]}
     if not required or required.keys()!=chosen.keys():
         s.error("UNAPPROVED_DEPENDENCY","All actor rigs must be selected",422)
+    from app.animation import capabilities as cap
     rigs={}
     for reqid,entry in required.items():
         selected=chosen[reqid]
@@ -50,11 +51,17 @@ def _context(con,pid):
                          (rv["rig_manifest_artifact_id"],)).fetchone()
         _,_,docs=rig_proof._candidate_readonly(con,project["channel_id"],rv["rig_id"],rv["rig_version_id"])
         # Capabilities claimed by the immutable C4 profile are the baseline; no automatic nine-action promotion.
+        verified=cap.certified(con,project["channel_id"],rv["rig_version_id"],
+                               meta["artifact_id"],meta["sha256"])
+        effective=set(docs["profile"]["capabilities"])
+        if verified is not None:effective.update(cap.ACTIONS)
         rigs[entry["requirement"]["semantic_key"]]={
             "requirement_id":reqid,"rig_id":rv["rig_id"],"rig_version_id":rv["rig_version_id"],
             "rig_profile_artifact_id":rv["rig_profile_artifact_id"],
             "rig_manifest_artifact_id":meta["artifact_id"],"rig_manifest_sha256":meta["sha256"],
-            "capabilities":sorted(docs["profile"]["capabilities"]),
+            "capability_cert_artifact_id":verified["artifact_id"] if verified else None,
+            "capability_cert_sha256":verified["sha256"] if verified else None,
+            "capabilities":sorted(effective),
             "bones":docs["profile"]["bones"]}
     source={"shot_plan_artifact_id":shot["artifact_id"],"shot_plan_sha256":shot["sha256"],
             "rig_resolution_artifact_id":rig_art["artifact_id"],"rig_resolution_sha256":rig_art["sha256"],
