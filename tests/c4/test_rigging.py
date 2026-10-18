@@ -153,3 +153,121 @@ def test_fourteen_real_reviewed_sprites_export_and_approval_block(client):
     assert client.post(f"/api/v1/channels/{cid}/rigs/{draft['rig_id']}/approve",
           json={"rig_version_id":rid,"expected_revision":exported["revision"]}).status_code==409
     assert ok(client.get(base))["items"][0]["status"]=="candidate"
+
+def test_h1_source_canvas_pivot_and_trim_geometry():
+    """Off-centre source-space joint must NOT be re-centred into sprite crop."""
+    import json
+    parts={}
+    pngs={}
+    for role in px.ROLES:
+        im=Image.new("RGBA",(320,400),(0,0,0,0))
+        ImageDraw.Draw(im).rectangle((120,120,155,160),fill="#3486af")
+        pngs[role]=px.png_bytes(im)
+        x,y=px.SEEDS[role]
+        parts[role]={"pivot":{"x":x,"y":y,
+            "coordinate_system":"normalized_top_left"},"layer":0}
+    parts["head"]["pivot"]={"x":.8,"y":.1,"coordinate_system":"normalized_top_left"}
+    sk,atlas,page=px.spine_package(pngs,parts)
+    doc=json.loads(sk)
+    bones={row["name"]:row for row in doc["bones"]}
+    head=bones["head"];chest=bones["chest"]
+    assert head["parent"]=="chest"
+    assert head["x"]==round((.8-parts["torso"]["pivot"]["x"])*320,3)
+    assert head["y"]==round((parts["torso"]["pivot"]["y"]-.1)*400,3)
+    head_attachment=doc["skins"][0]["attachments"]["head"]["head"]
+    # The trimmed sprite lives at x=120..155 but the rotation joint is at x=256.
+    assert head_attachment["x"]==round((120+156)/2-256,3)
+    assert b"page.png" in atlas and len(page)>100
+
+def test_h1_replacement_explicit_position_size_survives_restart(client):
+    from app.animation import rigging as rigs
+    _,pid=setup(client,"placement")
+    version=upload(client,pid,"a")
+    base=f"/api/v1/projects/{pid}/rigging/rigs"
+    draft=ok(client.post(base,json={"asset_version_id":version}),201)
+    url=base+"/"+draft["rig_id"]
+    part=Image.new("RGBA",(40,50),(0,0,0,0))
+    ImageDraw.Draw(part).rectangle((4,5,35,43),fill="#aabbcc")
+    raw=px.png_bytes(part)
+    replaced=ok(client.post(url+"/parts/head/replacement",
+          files={"file":("head.png",raw,"image/png")},
+          data={"expected_revision":"1"}))
+    placed=ok(client.post(url+"/parts/head",json={
+        "expected_revision":replaced["draft_revision"],
+        "placement":{"x":.6,"y":.4,"width":.1,"height":.125},
+        "pivot":{"x":.64,"y":.43}}))
+    sprite=client.get(url+"/parts/head/sprite")
+    assert sprite.status_code==200
+    with Image.open(io.BytesIO(sprite.content)) as im:
+        assert im.size==(320,400)
+        left,top,right,bottom=im.getchannel("A").getbbox()
+        assert 190<=left<=200 and 160<=top<=170
+        assert right<=225 and bottom<=211
+    with TestClient(app) as restarted:
+        doc=ok(restarted.get(url))
+        assert doc["draft_revision"]==placed["draft_revision"]
+        assert doc["parts"]["head"]["placement"]["x"]==.6
+        assert restarted.get(url+"/parts/head/sprite").content==sprite.content
+
+def test_h2_same_asset_new_source_version_preserves_rig_identity(client):
+    _,pid=setup(client,"sourceupgrade")
+    first=upload(client,pid,"a")
+    base=f"/api/v1/projects/{pid}/rigging/rigs"
+    old=ok(client.post(base,json={"asset_version_id":first}),201)
+    retry=ok(client.post(base,json={"asset_version_id":first}),201)
+    assert retry["rig_id"]==old["rig_id"] and retry["draft_revision"]==1
+    imported=ok(client.post(f"/api/v1/projects/{pid}/images/import",
+        data={"kind":"actor","semantic_key":"actor_a","view":"front"},
+        files={"file":("new-version.png",drawing("b"),"image/png")}),201)
+    second=imported["asset_version_id"]
+    assert second!=first
+    ok(client.post(f"/api/v1/projects/{pid}/assets/{second}/review",
+                   json={"decision":"approved"}))
+    newer=ok(client.post(base,json={"asset_version_id":second}),201)
+    assert newer["rig_id"]==old["rig_id"]
+    assert newer["draft_revision"]==2
+    reloaded=ok(client.get(base+"/"+old["rig_id"]))
+    assert reloaded["source_version"]==second
+    assert all(not item["reviewed"] for item in reloaded["parts"].values())
+
+def test_h5_immutable_manifest_hash_tampering_rejected(client):
+    _,pid=setup(client,"tamper")
+    v=upload(client,pid,"b")
+    base=f"/api/v1/projects/{pid}/rigging/rigs"
+    draft=ok(client.post(base,json={"asset_version_id":v}),201)
+    url=base+"/"+draft["rig_id"]
+    revision=1
+    filler=Image.new("RGBA",(40,40),(0,0,0,0))
+    ImageDraw.Draw(filler).ellipse((3,3,36,36),fill="#efb378")
+    raw=px.png_bytes(filler)
+    for role in px.ROLES:
+        image=client.get(url+"/parts/"+role+"/sprite")
+        with Image.open(io.BytesIO(image.content)) as im:
+            blank=im.getchannel("A").getbbox() is None
+        if blank:
+            revision=ok(client.post(url+"/parts/"+role+"/replacement",
+                files={"file":(role+".png",raw,"image/png")},
+                data={"expected_revision":str(revision)}))["draft_revision"]
+        revision=ok(client.post(url+"/parts/"+role,
+            json={"expected_revision":revision,"reviewed":True}))["draft_revision"]
+    export=ok(client.post(url+"/export",json={"expected_revision":revision}),201)
+    version=export["rig_version_id"]
+    info=f"/api/v1/channels/{export['manifest']['channel_id']}/rigs/{draft['rig_id']}/versions/{version}/info"
+    assert client.get(info).status_code==200
+    with s.reader() as con:
+        entry=con.execute("SELECT metadata_json FROM artifacts WHERE artifact_id=?",
+                          (export["manifest"]["artifact_id"],)).fetchone()
+        pathbase=json.loads(entry["metadata_json"])["base"]
+    for name in ("parts","profile","manifest"):
+        file=s.bounded_path(pathbase+"/"+name+".json")
+        original=file.read_bytes()
+        try:
+            document=json.loads(original)
+            document["created_at"]="2026-10-18T12:34:56Z"
+            file.write_bytes(json.dumps(document).encode())
+            response=client.get(info)
+            assert response.status_code==422,(name,response.text)
+            assert "LINEAGE_MISMATCH" in response.text
+        finally:
+            file.write_bytes(original)
+    assert client.get(info).status_code==200
