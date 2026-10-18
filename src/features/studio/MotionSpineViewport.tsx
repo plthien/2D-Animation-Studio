@@ -109,6 +109,18 @@ export function MotionSpineViewport({projectId,channelId,shotId,compilationId,fr
     propSprites.current[propId]=sprite;application.stage.addChild(sprite);
    }
    sprite.position.set(640+0.8*prop.x,590-0.8*prop.y);
+   if(prop.held_by){
+    const [actor,hand]=prop.held_by.split(':');
+    const actorSpine=figuresNow[actor];
+    const actualWrist=actorSpine?.skeleton.findBone(hand+'_hand');
+    const actorPose=data.poses[actor];
+    if(!actorSpine||!actualWrist||!actorPose)throw new Error('SPINE_GRIP_OWNER_MISSING: '+propId);
+    // Test the real Spine runtime bone world transform, not only backend grip metadata.
+    const handScreenX=640+0.8*(actorPose.root.x+actualWrist.worldX);
+    const handScreenY=590-0.8*(actorPose.root.y+actualWrist.worldY);
+    const drift=Math.hypot(sprite.position.x-handScreenX,sprite.position.y-handScreenY);
+    if(drift>3)throw new Error('SPINE_GRIP_VISUAL_MISMATCH: '+propId+' ('+drift.toFixed(2)+'px)');
+   }
   }
   if(ticket!==epoch.current)return;
   application.renderer.render({container:application.stage});
