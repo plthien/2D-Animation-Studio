@@ -572,18 +572,9 @@ def approve(cid,rig_id,version,decision,expected_revision,loader_evidence=None):
                 AND kind IN ('parts_manifest.v1','rig_profile.v1','rig_manifest.v1',
                              'rig_sprite.v1','rig_mask.v1','rig_runtime_proof.v1')
             """,(s.now(),cid,pid,version))
-            head=con.execute("SELECT * FROM project_stage_heads WHERE project_id=? AND stage_key='rigging'",
-                             (pid,)).fetchone()
-            if not head:
-                s.error("LINEAGE_MISMATCH","Rigging stage projection missing",422)
-            con.execute("""
-                UPDATE project_stage_heads SET artifact_id=?,approval_status='approved',
-                dependency_fingerprint=?,revision=?,updated_at=?
-                WHERE project_id=? AND stage_key='rigging' AND revision=?
-            """,(record["rig_manifest_artifact_id"],digest,head["revision"]+1,s.now(),
-                 pid,head["revision"]))
-            if con.execute("SELECT changes()").fetchone()[0]!=1:
-                s.error("STALE_HEAD","Concurrent rigging stage update",409)
+            # Approval establishes a reusable channel-owned rig version only.
+            # Project-stage readiness is computed from an approved immutable
+            # actor-to-rig resolution, never from an arbitrary single rig.
         else:
             con.execute("""
                 UPDATE artifacts SET approval_status='rejected',reviewed_by='local-owner',
@@ -593,58 +584,10 @@ def approve(cid,rig_id,version,decision,expected_revision,loader_evidence=None):
                              'rig_sprite.v1','rig_mask.v1','rig_runtime_proof.v1')
             """,(s.now(),cid,pid,version))
         return {"rig_version_id":version,"status":decision,
-                "project_id":pid,"stage_ready":decision=="approved"}
+                "project_id":pid,"stage_ready":False}
 
 
 def readiness(con,pid):
-    """Return real C4 stage state; never infer success from exported JSON alone."""
-    project=s.project_row(con,pid)
-    cid=project["channel_id"]
-    ch=s.channel_row(con,cid)
-    versions=con.execute("""
-        SELECT rv.*,m.artifact_id,m.project_id,m.metadata_json
-        FROM rig_versions rv JOIN artifacts m ON m.artifact_id=rv.rig_manifest_artifact_id
-        WHERE rv.channel_id=? AND m.project_id=?
-        ORDER BY rv.created_at DESC,rv.revision DESC
-    """,(cid,pid)).fetchall()
-    head=con.execute("""
-        SELECT * FROM project_stage_heads WHERE project_id=? AND stage_key='rigging'
-    """,(pid,)).fetchone()
-    if head and head["approval_status"]=="approved" and head["artifact_id"]:
-        active=con.execute("""
-            SELECT rv.*,m.metadata_json FROM rig_versions rv
-            JOIN artifacts m ON m.artifact_id=rv.rig_manifest_artifact_id
-            WHERE m.artifact_id=? AND rv.channel_id=? AND rv.status='approved'
-        """,(head["artifact_id"],cid)).fetchone()
-        if active:
-            try:
-                from app.animation import rig_proof
-                _,metadata,docs=rig_proof._candidate_readonly(con,cid,active["rig_id"],
-                                    active["rig_version_id"])
-                source_version=docs["parts"]["asset_version_id"]
-                _,asset,_=_source(con,pid,source_version)
-                mismatched=con.execute("""
-                    SELECT 1 FROM project_asset_bindings WHERE project_id=?
-                    AND asset_id=? AND asset_version_id<>? LIMIT 1
-                """,(pid,asset["asset_id"],source_version)).fetchone()
-                if mismatched:
-                    return "stale",["RIG_SOURCE_BINDING_CHANGED"]
-                return "approved",[]
-            except (s.DomainError,ValueError,KeyError,OSError):
-                return "stale",["RIG_SOURCE_OR_OUTPUT_STALE"]
-        return "stale",["RIG_APPROVED_VERSION_MISSING"]
-    if any(row["status"]=="candidate" for row in versions):
-        return "draft",["RIG_RUNTIME_VERIFICATION_OR_REVIEW_REQUIRED"]
-    drafts=con.execute("""
-        SELECT 1 FROM artifacts WHERE project_id=? AND kind='c4.rig_draft.v1'
-        LIMIT 1
-    """,(pid,)).fetchone()
-    if drafts:
-        return "draft",["RIG_PART_REVIEW_REQUIRED"]
-    approved=con.execute("""
-        SELECT 1 FROM asset_versions v JOIN assets a ON a.asset_id=v.asset_id
-        WHERE a.channel_id=? AND a.kind='actor' AND v.status='approved'
-        AND v.visual_style_hash=? LIMIT 1
-    """,(cid,ch["visual_style_hash"])).fetchone()
-    return ("ready",["RIG_EXTRACTION_REQUIRED"]) if approved else (
-            "blocked",["APPROVED_ACTOR_SOURCE_REQUIRED"])
+    """Project readiness requires complete current ShotPlan actor rig resolution."""
+    from app.animation import rig_resolution
+    return rig_resolution.status(con,pid)
