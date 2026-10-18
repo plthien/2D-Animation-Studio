@@ -478,6 +478,7 @@ class RigPartEdit(Payload):
     strokes: list[dict[str, Any]] | None = None
     pivot: dict[str, float] | None = None
     layer: int | None = None
+    placement: dict[str, float] | None = None
     reviewed: bool | None = None
     reset: bool = False
 
@@ -503,7 +504,7 @@ def c4_rig_draft(request: Request, project_id: str, rig_id: str):
 @app.post("/api/v1/projects/{project_id}/rigging/rigs/{rig_id}/parts/{role}")
 def c4_part_edit(request: Request, project_id: str, rig_id: str, role: str, body: RigPartEdit):
     return enveloped(request, rigs.edit(project_id, rig_id, role, body.expected_revision,
-               strokes=body.strokes, pivot=body.pivot, layer=body.layer,
+               strokes=body.strokes, pivot=body.pivot, layer=body.layer, placement=body.placement,
                reviewed=body.reviewed, reset=body.reset))
 
 @app.post("/api/v1/projects/{project_id}/rigging/rigs/{rig_id}/parts/{role}/replacement")
