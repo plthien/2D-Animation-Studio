@@ -20,19 +20,27 @@ export function MotionSpineViewport({projectId,channelId,shotId,compilationId,fr
  const epoch=useRef(0);
  useEffect(()=>{
   const ticket=++epoch.current;let disposed=false;let instance:Application|null=null;
+  let initialized=false;
+  const cleanupInstance=()=>{
+   if(!initialized||!instance)return;
+   if(app.current===instance)app.current=null;
+   instance.destroy(true);
+   initialized=false;
+  };
   figures.current={};propSprites.current={};loadedRig.current={};
   setReady(false);setError('');setIdentity('');
   const setup=async()=>{
    instance=new Application();
    await instance.init({width:1280,height:720,background:0x111827,
     preference:'webgl',antialias:true,preserveDrawingBuffer:true});
-   if(disposed||ticket!==epoch.current){instance.destroy();return;}
+   initialized=true;
+   if(disposed||ticket!==epoch.current){cleanupInstance();return;}
    mount.current?.replaceChildren(instance.canvas);
    instance.ticker.stop();app.current=instance;setReady(true);
   };
   void setup().catch(e=>{if(!disposed)setError(String(e));});
-  return()=>{disposed=true;epoch.current++;app.current=null;figures.current={};propSprites.current={};
-   loadedRig.current={};instance?.destroy(true);};
+  return()=>{disposed=true;epoch.current++;figures.current={};propSprites.current={};
+   loadedRig.current={};cleanupInstance();};
  },[projectId,channelId,compilationId,shotId]);
 
  const renderFrame=useCallback(async(index:number)=>{
