@@ -19,6 +19,7 @@ from app.animation import resolver as assets
 from app.animation import local_assets as localimages
 from app.animation import generation as glabs
 from app.animation import rigging as rigs
+from app.animation import rig_proof as rigproof
 from app.animation.provider import AppError as ProviderAppError
 from app.animation.strict_json import parse_strict_document
 from app.animation.database import LegacyDatabaseUnsupported, migrate
@@ -525,6 +526,30 @@ def c4_rig_version_file(request: Request, channel_id: str, rig_id: str, version_
     path = rigs.file_for_version(channel_id, rig_id, version_id, filename)
     mime = "image/png" if filename.endswith(".png") else "text/plain" if filename.endswith(".atlas") else "application/json"
     return FileResponse(path, media_type=mime)
+
+class RigPoseCapture(Payload):
+    pose: str
+    png_base64: str
+    bones: dict[str, float]
+    bone_count: int
+    slot_count: int
+    attached_slot_count: int
+
+class RigProofRequest(Payload):
+    source_sha256: str
+    skeleton_sha256: str
+    atlas_sha256: str
+    runtime_package: str
+    runtime_version: str
+    pixi_version: str
+    poses: list[RigPoseCapture]
+
+@app.post("/api/v1/channels/{channel_id}/rigs/{rig_id}/versions/{version_id}/verify")
+def c4_rig_verify(request: Request, channel_id: str, rig_id: str,
+                  version_id: str, body: RigProofRequest):
+    return enveloped(request, rigproof.verify(channel_id, rig_id,
+                     version_id, body.model_dump()), 201)
+
 
 @app.post("/api/v1/channels/{channel_id}/rigs/{rig_id}/versions/{version_id}/review")
 def c4_rig_review(request: Request, channel_id: str, rig_id: str, version_id: str, body: RigDecision):
