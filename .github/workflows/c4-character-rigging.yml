@@ -65,5 +65,22 @@ jobs:
         run: |
           npm run build
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Notice
-        run: Write-Host "Pixel/SQLite/TypeScript gates only; real official loader and G2 remain NOT_RUN until verified"
+      - name: Install Chromium for real Spine smoke
+        run: |
+          npm install --no-save --package-lock=false playwright@1.57.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npx playwright install chromium
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Actual G2 two-character Chromium official Spine rig smoke
+        run: |
+          node tools/c4_browser.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Chromium G2 rig and pose screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c4-real-rig-poses
+          path: artifacts/c4/*.png
+          if-no-files-found: warn
+      - name: Note Windows scope
+        run: Write-Host "Windows Server CI is not owner Windows 11; no paid calls made"
