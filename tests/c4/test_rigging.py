@@ -271,3 +271,53 @@ def test_h5_immutable_manifest_hash_tampering_rejected(client):
         finally:
             file.write_bytes(original)
     assert client.get(info).status_code==200
+    # Atlas page is independently frozen in rig-manifest artifact metadata.
+    from app.animation import rig_proof
+    page_path=s.bounded_path(pathbase+"/page.png")
+    original=page_path.read_bytes()
+    page_url=info[:-4]+"page.png"
+    assert client.get(page_url).status_code==200
+    with s.reader() as con:
+        meta=json.loads(con.execute("SELECT metadata_json FROM artifacts WHERE artifact_id=?",
+                       (export["manifest"]["artifact_id"],)).fetchone()["metadata_json"])
+        assert meta["atlas_page_sha256"]==px.digest(original)
+        assert meta["atlas_page_byte_size"]==len(original)
+        assert rig_proof.verify_atlas_page(meta)==page_path
+    # A different, decodable nonblank RGBA PNG with equal dimensions is invalid.
+    with Image.open(io.BytesIO(original)) as src:
+        valid=src.copy()
+        valid.putpixel((0,0),(255,0,0,255))
+    altered=px.png_bytes(valid)
+    assert altered!=original
+    try:
+        page_path.write_bytes(altered)
+        for endpoint in (info,page_url):
+            response=client.get(endpoint)
+            assert response.status_code==422,response.text
+            assert "LINEAGE_MISMATCH" in response.text
+        page_path.unlink()
+        response=client.get(info)
+        assert response.status_code==422 and "LINEAGE_MISMATCH" in response.text
+    finally:
+        page_path.write_bytes(original)
+    assert client.get(info).status_code==200
+    assert client.get(page_url).content==original
+    # Missing recorded identity must not be repaired using on-disk page bytes.
+    with s.writer() as con:
+        row=con.execute("SELECT metadata_json FROM artifacts WHERE artifact_id=?",
+                        (export["manifest"]["artifact_id"],)).fetchone()
+        original_meta=row["metadata_json"]
+        broken=json.loads(original_meta)
+        broken.pop("atlas_page_sha256")
+        con.execute("UPDATE artifacts SET metadata_json=? WHERE artifact_id=?",
+                    (json.dumps(broken),export["manifest"]["artifact_id"]))
+    try:
+        for endpoint in (info,page_url):
+            response=client.get(endpoint)
+            assert response.status_code==422,response.text
+            assert "LINEAGE_MISMATCH" in response.text
+    finally:
+        with s.writer() as con:
+            con.execute("UPDATE artifacts SET metadata_json=? WHERE artifact_id=?",
+                        (original_meta,export["manifest"]["artifact_id"]))
+    assert client.get(info).status_code==200
