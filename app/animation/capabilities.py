@@ -139,3 +139,26 @@ def proof(pid,version_id,samples):
                          "runtime_version":"4.2.120"})
         return s.artifact_view(con.execute("SELECT * FROM artifacts WHERE artifact_id=?",(aid,)).fetchone())
     return s.document_publish(doc,rel,commit)
+
+
+def list_for_project(pid):
+    with s.reader() as con:
+        pr=a.project(con,pid)
+        readiness,blockers=rig_resolution.status(con,pid)
+        if readiness!="approved":
+            return {"readiness":"blocked","blockers":blockers,"rigs":[]}
+        selected=rig_resolution._document(rig_resolution._latest(con,pid,pr["channel_id"]))
+        items=[]
+        seen=set()
+        for item in selected["bindings"]:
+            version=item["rig_version_id"]
+            if version in seen:continue
+            seen.add(version)
+            project,rv,docs,manifest,skeleton=_selected(con,pid,version)
+            cert=certified(con,pr["channel_id"],version,manifest["artifact_id"],manifest["sha256"])
+            items.append({"rig_version_id":version,"rig_id":rv["rig_id"],
+              "rig_manifest_artifact_id":manifest["artifact_id"],
+              "rig_manifest_sha256":manifest["sha256"],
+              "certified":cert is not None,"certification_artifact_id":cert["artifact_id"] if cert else None,
+              "capabilities":list(ACTIONS) if cert else docs["profile"]["capabilities"]})
+        return {"readiness":"approved","blockers":[],"rigs":items}
