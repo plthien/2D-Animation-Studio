@@ -33,7 +33,7 @@ export function RiggingPanel({projectId,channelId}:{projectId:string;channelId:s
  const maskUrl=draft?apiClient.rigPartImage(projectId,rigId,selected,'mask')+'?v='+imageEpoch:'';
  const roles=useMemo(()=>draft?Object.keys(draft.parts):[],[draft]);
  const loadRigResolution=async()=>{
-  const response=await fetch('/api/v1/projects/'+projectId+'/rigging/resolution');
+  const response=await fetch('http://127.0.0.1:8000/api/v1/projects/'+projectId+'/rigging/resolution');
   if(!response.ok){setRigResolution(null);return;}
   const data=await response.json();setRigResolution(data.data);
  };
@@ -55,7 +55,7 @@ export function RiggingPanel({projectId,channelId}:{projectId:string;channelId:s
   setCandidate(null);setReadonlyPreview(null);setProofId('');setApprovedId('');
  };
  const openVersion=async(id:string,version:string,revision:number,status:string)=>{
-  const res=await fetch('/api/v1/channels/'+channelId+'/rigs/'+id+'/versions/'+version+'/info',{cache:'no-store'});
+  const res=await fetch('http://127.0.0.1:8000/api/v1/channels/'+channelId+'/rigs/'+id+'/versions/'+version+'/info',{cache:'no-store'});
   if(!res.ok)throw new Error('Verified rig metadata cannot be opened');
   const body=await res.json() as {data:{source_sha256:string;manifest:RigExport['manifest']}};
   const rigData={rig_id:id,rig_version_id:version,revision,
@@ -139,7 +139,7 @@ export function RiggingPanel({projectId,channelId}:{projectId:string;channelId:s
      </select>
      <button type="button" className={btn} disabled={busy||!actorRequirement||!readonlyPreview||readonlyPreview.candidate.candidate}
       onClick={()=>void operation(async()=>{
-       const response=await fetch('/api/v1/projects/'+projectId+'/rigging/resolution/select',{
+       const response=await fetch('http://127.0.0.1:8000/api/v1/projects/'+projectId+'/rigging/resolution/select',{
         method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({requirement_id:actorRequirement,
          rig_version_id:readonlyPreview!.candidate.rig_version_id,
