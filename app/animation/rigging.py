@@ -393,7 +393,7 @@ def export(pid,rig_id,expected_revision):
                 metadata={"rig_version_id":version,"draft_revision":expected_revision,
                           "source_version":doc["source_version"],"style_hash":doc["style_hash"],
                           "base":base})
-        con.execute("INSERT INTO rig_versions VALUES (?,?,?,?,?,?,?,?,?)",
+        con.execute("INSERT INTO rig_versions VALUES (?,?,?,?,?,?,?,?,?,?)",
                     (version,rig_id,pr["channel_id"],revision,manifest_id,profile_id,
                      "candidate",s.sha(profile["capabilities"]),t,None))
     return {"rig_id":rig_id,"rig_version_id":version,"revision":revision,
