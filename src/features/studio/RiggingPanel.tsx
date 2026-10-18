@@ -1,18 +1,22 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
+import {useQueryClient} from '@tanstack/react-query';
 import {apiClient,type RigDraft,type RigExport,type RigStroke} from '../../api/client';
 import {SpineViewport} from './SpineViewport';
 
 const btn='rounded-xl border border-white/15 px-3 py-2 text-sm text-slate-100 disabled:opacity-40 hover:bg-white/10';
 export function RiggingPanel({projectId,channelId}:{projectId:string;channelId:string}){
+ const queryClient=useQueryClient();
  const [source,setSource]=useState('');
  const [sources,setSources]=useState<Array<{asset_version_id:string;status:string;kind:string;semantic_key:string}>>([]);
- const [rigs,setRigs]=useState<Array<{rig_id:string;rig_version_id:string|null;status:string|null}>>([]);
+ const [rigs,setRigs]=useState<Array<{rig_id:string;rig_version_id:string|null;status:string|null;revision:number|null}>>([]);
  const [rigId,setRigId]=useState('');
  const [draft,setDraft]=useState<RigDraft|null>(null);
  const [selected,setSelected]=useState('head');
  const [mode,setMode]=useState<'paint'|'erase'|'pivot'>('paint');
  const [brush,setBrush]=useState(.015);
  const [candidate,setCandidate]=useState<RigExport|null>(null);
+ const [proofId,setProofId]=useState('');
+ const [approvedId,setApprovedId]=useState('');
  const [imageEpoch,setImageEpoch]=useState(0);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState('');
@@ -39,6 +43,17 @@ export function RiggingPanel({projectId,channelId}:{projectId:string;channelId:s
  const reopen=async(id:string)=>{
   const doc=await apiClient.rigDraft(projectId,id);
   setDraft(doc);setRigId(id);setSource(doc.source_version);setSelected('head');setImageEpoch(x=>x+1);
+  setCandidate(null);setProofId('');setApprovedId('');
+ };
+ const openVersion=async(id:string,version:string,revision:number,status:string)=>{
+  const doc=await apiClient.rigDraft(projectId,id);
+  await reopen(id);
+  const res=await fetch(apiClient.rigOutput(channelId,id,version,'manifest.json'),{cache:'no-store'});
+  if(!res.ok)throw new Error('Rig manifest cannot be reopened');
+  const manifest=await res.json() as RigExport['manifest'];
+  setDraft(doc);setCandidate({rig_id:id,rig_version_id:version,revision,
+   candidate:status==='candidate',loader_verified:status==='approved',manifest});
+  if(status==='approved')setApprovedId(version);
  };
  const edit=async(extra:Record<string,unknown>)=>{
   if(!draft)return;
@@ -91,7 +106,17 @@ export function RiggingPanel({projectId,channelId}:{projectId:string;channelId:s
    <button className={btn} disabled={busy||!source} onClick={()=>void operation(async()=>{const r=await apiClient.rigStart(projectId,source);await reopen(r.rig_id);})}>Extract actual pixels</button>
    <button className={btn} disabled={busy} onClick={()=>void refresh()}>Refresh</button>
   </div>
-  {rigs.length>0&&<div className="flex flex-wrap gap-2">{[...new Set(rigs.map(r=>r.rig_id))].map(id=><button type="button" className={btn} key={id} disabled={busy} onClick={()=>void operation(()=>reopen(id))}>Reopen {id.slice(0,14)}</button>)}</div>}
+  {source&&!draft&&<div className="max-w-56 overflow-hidden rounded-xl border border-white/10"><img src={srcUrl} alt="Selected exact approved source" className="w-full"/></div>}
+  {rigs.length>0&&<div className="space-y-2">
+   <h4 className="text-sm font-semibold text-slate-200">Channel rig versions</h4>
+   <div className="flex flex-wrap gap-2">
+    {[...new Set(rigs.map(r=>r.rig_id))].map(id=><button type="button" className={btn} key={id} disabled={busy} onClick={()=>void operation(()=>reopen(id))}>Reopen draft {id.slice(0,14)}</button>)}
+    {rigs.filter(r=>r.rig_version_id).map(r=><button type="button" key={r.rig_version_id} className={btn} disabled={busy}
+     onClick={()=>void operation(()=>openVersion(r.rig_id,r.rig_version_id!,r.revision!,r.status!))}>
+     {r.status==='approved'?'Play approved':'Inspect '+r.status} {r.rig_version_id?.slice(0,13)}
+    </button>)}
+   </div>
+  </div>}
   {draft&&<>
    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300">
     <span>Draft revision {draft.draft_revision}</span>
@@ -135,9 +160,22 @@ export function RiggingPanel({projectId,channelId}:{projectId:string;channelId:s
    </div>
    <button className={btn} disabled={busy||roles.some(r=>!draft.parts[r].reviewed)} onClick={()=>void operation(async()=>{
     const result=await apiClient.rigExport(projectId,rigId,draft.draft_revision);setCandidate(result);
+    setProofId('');setApprovedId('');
    })}>Export immutable Spine 4.2 candidate</button>
-   {candidate&&<SpineViewport channelId={channelId} rigId={rigId} candidate={candidate}/>}
-   {candidate&&<p className="text-amber-200 text-sm">Candidate version {candidate.rig_version_id}: not approved. Backend acceptance requires trusted official runtime evidence, not user-supplied loader flags.</p>}
+   {candidate&&<SpineViewport channelId={channelId} rigId={rigId} candidate={candidate}
+    sourceSha={draft.source_sha} onVerified={evidence=>setProofId(evidence.proof_artifact_id)}/>}
+   {candidate&&candidate.candidate&&<>
+    <p className="text-amber-200 text-sm">Candidate {candidate.rig_version_id}: complete the real five-pose verification, then approve its exact immutable version.</p>
+    <button type="button" className={btn} disabled={busy||!proofId} onClick={()=>void operation(async()=>{
+     const result=await apiClient.rigReview(channelId,rigId,candidate.rig_version_id,candidate.revision,'approved');
+     if(result.status!=='approved')throw new Error('Rig approval was not committed');
+     setApprovedId(candidate.rig_version_id);
+     setCandidate({...candidate,candidate:false,loader_verified:true});
+     await queryClient.invalidateQueries({queryKey:['workflow',projectId]});
+    })}>Approve verified rig version</button>
+   </>}
+   {candidate&&(!candidate.candidate||approvedId===candidate.rig_version_id)&&
+    <p className="text-emerald-300 text-sm" data-testid="c4-rig-approved">Approved immutable playable Spine rig: {candidate.rig_version_id}</p>}
   </>}
  </section>;
 }
