@@ -41,12 +41,30 @@ def _candidate(con, channel_id, rig_id, version_id, *, allow_approved=False):
     base=metadata["base"]
     documents={}
     for name in ("parts","profile","manifest"):
-        path=s.bounded_path(base+"/"+name+".json")
+        kind={"parts":"parts_manifest.v1","profile":"rig_profile.v1",
+              "manifest":"rig_manifest.v1"}[name]
+        expected_path=base+"/"+name+".json"
+        path=s.bounded_path(expected_path)
+        expected_id=(row["rig_manifest_artifact_id"] if name=="manifest"
+                     else row["rig_profile_artifact_id"] if name=="profile" else None)
         if not path.is_file():
             s.error("LINEAGE_MISMATCH","Rig version metadata missing",422)
-        doc=json.loads(path.read_bytes())
-        r._validate(name+"_manifest.v1" if name=="parts" else
-                    "rig_profile.v1" if name=="profile" else "rig_manifest.v1",doc)
+        raw=path.read_bytes()
+        try:
+            doc=json.loads(raw)
+        except (ValueError,UnicodeError):
+            s.error("LINEAGE_MISMATCH","Corrupt immutable rig metadata",422)
+        if expected_id is None:
+            expected_id=doc.get("artifact_id")
+        ar=con.execute("SELECT * FROM artifacts WHERE artifact_id=? AND channel_id=? AND project_id=?",
+                       (expected_id,channel_id,row["project_id"])).fetchone()
+        if (ar is None or ar["kind"]!=kind or ar["schema_version"]!=kind
+            or ar["relative_path"]!=expected_path
+            or ar["sha256"]!=px.digest(raw) or ar["byte_size"]!=len(raw)
+            or doc.get("artifact_id")!=expected_id
+            or doc.get("channel_id")!=channel_id):
+            s.error("LINEAGE_MISMATCH",kind+" immutable artifact hash/ownership mismatch",422)
+        r._validate(kind,doc)
         documents[name]=doc
     if documents["manifest"]["rig_version_id"]!=version_id:
         s.error("LINEAGE_MISMATCH","Rig manifest version differs",422)
