@@ -120,7 +120,7 @@ def extract(image: Image.Image) -> tuple[dict[str, dict], dict[str, Image.Image]
                    "provenance": "no_automatic_extraction",
                    "confidence": 0.0, "uncertain": True, "occluded": True,
                    "reason": "FOREGROUND_NOT_RECOVERABLE_MANUAL_REPLACEMENT_REQUIRED",
-                   "pivot": {"x": 0.5, "y": 0.5,
+                   "pivot": {"x": SEEDS[role][0], "y": SEEDS[role][1],
                              "coordinate_system": "normalized_top_left"}}
             for layer, role in enumerate(ROLES)
         }
@@ -163,7 +163,7 @@ def extract(image: Image.Image) -> tuple[dict[str, dict], dict[str, Image.Image]
             "reason": ("NO_FOREGROUND_REGION" if bounds is None else
                        "RGB_BACKGROUND_UNCERTAIN" if uncertain_bg else
                        "ANATOMY_UNVERIFIED"),
-            "pivot": {"x": 0.5, "y": 0.5, "coordinate_system": "normalized_top_left"},
+            "pivot": {"x": SEEDS[role][0], "y": SEEDS[role][1], "coordinate_system": "normalized_top_left"},
         }
     return parts, masks
 
@@ -245,12 +245,12 @@ def spine_package(part_pngs: dict[str, bytes], parts: dict[str, dict]) -> tuple[
     # World points are source pixel coordinates (top-left); convert to Y-up Spine.
     joints = {}
     for role in ROLES:
-        crop, (x0, y0, x1, y1), _ = cropped[role]
+        crop, (x0, y0, x1, y1), original_size = cropped[role]
         p = parts[role]["pivot"]
         if not (0 <= p["x"] <= 1 and 0 <= p["y"] <= 1):
             raise ValueError(role + ": pivot outside [0,1]")
-        joints[PART_BONE[role]] = (x0 + (x1-x0)*p["x"],
-                                  y0 + (y1-y0)*p["y"])
+        joints[PART_BONE[role]] = (p["x"] * original_size[0],
+                                  p["y"] * original_size[1])
     hip = joints["hip"]
     full_h = max(info[2][1] for info in cropped.values())
     joints["root"] = (hip[0], full_h)
