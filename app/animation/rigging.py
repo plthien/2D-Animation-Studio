@@ -496,6 +496,27 @@ def file_for_version(cid,rig_id,version,filename):
         return path
 
 
+
+def version_info(channel_id,rig_id,version_id):
+    """Read-only verified channel-owned rig identity; no originating draft needed."""
+    from app.animation import rig_proof as proof
+    with s.reader() as con:
+        row, metadata, docs=proof._candidate_readonly(con,channel_id,rig_id,version_id)
+        parts=docs["parts"]
+        profile=docs["profile"]
+        manifest=docs["manifest"]
+        return {
+            "rig_id":rig_id,"rig_version_id":version_id,"revision":row["revision"],
+            "status":row["status"],"source_project_id":row["project_id"],
+            "asset_version_id":parts["asset_version_id"],
+            "source_sha256":parts["source_image_sha256"],
+            "parts_manifest_artifact_id":parts["artifact_id"],
+            "rig_profile_artifact_id":profile["artifact_id"],
+            "rig_manifest_artifact_id":manifest["artifact_id"],
+            "capabilities":profile["capabilities"],
+            "manifest":manifest,
+        }
+
 def approve(cid,rig_id,version,decision,expected_revision,loader_evidence=None):
     """Review exact immutable candidate. Approved rig must have five real pose captures."""
     if decision not in ("approved","rejected"):
