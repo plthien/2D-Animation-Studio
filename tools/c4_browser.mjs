@@ -138,6 +138,13 @@ try{
   const workshop=page.getByTestId('c4-rigging-workshop');
   await workshop.getByRole('button',{name:'Reopen draft '+draft.rig_id.slice(0,14)}).click();
   await workshop.getByText('Draft revision 1',{exact:false}).waitFor();
+  // Reopening publishes the draft view before async list refresh clears busy.
+  // Do not fire a canvas pointer while the editor intentionally blocks writes.
+  await page.waitForFunction(()=>{
+   const buttons=[...document.querySelectorAll('[data-testid="c4-rigging-workshop"] button')];
+   const refresh=buttons.find(b=>b.textContent?.trim()==='Refresh');
+   return refresh&&!refresh.disabled;
+  });
   const editCanvas=workshop.getByRole('img',{name:'Interactive source mask editor'});
   const partBase='/api/v1/projects/'+pid+'/rigging/rigs/'+draft.rig_id+'/parts/head/mask';
   const maskBefore=cryptoDigest(Buffer.from(await (await fetch(BASE+partBase)).arrayBuffer()));
