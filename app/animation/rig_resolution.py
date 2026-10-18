@@ -102,7 +102,7 @@ def status(con,pid):
         return "blocked",[exc.code]
     art=_latest(con,pid,pr["channel_id"])
     if not art:
-        return "ready",["RIG_REQUIRED_ACTOR_UNRESOLVED"] if actors else ("blocked",["RIG_ACTOR_REQUIREMENTS_MISSING"])
+        return ("ready",["RIG_REQUIRED_ACTOR_UNRESOLVED"]) if actors else ("blocked",["RIG_ACTOR_REQUIREMENTS_MISSING"])
     try:
         return _evaluate(con,pid,_document(art))
     except (s.DomainError,KeyError,ValueError,OSError) as exc:
