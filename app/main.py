@@ -522,6 +522,10 @@ def c4_part_image(request: Request, project_id: str, rig_id: str, role: str, kin
 def c4_rig_export(request: Request, project_id: str, rig_id: str, body: RigExport):
     return enveloped(request, rigs.export(project_id, rig_id, body.expected_revision), 201)
 
+@app.get("/api/v1/channels/{channel_id}/rigs/{rig_id}/versions/{version_id}/info")
+def c4_rig_version_info(request: Request, channel_id: str, rig_id: str, version_id: str):
+    return enveloped(request, rigs.version_info(channel_id, rig_id, version_id))
+
 @app.get("/api/v1/channels/{channel_id}/rigs/{rig_id}/versions/{version_id}/{filename}")
 def c4_rig_version_file(request: Request, channel_id: str, rig_id: str, version_id: str, filename: str):
     path = rigs.file_for_version(channel_id, rig_id, version_id, filename)
