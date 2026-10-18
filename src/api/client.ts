@@ -127,6 +127,8 @@ export const apiClient = {
     if(!res.ok)throw new ApiError(payload?.error?.code??'UPLOAD_FAILED',payload?.error?.message??'Replacement failed',res.status);
     return payload.data as {draft_revision:number};
   },
+  motionCapabilities:(pid:string)=>request<MotionCapabilityStatus>('GET',`/api/v1/projects/${pid}/motion/capabilities`),
+  motionVerifyCapabilities:(pid:string,version:string,samples:MotionCapabilitySample[])=>request<Artifact>('POST',`/api/v1/projects/${pid}/motion/capabilities/${version}/verify`,{samples}),
   directorPrompt:(pid:string)=>request<DirectorPackage>('POST',`/api/v1/projects/${pid}/director/prompt`,{}),
   directorValidate:(pid:string,reservation_id:string,document:Record<string,unknown>)=>request<DirectorValidation>('POST',`/api/v1/projects/${pid}/director/validate`,{reservation_id,document}),
   directorImport:(pid:string,reservation_id:string,document:Record<string,unknown>)=>request<Artifact>('POST',`/api/v1/projects/${pid}/director/import`,{reservation_id,document}),
@@ -168,3 +170,6 @@ export type DirectorValidation={valid:boolean;issues:Array<{path:string;message:
 export type DirectorPackage={reservation_id:string;reserved_artifact_id:string;revision:number;source_fingerprint:string;expires_at:string;reserved_fields:Record<string,unknown>;schema:Record<string,unknown>;prompt_text:string};
 export type CompiledFilm={schema_version:'compiled_film.v1';artifact_id:string;channel_id:string;project_id:string;revision:number;created_at:string;input_fingerprint:string;animation_plan_artifact_id:string;shot_plan_artifact_id:string;shots:Array<{shot_id:string;global_start_frame:number;frame_count:number;world_state_sha256:string;action_ids:string[]}>};
 export type MotionFrame={shot_id:string;frame:number;fingerprint:string;actors:Record<string,{actor_id:string;x:number;y:number;facing:string}>;props:Record<string,{prop_id:string;x:number;y:number;held_by:string|null}>;poses:Record<string,{root:{x:number;y:number};bones:Record<string,number>}>;hands:Record<string,{x:number;y:number}>;rigs:Record<string,{rig_id:string;rig_version_id:string}>};
+
+export type MotionCapabilityStatus={readiness:string;blockers:string[];rigs:Array<{rig_id:string;rig_version_id:string;rig_manifest_artifact_id:string;rig_manifest_sha256:string;certified:boolean;certification_artifact_id:string|null;capabilities:string[]}>};
+export type MotionCapabilitySample={action:string;png_base64:string;bones:Record<string,number>;root:{x:number;y:number};bone_count:number;attached_slot_count:number};
