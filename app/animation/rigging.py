@@ -328,8 +328,14 @@ def export(pid,rig_id,expected_revision):
     _stored(skeleton,base+"/skeleton.json")
     _stored(atlas,base+"/skeleton.atlas")
     _stored(page,base+"/page.png")
+    mask_pngs={}
     for role in px.ROLES:
         _stored(pngs[role],base+f"/{role}.png")
+        # Published mask must describe the ACTUAL reviewed sprite, including
+        # user-supplied replacement alpha, not an abandoned draft partition.
+        with Image.open(io.BytesIO(pngs[role])) as image:
+            mask_pngs[role]=px.png_bytes(image.getchannel("A"))
+        _stored(mask_pngs[role],base+f"/{role}.mask.png")
     profile_id=s.uid("ar")
     parts_id=s.uid("ar")
     manifest_id=s.uid("ar")
@@ -342,7 +348,7 @@ def export(pid,rig_id,expected_revision):
         "parts":[{
             "role":role,"sprite_artifact_id":s.uid("ar"),
             "png_sha256":px.digest(pngs[role]),
-            "mask_sha256":px.digest(s.bounded_path(doc["parts"][role]["mask"]).read_bytes()),
+            "mask_sha256":px.digest(mask_pngs[role]),
             "pivot":doc["parts"][role]["pivot"],"reviewed":True
         } for role in px.ROLES]
     }
@@ -351,7 +357,8 @@ def export(pid,rig_id,expected_revision):
         "channel_id":pr["channel_id"],"revision":revision,
         "created_at":t,"parts_manifest_artifact_id":parts_id,
         "bones":[{"role":role,"runtime_bone":role} for role in px.BONES],
-        "capabilities":["idle"],
+        # Candidate capabilities remain conditional until verified runtime poses.
+        "capabilities":["idle","walk_to","reach_for","grab"],
     }
     manifest={
         "schema_version":"rig_manifest.v1","artifact_id":manifest_id,
@@ -381,7 +388,14 @@ def export(pid,rig_id,expected_revision):
             s.add_artifact(con,aid=aid,channel_id=pr["channel_id"],project_id=pid,
                 kind="rig_sprite.v1",schema="image/png",logical=version+":"+role,
                 revision=1,status="draft",checksum=px.digest(raw),size=len(raw),
-                relative=rel,metadata={"rig_version_id":version,"role":role})
+                relative=rel,metadata={"rig_version_id":version,"role":role,
+                                      "provenance":doc["parts"][role]["provenance"]})
+            mask_raw=mask_pngs[role]
+            s.add_artifact(con,aid=s.uid("ar"),channel_id=pr["channel_id"],project_id=pid,
+                kind="rig_mask.v1",schema="image/png",logical=version+":"+role,
+                revision=1,status="draft",checksum=px.digest(mask_raw),size=len(mask_raw),
+                relative=base+f"/{role}.mask.png",
+                metadata={"rig_version_id":version,"role":role})
         for kind,aid,key in (("parts_manifest.v1",parts_id,"parts"),
                               ("rig_profile.v1",profile_id,"profile"),
                               ("rig_manifest.v1",manifest_id,"manifest")):
@@ -402,6 +416,8 @@ def export(pid,rig_id,expected_revision):
 
 def file_for_version(cid,rig_id,version,filename):
     allowed={"skeleton.json","skeleton.atlas","page.png","parts.json","profile.json","manifest.json"}
+    allowed |= {role+".png" for role in px.ROLES}
+    allowed |= {role+".mask.png" for role in px.ROLES}
     if filename not in allowed:
         s.error("NOT_FOUND","Unknown rig output file",404)
     with s.reader() as con:
