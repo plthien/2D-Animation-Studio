@@ -194,6 +194,9 @@ try{
   const approvedVersion=reviewedVersions.at(-1)?.rig_version_id;
   if(!approvedVersion)throw Error('No actual approved rig version for '+who);
   rigRecords[who]={asset_version_id:version.asset_version_id,rig_id:draft.rig_id,rig_version_id:approvedVersion};
+  console.log('C4_G2_APPROVED_RIG',JSON.stringify({character:who,source_version:version.asset_version_id,
+   source_sha256:version.source_sha256,rig_id:draft.rig_id,
+   rig_version_id:approvedVersion,png_sha256:sha,manual_corrected_parts:14}));
   const pending=(await api('GET','/api/v1/projects/'+pid+'/workflow')).stages.find(x=>x.stage_key==='rigging');
   if(pending.readiness==='approved')throw Error('Rig version approval falsely approved all project actors');
   const sha=cryptoDigest(readFileSync(join(evidence,'rig-'+who+'-idle.png')));
