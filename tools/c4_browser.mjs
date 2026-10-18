@@ -100,7 +100,7 @@ try{
   // Paint then erase THE SAME known pixel area. An arbitrary erase click
   // can land on an already-empty mask and correctly leave its bytes unchanged.
   // This asserts both tools modify actual persisted raster pixels.
-  const brushPoint={x:Math.round(box.width*.50),y:Math.round(box.height*.18)};
+  const brushPoint={x:Math.round(box.width*.50),y:Math.round(box.height*.40)};
   await workshop.getByRole('combobox',{name:'Tool'}).selectOption('paint');
   await editCanvas.click({position:brushPoint});
   await workshop.getByText('Draft revision 2',{exact:false}).waitFor();
