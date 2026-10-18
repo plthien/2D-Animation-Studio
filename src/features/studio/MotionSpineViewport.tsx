@@ -90,8 +90,17 @@ export function MotionSpineViewport({projectId,channelId,shotId,compilationId,fr
       row.requirement.kind==='prop'&&row.requirement.semantic_key===propId)?.binding;
     if(!binding)throw Error('Exact approved prop image binding missing: '+propId);
     const image=apiClient.imageSrc(projectId,binding.asset_version_id);
-    const tex=await Assets.load<Texture>(image);
+    // Version-image URLs are extensionless API routes. Pixi Assets.load selects a
+    // parser using the extension and can return null for this real PNG endpoint.
+    // Decode the browser image first, then build the Pixi v8 ImageSource texture.
+    const resource=new Image();
+    resource.src=image;
+    await resource.decode();
     if(ticket!==epoch.current)return;
+    const tex=Texture.from(resource);
+    if(!tex||!tex.source||tex.width<=0||tex.height<=0){
+     throw new Error('PROPS_TEXTURE_INVALID: '+propId);
+    }
     sprite=new Sprite(tex);sprite.anchor.set(0.5,0.5);sprite.scale.set(.4);
     propSprites.current[propId]=sprite;application.stage.addChild(sprite);
    }
