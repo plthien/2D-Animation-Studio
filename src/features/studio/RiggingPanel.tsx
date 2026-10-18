@@ -18,6 +18,8 @@ export function RiggingPanel({projectId,channelId}:{projectId:string;channelId:s
  const [proofId,setProofId]=useState('');
  const [approvedId,setApprovedId]=useState('');
  const [readonlyPreview,setReadonlyPreview]=useState<{candidate:RigExport;sourceSha:string}|null>(null);
+ const [rigResolution,setRigResolution]=useState<{revision:number;readiness:string;actor_requirements:Array<{requirement_id:string;semantic_key:string;asset_version_id:string|null}>;bindings:Array<{requirement_id:string;rig_version_id:string}>}|null>(null);
+ const [actorRequirement,setActorRequirement]=useState('');
  const [imageEpoch,setImageEpoch]=useState(0);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState('');
@@ -30,10 +32,16 @@ export function RiggingPanel({projectId,channelId}:{projectId:string;channelId:s
  const previewUrl=draft?apiClient.rigPartImage(projectId,rigId,selected,'sprite')+'?v='+imageEpoch:'';
  const maskUrl=draft?apiClient.rigPartImage(projectId,rigId,selected,'mask')+'?v='+imageEpoch:'';
  const roles=useMemo(()=>draft?Object.keys(draft.parts):[],[draft]);
+ const loadRigResolution=async()=>{
+  const response=await fetch('/api/v1/projects/'+projectId+'/rigging/resolution');
+  if(!response.ok){setRigResolution(null);return;}
+  const data=await response.json();setRigResolution(data.data);
+ };
  const refresh=async()=>{
   const [assets,items]=await Promise.all([apiClient.assetVersions(channelId),apiClient.rigList(projectId)]);
   setSources(assets.items.filter(x=>x.kind==='actor'&&x.status==='approved'));
   setRigs(items.items.filter(x=>x.rig_id));
+  await loadRigResolution();
  };
  useEffect(()=>{void refresh().catch(e=>setError(String(e)));},[projectId,channelId]);
  const operation=async(f:()=>Promise<void>)=>{
@@ -118,6 +126,32 @@ export function RiggingPanel({projectId,channelId}:{projectId:string;channelId:s
     </button>)}
    </div>
   </div>}
+  {rigResolution&&<section className="space-y-2 rounded-xl border border-white/10 p-3" data-testid="c4-project-rig-selection">
+    <h4 className="font-semibold text-slate-100">Project actor → approved rig mapping</h4>
+    <p className="text-xs text-slate-400">Current project readiness: {rigResolution.readiness}. Every pinned ShotPlan actor needs an exact approved compatible rig.</p>
+    <div className="flex flex-wrap gap-2">
+     <select aria-label="Required project actor" className="rounded bg-slate-800 p-2" value={actorRequirement}
+      onChange={e=>setActorRequirement(e.target.value)}>
+      <option value="">Select required actor</option>
+      {rigResolution.actor_requirements.map(x=><option key={x.requirement_id} value={x.requirement_id}>
+       {x.semantic_key} — {x.asset_version_id?.slice(0,14)??'not pinned'}
+      </option>)}
+     </select>
+     <button type="button" className={btn} disabled={busy||!actorRequirement||!readonlyPreview||readonlyPreview.candidate.candidate}
+      onClick={()=>void operation(async()=>{
+       const response=await fetch('/api/v1/projects/'+projectId+'/rigging/resolution/select',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({requirement_id:actorRequirement,
+         rig_version_id:readonlyPreview!.candidate.rig_version_id,
+         expected_revision:rigResolution.revision})});
+       const data=await response.json();
+       if(!response.ok)throw new Error(JSON.stringify(data));
+       await queryClient.invalidateQueries({queryKey:['workflow',projectId]});
+      })}>Use previewed rig in this project</button>
+    </div>
+    {rigResolution.bindings.map(x=><p key={x.requirement_id} className="text-xs text-slate-300">
+     {x.requirement_id.slice(0,16)} → {x.rig_version_id}</p>)}
+   </section>}
   {readonlyPreview&&<section data-testid="c4-readonly-rig-preview" className="space-y-3">
    <h4 className="text-sm text-slate-100">Verified channel rig {readonlyPreview.candidate.rig_version_id} (read-only)</h4>
    <SpineViewport channelId={channelId} rigId={readonlyPreview.candidate.rig_id}
