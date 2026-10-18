@@ -21,6 +21,8 @@ from app.animation import generation as glabs
 from app.animation import rigging as rigs
 from app.animation import rig_proof as rigproof
 from app.animation import rig_resolution as rigresolution
+from app.animation import director as animation_director
+from app.animation import motion_compile as animation_motion
 from app.animation.provider import AppError as ProviderAppError
 from app.animation.strict_json import parse_strict_document
 from app.animation.database import LegacyDatabaseUnsupported, migrate
@@ -581,3 +583,55 @@ def c4_rig_legacy_review(request: Request, channel_id: str, rig_id: str,
                          body: dict[str, Any]):
     return enveloped(request, rigs.approve(channel_id,rig_id,body["rig_version_id"],
                         "approved",body["expected_revision"]))
+
+
+# C5 — external Director authoring (no LLM API) and deterministic motion.
+class DirectorRevisionInput(Payload):
+    reservation_id: str
+    document: dict[str, Any]
+
+class DirectorApprovalInput(Payload):
+    expected_head_revision: int
+    expected_sha256: str
+
+@app.post("/api/v1/projects/{project_id}/director/prompt")
+def c5_director_prompt(request: Request, project_id: str):
+    return enveloped(request, animation_director.prompt(project_id), 201)
+
+@app.post("/api/v1/projects/{project_id}/director/validate")
+def c5_director_validate(request: Request, project_id: str, body: DirectorRevisionInput):
+    return enveloped(request, animation_director.validate(project_id,body.reservation_id,body.document))
+
+@app.post("/api/v1/projects/{project_id}/director/import")
+def c5_director_import(request: Request, project_id: str, body: DirectorRevisionInput):
+    return enveloped(request, animation_director.import_draft(project_id,body.reservation_id,body.document), 201)
+
+@app.post("/api/v1/projects/{project_id}/director/{artifact_id}/approve")
+def c5_director_approve(request: Request, project_id: str, artifact_id: str, body: DirectorApprovalInput):
+    return enveloped(request, animation_director.approve(project_id,artifact_id,
+                       body.expected_head_revision,body.expected_sha256))
+
+@app.get("/api/v1/projects/{project_id}/director/history")
+def c5_director_history(request: Request, project_id: str):
+    return enveloped(request, animation_director.history(project_id))
+
+@app.get("/api/v1/projects/{project_id}/director/{artifact_id}")
+def c5_director_read(request: Request, project_id: str, artifact_id: str):
+    return enveloped(request, animation_director.read(project_id,artifact_id))
+
+@app.post("/api/v1/projects/{project_id}/motion/compile")
+def c5_motion_compile(request: Request, project_id: str):
+    # Synchronous computation returns an immutable artifact, never a fake operation/job.
+    return enveloped(request,animation_motion.compile(project_id),201)
+
+@app.get("/api/v1/projects/{project_id}/motion/status")
+def c5_motion_status(request: Request, project_id: str):
+    return enveloped(request,animation_motion.status(project_id))
+
+@app.get("/api/v1/projects/{project_id}/motion/compilations/{artifact_id}")
+def c5_motion_read(request: Request, project_id: str, artifact_id: str):
+    return enveloped(request,animation_motion.read(project_id,artifact_id))
+
+@app.get("/api/v1/projects/{project_id}/motion/compilations/{artifact_id}/shots/{shot_id}/frames/{frame_index}")
+def c5_motion_frame(request: Request, project_id: str, artifact_id: str, shot_id: str, frame_index: int):
+    return enveloped(request,animation_motion.frame(project_id,artifact_id,shot_id,frame_index))
