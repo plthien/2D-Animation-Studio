@@ -63,45 +63,72 @@ def _arm_to(angles,bones,root,hand,target,weight=1):
     angles[elbow_name]=angles.get(elbow_name,0)+delta_lower
 
 def _gait(angles,bones,root,initial_root,move,frame,shot,actors,props):
-    """Per-foot stance pinning and swing trajectories with two-bone ground IK."""
+    """Grounded alternating stance/swing, bounded pelvis correction, leg IK."""
     ratio=(frame-move["start_frame"])/max(1,move["end_frame"]-move["start_frame"])
     ratio=geom._clamp(ratio,0,1)
     full_target=_point(shot,actors,props,move["target_id"])
     distance=math.dist(initial_root,full_target)
-    if distance<1e-5 or ratio==0:return
+    if distance<1e-5 or ratio<=0:return root
     rest=_world_joints(bones,{},initial_root)
-    default_spacing=70.
-    stride_count=max(1,math.ceil(distance/default_spacing))
+    stride_count=max(1,math.ceil(distance/70))
+    stride=(full_target[0]-initial_root[0])/stride_count
+    goals={}
     for side,offset in (("left",0.),("right",.5)):
         phase=ratio*stride_count+offset
         index=math.floor(phase)
         u=phase-index
-        base_foot=rest[f"{side}_foot"]
-        stride=(full_target[0]-initial_root[0])/stride_count
-        planted=base_foot[0]+index*stride
+        foot=rest[f"{side}_foot"]
+        planted=foot[0]+index*stride
         if u<.55:
-            foot_x=planted; foot_y=base_foot[1]
+            goals[side]=(planted,foot[1])
         else:
             q=(u-.55)/.45
-            foot_x=geom.lerp(planted,planted+stride,geom.smooth(q))
-            foot_y=base_foot[1]+14.*math.sin(math.pi*q)
-        upper_name=f"{side}_upper_leg";lower_name=f"{side}_lower_leg";ankle_name=f"{side}_foot"
-        joints=_world_joints(bones,angles,root)
-        hip=joints[upper_name];knee=joints[lower_name];ankle=joints[ankle_name]
-        length_upper=math.dist(hip,knee);length_lower=math.dist(knee,ankle)
-        if length_upper<2 or length_lower<2:
-            s.error("RIG_CAPABILITY_UNSUPPORTED","Zero-length leg segment",422)
+            goals[side]=(geom.lerp(planted,planted+stride,geom.smooth(q)),
+                         foot[1]+14*math.sin(math.pi*q))
+    # C4's diagnostic rig can be nearly straight-legged at bind pose.
+    # Lower the pelvis only as much as physically required, capped to 12 px,
+    # to reach stance contact without moving the foot or changing world authority.
+    base_joints=_world_joints(bones,{},root)
+    needed=0.
+    for side,target in goals.items():
+        hip=base_joints[f"{side}_upper_leg"]
+        knee=base_joints[f"{side}_lower_leg"]
+        foot=base_joints[f"{side}_foot"]
+        max_length=math.dist(hip,knee)+math.dist(knee,foot)
+        dx=target[0]-hip[0]
+        if abs(dx)>max_length:
+            s.error("IK_UNREACHABLE","Ground contact exceeds horizontal leg reach",422)
+        dy=hip[1]-target[1]
+        if dy>=0:
+            max_dy=math.sqrt(max(0,max_length*max_length-dx*dx))
+            needed=max(needed,dy-max_dy+.02)
+    if needed>12:
+        s.error("IK_UNREACHABLE","Required pelvis correction exceeds bounded 12px limit",422,
+                requested_px=round(needed,3))
+    visual_root=(root[0],root[1]-max(0,needed))
+    for side,target in goals.items():
+        upper=f"{side}_upper_leg";lower=f"{side}_lower_leg";foot=f"{side}_foot"
+        joints=_world_joints(bones,angles,visual_root)
+        hip=joints[upper];knee=joints[lower];ankle=joints[foot]
+        l1=math.dist(hip,knee);l2=math.dist(knee,ankle)
+        if min(l1,l2)<2:s.error("RIG_CAPABILITY_UNSUPPORTED","Collapsed leg segment",422)
         try:
-            a,b,_=geom.two_bone_ik(hip,(foot_x,foot_y),length_upper,length_lower,
-                                   bend=-1 if side=="left" else 1)
+            a,b,_=geom.two_bone_ik(hip,target,l1,l2,bend=-1 if side=="left" else 1)
         except s.DomainError:
-            s.error("IK_UNREACHABLE","Stance foot cannot reach the ground",422,side=side)
-        from_upper=math.atan2(knee[1]-hip[1],knee[0]-hip[0])
-        from_lower=math.atan2(ankle[1]-knee[1],ankle[0]-knee[0])
-        du=math.degrees(a-from_upper);dl=math.degrees(b-from_lower)-du
-        angles[upper_name]=angles.get(upper_name,0)+du
-        angles[lower_name]=angles.get(lower_name,0)+dl
-        angles[ankle_name]=angles.get(ankle_name,0)-du-dl
+            s.error("IK_UNREACHABLE","Stance/swing foot target impossible",422,side=side)
+        original_a=math.atan2(knee[1]-hip[1],knee[0]-hip[0])
+        original_b=math.atan2(ankle[1]-knee[1],ankle[0]-knee[0])
+        change_a=math.degrees(a-original_a)
+        change_b=math.degrees(b-original_b)-change_a
+        angles[upper]=angles.get(upper,0)+change_a
+        angles[lower]=angles.get(lower,0)+change_b
+        # Stabilize foot orientation in actual transformed Spine space.
+        angles[foot]=angles.get(foot,0)-change_a-change_b
+        solved=_world_joints(bones,angles,visual_root)[foot]
+        if math.dist(solved,target)>GROUND_TOLERANCE_PX:
+            s.error("IK_UNREACHABLE","Ground contact solver drift",422,
+                    drift_px=round(math.dist(solved,target),3))
+    return visual_root
 
 def _grip_history(actions,prop_id,frame):
     grabbed=None;releasing=None;last_release=None
@@ -146,10 +173,11 @@ def evaluate(shot,plan,bones_by_actor,frame):
         bones=bones_by_actor.get(actor)
         if not bones:s.error("RIG_CAPABILITY_UNSUPPORTED","Actor has no frozen skeleton",422)
         root=roots[actor];angles={}
+        visual_root=root
         move=_root_move(acts,actor,frame)
         if move:
             beginning=_root_at(acts,actor,arow,shot,initial_actors,initial_props,move["start_frame"])
-            _gait(angles,bones,root,beginning,move,frame,shot,initial_actors,initial_props)
+            visual_root=_gait(angles,bones,root,beginning,move,frame,shot,initial_actors,initial_props)
         current=[act for act in acts if act["actor_id"]==actor and
                  act["start_frame"]<=frame<act["end_frame"]]
         for action in current:
@@ -193,11 +221,11 @@ def evaluate(shot,plan,bones_by_actor,frame):
                     desired=(geom.lerp(desired[0],end[0],p),geom.lerp(desired[1],end[1],p))
                 _arm_to(angles,bones,root,hand,desired,1)
                 angles[f"{hand}_hand"]=18
-        joints=_world_joints(bones,angles,root)
+        joints=_world_joints(bones,angles,visual_root)
         for hand in ("left","right"):
             hand_x,hand_y=joints[f"{hand}_hand"]
             hands[f"{actor}:{hand}"]={"x":round(hand_x,6),"y":round(hand_y,6)}
-        poses[actor]={"root":{"x":round(root[0],6),"y":round(root[1],6)},
+        poses[actor]={"root":{"x":round(visual_root[0],6),"y":round(visual_root[1],6)},
                      "bones":{k:round(v,6) for k,v in sorted(angles.items())}}
     props={}
     for prop_id,row in initial_props.items():
