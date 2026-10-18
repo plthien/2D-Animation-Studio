@@ -135,10 +135,16 @@ def start(pid, version):
         existing = con.execute("SELECT * FROM rigs WHERE asset_id=? AND semantic_key='humanoid'",
                                (asset_id,)).fetchone()
         rig_id = existing["rig_id"] if existing else s.uid("rg")
-        prior = con.execute("SELECT 1 FROM artifacts WHERE channel_id=? AND project_id=? AND kind='c4.rig_draft.v1' AND logical_key=?",
-                            (pr["channel_id"], pid, rig_id)).fetchone()
+        prior = con.execute("""SELECT relative_path,revision FROM artifacts
+            WHERE channel_id=? AND project_id=? AND kind='c4.rig_draft.v1'
+              AND logical_key=? ORDER BY revision DESC LIMIT 1""",
+            (pr["channel_id"], pid, rig_id)).fetchone()
+        prior_revision = prior["revision"] if prior else 0
         if prior:
-            s.error("RIG_DRAFT_EXISTS", "Reopen the existing rig draft instead", 409)
+            prior_path=s.bounded_path(prior["relative_path"])
+            previous=json.loads(prior_path.read_bytes())
+            if previous["source_version"]==version:
+                return {"rig_id":rig_id,"draft_revision":prior_revision,"reopened":True}
         source_sha = source["source_sha256"]
         style_hash = source["visual_style_hash"]
         raw = path.read_bytes()
@@ -166,7 +172,7 @@ def start(pid, version):
             t = s.now()
             con.execute("INSERT INTO rigs VALUES (?,?,?,?,?,?)",
                         (rig_id, pr["channel_id"], source["asset_id"], "humanoid", t, t))
-    return _publish_draft(pid, rig_id, doc, 0)
+    return _publish_draft(pid, rig_id, doc, prior_revision)
 
 
 def view(pid, rig_id):
