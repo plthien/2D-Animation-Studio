@@ -147,7 +147,7 @@ export type GLabsOperation={operation_id:string;status:'queued'|'running'|'unkno
 export type RigStroke={x:number;y:number;radius:number;mode:'paint'|'erase'};
 export type RigPart={role:string;layer:number;reviewed:boolean;provenance:string;confidence:number;uncertain:boolean;occluded:boolean;reason:string;pivot:{x:number;y:number;coordinate_system:string};mask:string;replacement:string|null;placement?:{x:number;y:number;width:number;height:number}};
 export type RigDraft={rig_id:string;draft_revision:number;source_version:string;source_sha:string;style_hash:string;size:[number,number];parts:Record<string,RigPart>};
-export type RigRecord={rig_id:string;channel_id:string;asset_id:string;semantic_key:string;rig_version_id:string|null;status:string|null;revision:number|null};
+export type RigRecord={rig_id:string;channel_id:string;asset_id:string;semantic_key:string;rig_version_id:string|null;status:string|null;revision:number|null;editable:number};
 export type RigExport={rig_id:string;rig_version_id:string;revision:number;candidate:boolean;loader_verified:boolean;manifest:{skeleton_sha256:string;atlas_sha256:string}};
 
 export type RigPoseProof={pose:'idle'|'walk'|'reach'|'grab'|'neutral_return';png_base64:string;bones:Record<string,number>;bone_count:number;slot_count:number;attached_slot_count:number};
