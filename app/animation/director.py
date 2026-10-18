@@ -152,8 +152,7 @@ def _issues(con,pid,doc,ctx):
         if typ not in rig["capabilities"]:
             issue(path+"/action","RIG_CAPABILITY_UNSUPPORTED: "+str(typ))
         channels=CHANNELS.get(typ,set())
-        for control in channels:
-            channel_name=hand if control in ("hand","prop") else control
+        for channel_name in set(hand if control == "hand" else "prop:"+str(prop) if control == "prop" else control for control in channels):
             key=(sh["shot_id"],actor,channel_name)
             for old_start,old_end,old_id in controls.get(key,[]):
                 if start<old_end and old_start<end:
