@@ -23,6 +23,7 @@ from app.animation import rig_proof as rigproof
 from app.animation import rig_resolution as rigresolution
 from app.animation import director as animation_director
 from app.animation import motion_compile as animation_motion
+from app.animation import capabilities as motion_capabilities
 from app.animation.provider import AppError as ProviderAppError
 from app.animation.strict_json import parse_strict_document
 from app.animation.database import LegacyDatabaseUnsupported, migrate
@@ -635,3 +636,24 @@ def c5_motion_read(request: Request, project_id: str, artifact_id: str):
 @app.get("/api/v1/projects/{project_id}/motion/compilations/{artifact_id}/shots/{shot_id}/frames/{frame_index}")
 def c5_motion_frame(request: Request, project_id: str, artifact_id: str, shot_id: str, frame_index: int):
     return enveloped(request,animation_motion.frame(project_id,artifact_id,shot_id,frame_index))
+
+
+class MotionCapabilitySample(Payload):
+    action: str
+    bones: dict[str,float]
+    root: dict[str,float]
+    png_base64: str
+    bone_count: int
+    attached_slot_count: int
+
+class MotionCapabilityProof(Payload):
+    samples: list[MotionCapabilitySample]
+
+@app.get("/api/v1/projects/{project_id}/motion/capabilities")
+def c5_capabilities(request: Request, project_id: str):
+    return enveloped(request,motion_capabilities.list_for_project(project_id))
+
+@app.post("/api/v1/projects/{project_id}/motion/capabilities/{rig_version_id}/verify")
+def c5_verify_capabilities(request: Request, project_id: str, rig_version_id: str, body: MotionCapabilityProof):
+    return enveloped(request,motion_capabilities.proof(project_id,rig_version_id,
+            [x.model_dump() for x in body.samples]),201)
