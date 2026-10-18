@@ -187,10 +187,14 @@ def list_rigs(pid):
     with s.reader() as con:
         pr = a.project(con, pid)
         rows = con.execute("""
-            SELECT r.*,v.rig_version_id,v.status,v.revision
+            SELECT r.*,v.rig_version_id,v.status,v.revision,
+                EXISTS(SELECT 1 FROM artifacts d
+                       WHERE d.channel_id=r.channel_id AND d.project_id=?
+                         AND d.kind='c4.rig_draft.v1' AND d.logical_key=r.rig_id)
+                       AS editable
             FROM rigs r LEFT JOIN rig_versions v ON v.rig_id=r.rig_id
             WHERE r.channel_id=? ORDER BY r.created_at,v.revision
-        """, (pr["channel_id"],)).fetchall()
+        """, (pid,pr["channel_id"])).fetchall()
         return {"items":[dict(x) for x in rows]}
 
 
