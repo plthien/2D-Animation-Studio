@@ -77,7 +77,7 @@ try{
  browser=await chromium.launch({headless:true});
  const page=await browser.newPage({viewport:{width:1440,height:900}});
  await page.addInitScript(([c,p])=>{localStorage.setItem('animationSelectedChannelId',c);localStorage.setItem('animationSelectedProjectId',p);},[cid,pid]);
- await page.goto('http://127.0.0.1:5173',{waitUntil:'networkidle'});
+ await page.goto('http://127.0.0.1:5173/studio',{waitUntil:'networkidle'});
  await page.getByTestId('animation-studio').waitFor();
  await page.locator('.pipeline-step').nth(3).click();
  await page.getByTestId('c4-rigging-workshop').waitFor();
