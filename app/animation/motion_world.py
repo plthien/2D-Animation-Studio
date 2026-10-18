@@ -246,3 +246,75 @@ def evaluate(shot,plan,bones_by_actor,frame):
             for aid,row in initial_actors.items()}
     return {"shot_id":shot["shot_id"],"frame":frame,"actors":actors,
             "props":props,"poses":poses,"hands":hands}
+
+
+def verify_choreography(shot,plan,bones_by_actor):
+    """Real causal validation plus complete frame scan; never approve merely typed actions."""
+    actions=sorted((a for a in plan["actions"] if a["shot_id"]==shot["shot_id"]),
+                   key=lambda x:(x["start_frame"],x["end_frame"],x["action_id"]))
+    events={}
+    occupied={}
+    for act in actions:
+        typ=act["action"];pid=act.get("prop_id")
+        hand=act.get("hand")
+        owner=(act["actor_id"],hand)
+        if typ=="reach_for":
+            occupied[owner]=(pid,act["end_frame"],False)
+        elif typ=="grab":
+            prior=occupied.get(owner)
+            if not prior or prior[0]!=pid or prior[1]>act["start_frame"] or prior[2]:
+                s.error("GRIP_OWNERSHIP_CONFLICT","Grab requires prior completed reach for same prop/hand",422)
+            existing=events.get(pid)
+            if existing and existing["status"]=="held":
+                s.error("GRIP_OWNERSHIP_CONFLICT","Prop already held by another hand",422)
+            occupied[owner]=(pid,act["end_frame"],True)
+            events[pid]={"status":"held","owner":owner,"last":act["end_frame"]}
+        elif typ=="carry_to":
+            held=occupied.get(owner)
+            if not held or not held[2] or held[0]!=pid or held[1]>act["start_frame"]:
+                s.error("GRIP_OWNERSHIP_CONFLICT","Carry requires prior owned prop and unbroken hand",422)
+            events[pid]["last"]=act["end_frame"]
+        elif typ=="place_at":
+            held=occupied.get(owner)
+            if not held or not held[2] or held[0]!=pid or held[1]>act["start_frame"]:
+                s.error("GRIP_OWNERSHIP_CONFLICT","Place requires a prior owned prop",422)
+            events[pid]={"status":"released","owner":None,"last":act["end_frame"]}
+            occupied[owner]=None
+        elif typ in ("point_at","reach_for","grab") and hand in ("left","right"):
+            prior=occupied.get(owner)
+            if prior and prior[2]:
+                s.error("GRIP_OWNERSHIP_CONFLICT","Occupied carrying hand cannot control another target",422)
+    if not actions:
+        # An empty action list is acceptable only for an honestly unchanged shot.
+        if shot["initial_world_state"]!=shot["final_world_state"]:
+            s.error("WORLD_STATE_CONFLICT","No actions explain changed final state",422)
+    start=evaluate(shot,plan,bones_by_actor,0)
+    last=start
+    for frame in range(1,shot["duration_frames"]):
+        current=evaluate(shot,plan,bones_by_actor,frame)
+        for prop_id,prop in current["props"].items():
+            old=last["props"][prop_id]
+            if old["held_by"] is None and prop["held_by"] is None:
+                if math.dist((old["x"],old["y"]),(prop["x"],prop["y"]))>CONTACT_TOLERANCE_PX:
+                    s.error("WORLD_STATE_CONFLICT","Unowned prop moved without causal action",422)
+            if old["held_by"] is None and prop["held_by"] is not None:
+                if math.dist((old["x"],old["y"]),(prop["x"],prop["y"]))>CONTACT_TOLERANCE_PX:
+                    s.error("GRIP_CONTACT_MISMATCH","Prop teleported on grab instead of real hand contact",422)
+            if old["held_by"] is not None and prop["held_by"] is None:
+                if math.dist((old["x"],old["y"]),(prop["x"],prop["y"]))>CONTACT_TOLERANCE_PX:
+                    s.error("GRIP_CONTACT_MISMATCH","Prop teleported on place instead of release",422)
+        last=current
+    expected=shot["final_world_state"]
+    for entity in expected["actors"]:
+        actual=last["actors"].get(entity["actor_id"])
+        if (actual is None or math.dist((actual["x"],actual["y"]),(entity["x"],entity["y"]))>0.5 or
+            actual["facing"]!=entity["facing"]):
+            s.error("WORLD_STATE_CONFLICT","Motion final actor state disagrees with ShotPlan",422,
+                    actor_id=entity["actor_id"])
+    for entity in expected["props"]:
+        actual=last["props"].get(entity["prop_id"])
+        if (actual is None or actual["held_by"]!=entity["held_by"] or
+            math.dist((actual["x"],actual["y"]),(entity["x"],entity["y"]))>CONTACT_TOLERANCE_PX):
+            s.error("WORLD_STATE_CONFLICT","Motion final prop state disagrees with ShotPlan",422,
+                    prop_id=entity["prop_id"])
+    return {"frame_count":shot["duration_frames"],"initial_hash":s.sha(start),"final_hash":s.sha(last)}
