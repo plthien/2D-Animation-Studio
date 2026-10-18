@@ -24,6 +24,41 @@ POSES = ("idle", "walk", "reach", "grab", "neutral_return")
 MAX_PNG_BYTES = 330_000
 
 
+def verify_atlas_page(metadata):
+    """Check immutable exported texture bytes and atlas-declared dimensions.
+
+    Missing metadata is never backfilled from mutable disk bytes.
+    """
+    checksum=metadata.get("atlas_page_sha256")
+    size=metadata.get("atlas_page_byte_size")
+    if (not isinstance(checksum,str) or len(checksum)!=64
+        or any(c not in "0123456789abcdef" for c in checksum)
+        or type(size) is not int or size<=0):
+        s.error("LINEAGE_MISMATCH","Atlas page frozen SHA/size metadata missing or invalid",422)
+    base=metadata.get("base")
+    if not isinstance(base,str):
+        s.error("LINEAGE_MISMATCH","Atlas page base metadata missing",422)
+    page=s.bounded_path(base+"/page.png")
+    atlas=s.bounded_path(base+"/skeleton.atlas")
+    if not page.is_file() or not atlas.is_file():
+        s.error("LINEAGE_MISMATCH","Atlas page or atlas metadata missing",422)
+    raw=page.read_bytes()
+    if len(raw)!=size or px.digest(raw)!=checksum:
+        s.error("LINEAGE_MISMATCH","Atlas page frozen SHA/size mismatch",422)
+    try:
+        lines=atlas.read_text(encoding="utf-8").splitlines()
+        declared=next(line.split(":",1)[1].strip() for line in lines if line.startswith("size:"))
+        width,height=(int(value.strip()) for value in declared.split(","))
+        with Image.open(io.BytesIO(raw)) as img:
+            img.load()
+            if (img.format!="PNG" or img.mode!="RGBA" or img.size!=(width,height)
+                or img.getchannel("A").getbbox() is None):
+                s.error("LINEAGE_MISMATCH","Atlas page RGBA or dimensions invalid",422)
+    except (OSError,ValueError,StopIteration,UnidentifiedImageError) as exc:
+        s.error("LINEAGE_MISMATCH","Atlas page invalid: "+str(exc),422)
+    return page
+
+
 def _candidate(con, channel_id, rig_id, version_id, *, allow_approved=False):
     row=con.execute("""
         SELECT rv.*,a.project_id,a.metadata_json
@@ -117,13 +152,7 @@ def _candidate(con, channel_id, rig_id, version_id, *, allow_approved=False):
                           (item["sprite_artifact_id"],row["project_id"])).fetchone()
         if entry is None or entry["sha256"]!=item["png_sha256"]:
             s.error("LINEAGE_MISMATCH",role+" sprite artifact identity differs",422)
-    page=s.bounded_path(base+"/page.png")
-    if not page.is_file():
-        s.error("RIG_ATLAS_INVALID","Texture atlas page missing",422)
-    with Image.open(page) as image:
-        image.load()
-        if image.mode!="RGBA" or image.getchannel("A").getbbox() is None:
-            s.error("RIG_ATLAS_INVALID","Atlas page is blank",422)
+    verify_atlas_page(metadata)
     return row,metadata,documents
 
 
