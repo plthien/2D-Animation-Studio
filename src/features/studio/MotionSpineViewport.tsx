@@ -94,6 +94,9 @@ export function MotionSpineViewport({projectId,channelId,shotId,compilationId,fr
     // parser using the extension and can return null for this real PNG endpoint.
     // Decode the browser image first, then build the Pixi v8 ImageSource texture.
     const resource=new Image();
+    // The Studio runs on :5173 while the local image API runs on :8000.
+    // Request CORS-clean pixels BEFORE setting src or WebGL will reject upload.
+    resource.crossOrigin='anonymous';
     resource.src=image;
     await resource.decode();
     if(ticket!==epoch.current)return;
