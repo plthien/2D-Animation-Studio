@@ -468,7 +468,8 @@ def export(pid,rig_id,expected_revision):
                 relative=base+"/"+key+".json",
                 metadata={"rig_version_id":version,"draft_revision":expected_revision,
                           "source_version":doc["source_version"],"style_hash":doc["style_hash"],
-                          "base":base})
+                          "base":base,**({"atlas_page_sha256":px.digest(page),
+                          "atlas_page_byte_size":len(page)} if kind=="rig_manifest.v1" else {})})
         con.execute("INSERT INTO rig_versions VALUES (?,?,?,?,?,?,?,?,?,?)",
                     (version,rig_id,pr["channel_id"],revision,manifest_id,profile_id,
                      "candidate",s.sha(profile["capabilities"]),t,None))
@@ -494,6 +495,9 @@ def file_for_version(cid,rig_id,version,filename):
         path=s.bounded_path(meta["base"]+"/"+filename)
         if not path.is_file():
             s.error("LINEAGE_MISMATCH","Exported file missing",422)
+        if filename=="page.png":
+            from app.animation import rig_proof as proof
+            proof.verify_atlas_page(meta)
         if filename in ("skeleton.json","skeleton.atlas"):
             manifest=json.loads(s.bounded_path(meta["base"]+"/manifest.json").read_bytes())
             if px.digest(path.read_bytes())!=manifest["skeleton_sha256" if filename.endswith(".json") else "atlas_sha256"]:
