@@ -93,14 +93,21 @@ try{
   await workshop.getByRole('button',{name:'Reopen draft '+draft.rig_id.slice(0,14)}).click();
   await workshop.getByText('Draft revision 1',{exact:false}).waitFor();
   const editCanvas=workshop.getByRole('img',{name:'Interactive source mask editor'});
-  await editCanvas.click({position:{x:110,y:160}});
+  const partBase='/api/v1/projects/'+pid+'/rigging/rigs/'+draft.rig_id+'/parts/head/mask';
+  const maskBefore=cryptoDigest(Buffer.from(await (await fetch(BASE+partBase)).arrayBuffer()));
+  const box=await editCanvas.boundingBox();
+  if(!box)throw Error('Mask canvas has no interactive box');
+  await workshop.getByRole('combobox',{name:'Tool'}).selectOption('erase');
+  await editCanvas.click({position:{x:Math.round(box.width*.50),y:Math.round(box.height*.18)}});
   await workshop.getByText('Draft revision 2',{exact:false}).waitFor();
+  const maskAfter=cryptoDigest(Buffer.from(await (await fetch(BASE+partBase)).arrayBuffer()));
+  if(maskBefore===maskAfter)throw Error('Canvas eraser did not change real raster mask bytes');
   await workshop.getByRole('combobox',{name:'Tool'}).selectOption('pivot');
-  await editCanvas.click({position:{x:130,y:115}});
+  await editCanvas.click({position:{x:Math.round(box.width*.62),y:Math.round(box.height*.23)}});
   await workshop.getByText('Draft revision 3',{exact:false}).waitFor();
   const uiEdited=await api('GET','/api/v1/projects/'+pid+'/rigging/rigs/'+draft.rig_id);
-  if(uiEdited.draft_revision!==3||uiEdited.parts.head.pivot.x===.5)
-   throw Error('UI mask/pivot pointer edits not persisted');
+  if(uiEdited.draft_revision!==3||Math.abs(uiEdited.parts.head.pivot.x-.62)>.03)
+   throw Error('UI raster/pivot pointer edits not persisted');
   const n=await partFix(pid,draft.rig_id);
   const exported=await api('POST','/api/v1/projects/'+pid+'/rigging/rigs/'+draft.rig_id+'/export',{expected_revision:n});
   if(exported.loader_verified!==false)throw Error('Unverified loader was reported as verified');
