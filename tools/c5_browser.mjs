@@ -185,8 +185,9 @@ try{
   'Official loader succeeded in current browser session (not backend approval proof)').waitFor({timeout:30000});
  await page.getByRole('combobox',{name:'Required project actor'}).selectOption(actorReq.requirement.requirement_id);
  await page.getByRole('button',{name:'Use previewed rig in this project'}).click();
- assert((await api('GET','/api/v1/projects/'+pid+'/rigging/resolution')).readiness==='approved',
-  'Project rig selection incomplete');
+ const rigResolution=await api('GET','/api/v1/projects/'+pid+'/rigging/resolution');
+ assert(rigResolution.readiness==='approved',
+  'Project rig selection incomplete: '+JSON.stringify(rigResolution));
 
  // Actual Spine/Pixi proof for extra actions without rewriting approved C4 rig bytes.
  await page.locator('.pipeline-step').nth(4).click();
