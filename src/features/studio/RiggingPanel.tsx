@@ -8,7 +8,7 @@ export function RiggingPanel({projectId,channelId}:{projectId:string;channelId:s
  const queryClient=useQueryClient();
  const [source,setSource]=useState('');
  const [sources,setSources]=useState<Array<{asset_version_id:string;status:string;kind:string;semantic_key:string}>>([]);
- const [rigs,setRigs]=useState<Array<{rig_id:string;rig_version_id:string|null;status:string|null;revision:number|null}>>([]);
+ const [rigs,setRigs]=useState<Array<{rig_id:string;rig_version_id:string|null;status:string|null;revision:number|null;editable:number}>>([]);
  const [rigId,setRigId]=useState('');
  const [draft,setDraft]=useState<RigDraft|null>(null);
  const [selected,setSelected]=useState('head');
@@ -119,7 +119,7 @@ export function RiggingPanel({projectId,channelId}:{projectId:string;channelId:s
   {rigs.length>0&&<div className="space-y-2">
    <h4 className="text-sm font-semibold text-slate-200">Channel rig versions</h4>
    <div className="flex flex-wrap gap-2">
-    {[...new Set(rigs.map(r=>r.rig_id))].map(id=><button type="button" className={btn} key={id} disabled={busy} onClick={()=>void operation(()=>reopen(id))}>Reopen draft {id.slice(0,14)}</button>)}
+    {[...new Set(rigs.filter(r=>Boolean(r.editable)).map(r=>r.rig_id))].map(id=><button type="button" className={btn} key={id} disabled={busy} onClick={()=>void operation(()=>reopen(id))}>Edit draft {id.slice(0,14)}</button>)}
     {rigs.filter(r=>r.rig_version_id).map(r=><button type="button" key={r.rig_version_id} className={btn} disabled={busy}
      onClick={()=>void operation(()=>openVersion(r.rig_id,r.rig_version_id!,r.revision!,r.status!))}>
      {r.status==='approved'?'Play approved':'Inspect '+r.status} {r.rig_version_id?.slice(0,13)}
