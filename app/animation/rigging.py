@@ -194,7 +194,7 @@ def list_rigs(pid):
 
 
 def edit(pid, rig_id, role, expected_revision, strokes=None,
-         pivot=None, layer=None, reviewed=None, reset=False):
+         pivot=None, layer=None, reviewed=None, reset=False, placement=None):
     if role not in px.ROLES:
         s.error("VALIDATION_FAILED", "Unknown sprite role", 422)
     with s.reader() as con:
@@ -229,6 +229,18 @@ def edit(pid, rig_id, role, expected_revision, strokes=None,
             s.error("VALIDATION_FAILED", "Pivot must be normalized x/y", 422)
         part["pivot"]={"x":pivot["x"],"y":pivot["y"],"coordinate_system":"normalized_top_left"}
         part["reviewed"] = False
+    if placement is not None:
+        if (not isinstance(placement,dict) or set(placement)!={"x","y","width","height"}
+            or any(type(placement[k]) not in (int,float) or not __import__("math").isfinite(placement[k])
+                   for k in placement)
+            or placement["width"]<=0 or placement["height"]<=0
+            or placement["width"]>1 or placement["height"]>1
+            or placement["x"]<0 or placement["y"]<0
+            or placement["x"]+placement["width"]>1.000001
+            or placement["y"]+placement["height"]>1.000001):
+            s.error("VALIDATION_FAILED","Placement must fit within the source canvas",422)
+        part["placement"]=placement
+        part["reviewed"]=False
     if layer is not None:
         if type(layer) is not int or not 0 <= layer <= 100:
             s.error("VALIDATION_FAILED", "Layer must be an integer 0..100", 422)
@@ -270,6 +282,22 @@ def replace(pid, rig_id, role, expected_revision, raw):
     mask_raw=px.png_bytes(part_mask)
     mask_path=f"rigs/{rig_id}/masks/{role}/{px.digest(mask_raw)}.png"
     _stored(mask_raw,mask_path)
+    # Preserve the existing logical source-space region as a placement default.
+    original_source_size=doc["size"]
+    previous=doc["parts"][role]
+    if "placement" not in previous:
+        previous_mask=Image.open(s.bounded_path(previous["mask"])).convert("L")
+        bounds=previous_mask.getbbox()
+        if bounds is None:
+            seed=px.SEEDS[role]
+            bounds=(int(max(0,seed[0]-.04)*original_source_size[0]),
+                    int(max(0,seed[1]-.04)*original_source_size[1]),
+                    int(min(1,seed[0]+.04)*original_source_size[0]),
+                    int(min(1,seed[1]+.04)*original_source_size[1]))
+        previous["placement"]={"x":bounds[0]/original_source_size[0],
+                               "y":bounds[1]/original_source_size[1],
+                               "width":max(1,bounds[2]-bounds[0])/original_source_size[0],
+                               "height":max(1,bounds[3]-bounds[1])/original_source_size[1]}
     doc["parts"][role].update({"replacement":filename,"mask":mask_path,
                                 "provenance":"manual_replacement",
                                 "reviewed":False,"uncertain":False,"occluded":False,
@@ -291,8 +319,19 @@ def get_sprite_bytes(pid,rig_id,role,*,document=None,source_path=None):
         mask=Image.open(s.bounded_path(part["mask"])).convert("L")
         if mask.size!=original.size:
             s.error("LINEAGE_MISMATCH","Replacement mask dimensions are wrong",422)
-        output=px.png_bytes(px.sprite(original,mask))
-        return output
+        cutout=px.sprite(original,mask)
+        if "placement" not in part:
+            s.error("LINEAGE_MISMATCH","Replacement has no source-canvas placement",422)
+        place=part["placement"]
+        W,H=document["size"]
+        left=round(place["x"]*W); top=round(place["y"]*H)
+        w=max(1,round(place["width"]*W)); h=max(1,round(place["height"]*H))
+        if left<0 or top<0 or left+w>W or top+h>H:
+            s.error("VALIDATION_FAILED","Replacement placement extends outside canvas",422)
+        cutout=cutout.resize((w,h),Image.Resampling.LANCZOS)
+        canvas=Image.new("RGBA",(W,H),(0,0,0,0))
+        canvas.alpha_composite(cutout,(left,top))
+        return px.png_bytes(canvas)
     original=px.load_rgba(source_path.read_bytes())
     mask_path=s.bounded_path(part["mask"])
     mask=Image.open(mask_path).convert("L")
