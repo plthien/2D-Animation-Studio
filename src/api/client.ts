@@ -127,6 +127,16 @@ export const apiClient = {
     if(!res.ok)throw new ApiError(payload?.error?.code??'UPLOAD_FAILED',payload?.error?.message??'Replacement failed',res.status);
     return payload.data as {draft_revision:number};
   },
+  directorPrompt:(pid:string)=>request<DirectorPackage>('POST',`/api/v1/projects/${pid}/director/prompt`,{}),
+  directorValidate:(pid:string,reservation_id:string,document:Record<string,unknown>)=>request<DirectorValidation>('POST',`/api/v1/projects/${pid}/director/validate`,{reservation_id,document}),
+  directorImport:(pid:string,reservation_id:string,document:Record<string,unknown>)=>request<Artifact>('POST',`/api/v1/projects/${pid}/director/import`,{reservation_id,document}),
+  directorApprove:(pid:string,aid:string,expected_head_revision:number,expected_sha256:string)=>request<{artifact_id:string;sha256:string;revision:number}>('POST',`/api/v1/projects/${pid}/director/${aid}/approve`,{expected_head_revision,expected_sha256}),
+  directorHistory:(pid:string)=>request<Page<Artifact>>('GET',`/api/v1/projects/${pid}/director/history`),
+  directorRead:(pid:string,aid:string)=>request<{artifact:Artifact;document:Record<string,unknown>}>('GET',`/api/v1/projects/${pid}/director/${aid}`),
+  motionCompile:(pid:string)=>request<Artifact>('POST',`/api/v1/projects/${pid}/motion/compile`,{}),
+  motionStatus:(pid:string)=>request<{readiness:string;blockers:string[];artifact_id?:string}>('GET',`/api/v1/projects/${pid}/motion/status`),
+  motionRead:(pid:string,aid:string)=>request<{artifact:Artifact;document:CompiledFilm}>('GET',`/api/v1/projects/${pid}/motion/compilations/${aid}`),
+  motionFrame:(pid:string,aid:string,sid:string,frame:number)=>request<MotionFrame>('GET',`/api/v1/projects/${pid}/motion/compilations/${aid}/shots/${sid}/frames/${frame}`),
   artifact:(aid:string,cid?:string)=>request<Artifact>('GET',`/api/v1/artifacts/${aid}`+query({channel_id:cid})),
 };
 
@@ -153,3 +163,8 @@ export type RigExport={rig_id:string;rig_version_id:string;revision:number;candi
 export type RigPoseProof={pose:'idle'|'walk'|'reach'|'grab'|'neutral_return';png_base64:string;bones:Record<string,number>;bone_count:number;slot_count:number;attached_slot_count:number};
 export type RigProofPayload={source_sha256:string;skeleton_sha256:string;atlas_sha256:string;runtime_package:string;runtime_version:string;pixi_version:string;poses:RigPoseProof[]};
 export type RigProofResult={rig_version_id:string;proof_artifact_id:string;pose_png_sha256:Record<string,string>;verified_images:number};
+
+export type DirectorValidation={valid:boolean;issues:Array<{path:string;message:string}>;source_fingerprint:string};
+export type DirectorPackage={reservation_id:string;reserved_artifact_id:string;revision:number;source_fingerprint:string;expires_at:string;reserved_fields:Record<string,unknown>;schema:Record<string,unknown>;prompt_text:string};
+export type CompiledFilm={schema_version:'compiled_film.v1';artifact_id:string;channel_id:string;project_id:string;revision:number;created_at:string;input_fingerprint:string;animation_plan_artifact_id:string;shot_plan_artifact_id:string;shots:Array<{shot_id:string;global_start_frame:number;frame_count:number;world_state_sha256:string;action_ids:string[]}>};
+export type MotionFrame={shot_id:string;frame:number;fingerprint:string;actors:Record<string,{actor_id:string;x:number;y:number;facing:string}>;props:Record<string,{prop_id:string;x:number;y:number;held_by:string|null}>;poses:Record<string,{root:{x:number;y:number};bones:Record<string,number>}>;hands:Record<string,{x:number;y:number}>;rigs:Record<string,{rig_id:string;rig_version_id:string}>};
