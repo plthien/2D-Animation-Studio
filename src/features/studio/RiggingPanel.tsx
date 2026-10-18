@@ -155,6 +155,13 @@ export function RiggingPanel({projectId,channelId}:{projectId:string;channelId:s
       <label className={btn}>Replace transparent PNG<input type="file" className="hidden" accept="image/png" disabled={busy}
        onChange={e=>{const file=e.target.files?.[0];if(file)void operation(async()=>{await apiClient.rigReplace(projectId,rigId,selected,draft.draft_revision,file);await reopen(rigId);setSelected(selected);});}}/></label>
      </div>
+     {selectedPart?.replacement&&selectedPart.placement&&<div className="flex flex-wrap gap-3 text-xs" data-testid="c4-replacement-placement">
+      {(['x','y','width','height'] as const).map(axis=><label key={axis}>Replacement {axis}
+       <input type="number" min="0" max="1" step=".01" aria-label={'Replacement '+axis}
+        className="ml-1 w-20 rounded bg-slate-800 p-2" value={selectedPart.placement![axis]}
+        onChange={e=>{if(selectedPart.placement)void edit({placement:{...selectedPart.placement,[axis]:Number(e.target.value)}});}}/>
+      </label>)}
+     </div>}
      {selectedPart&&<p className="text-xs text-slate-400">Selected {selected} · pivot normalized top-left ({selectedPart.pivot.x.toFixed(3)}, {selectedPart.pivot.y.toFixed(3)}), Z {selectedPart.layer}</p>}
     </div>
    </div>
