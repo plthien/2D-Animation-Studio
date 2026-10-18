@@ -290,6 +290,37 @@ try{
    throw Error('Restoring '+kind+' rig manifest did not restore exact project readiness');
  }
  console.log('C4_H5_APPROVED_IMMUTABILITY_TAMPER: PASS (parts/profile/manifest)');
+ // C4-P1: a valid but changed atlas texture MUST stale reusable rig readiness.
+ const pageFile=join(dir,'artifacts','rigs',rigRecords.a.rig_id,'versions',
+  rigRecords.a.rig_version_id,'page.png');
+ const pageOriginal=readFileSync(pageFile);
+ const pageAltered=await page.evaluate(async(bytes)=>{
+  const blob=new Blob([new Uint8Array(bytes)],{type:'image/png'});
+  const image=await createImageBitmap(blob);
+  const cv=document.createElement('canvas');cv.width=image.width;cv.height=image.height;
+  const context=cv.getContext('2d');context.drawImage(image,0,0);
+  context.fillStyle='#ff0000';context.fillRect(0,0,2,2);
+  const output=await new Promise(resolve=>cv.toBlob(resolve,'image/png'));
+  return [...new Uint8Array(await output.arrayBuffer())];
+ },[...pageOriginal]);
+ try{
+  writeFileSync(pageFile,Buffer.from(pageAltered));
+  const tamperedStage=(await api('GET','/api/v1/projects/'+pidB+'/workflow')).stages
+   .find(x=>x.stage_key==='rigging');
+  if(tamperedStage.readiness!=='stale')throw Error('Modified atlas page did not stale project readiness');
+  const encoded='/api/v1/channels/'+cid+'/rigs/'+rigRecords.a.rig_id+'/versions/'+rigRecords.a.rig_version_id+'/';
+  for(const leaf of ['info','page.png']){
+   const result=await fetch(BASE+encoded+leaf);
+   const body=await result.text();
+   if(result.status!==422||!body.includes('LINEAGE_MISMATCH'))
+    throw Error('Tampered atlas page improperly served: '+leaf+' '+result.status);
+  }
+ }finally{writeFileSync(pageFile,pageOriginal);}
+ const restoredAtlas=(await api('GET','/api/v1/projects/'+pidB+'/workflow')).stages
+  .find(x=>x.stage_key==='rigging');
+ if(restoredAtlas.readiness!=='approved')throw Error('Restored atlas page did not restore readiness');
+ console.log('C4_P1_ATLAS_PAGE_INTEGRITY: PASS (tamper, stale, reject read, restore)');
+
  // Genuine backend restart with the SAME disposable SQLite/artifact root.
  stop(server);
  await new Promise(r=>setTimeout(r,1200));
