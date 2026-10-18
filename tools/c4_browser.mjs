@@ -70,25 +70,30 @@ async function sendImage(pid,who){
  const val=await res.json();if(!res.ok)throw Error(JSON.stringify(val));
  return val.data;
 }
-async function partFix(pid,rig){
+async function partFix(pid,rig,who){
  const base='/api/v1/projects/'+pid+'/rigging/rigs/'+rig;
- let doc=await api('GET',base);
- let n=doc.draft_revision;
- // A real persisted mask change, not an in-memory UI-only overlay.
- const fixed=await api('POST',base+'/parts/head',{expected_revision:n,strokes:[{x:.5,y:.4,radius:.005,mode:'paint'}],pivot:{x:.52,y:.42}});
- n=fixed.draft_revision;
- for(const role of Object.keys(doc.parts)){
-  try{n=(await api('POST',base+'/parts/'+role,{expected_revision:n,reviewed:true})).draft_revision;}
-  catch(error){
-   const form=new FormData();
-   form.append('expected_revision',String(n));
-   form.append('file',new Blob([readFileSync(join(dir,'replacement.png'))],{type:'image/png'}),role+'.png');
-   const res=await fetch(BASE+base+'/parts/'+role+'/replacement',{method:'POST',body:form});
-   const out=await res.json();if(!res.ok)throw Error('Replacement '+role+': '+JSON.stringify(out)+' '+String(error));
-   n=out.data.draft_revision;
-   n=(await api('POST',base+'/parts/'+role,{expected_revision:n,reviewed:true})).draft_revision;
-  }
+ const annotations=JSON.parse(readFileSync(join(dir,'rig-joints.json'),'utf8'));
+ const roles=Object.keys((await api('GET',base)).parts);
+ let n=(await api('GET',base)).draft_revision;
+ // Every proposed Voronoi region is visibly repaired using a different
+ // authored, role-specific sprite. Never auto-accept the inaccurate partition.
+ for(const role of roles){
+  const form=new FormData();
+  form.append('expected_revision',String(n));
+  form.append('file',new Blob([readFileSync(join(dir,who+'-'+role+'.png'))],
+   {type:'image/png'}),who+'-'+role+'.png');
+  const response=await fetch(BASE+base+'/parts/'+role+'/replacement',{method:'POST',body:form});
+  const data=await response.json();
+  if(!response.ok)throw Error('Reviewed replacement '+role+': '+JSON.stringify(data));
+  n=data.data.draft_revision;
+  const corrected=await api('POST',base+'/parts/'+role,{
+   expected_revision:n,
+   placement:{x:0,y:0,width:1,height:1},
+   pivot:annotations.pivots[role],layer:annotations.layers[role],
+   reviewed:true});
+  n=corrected.draft_revision;
  }
+ console.log('G2',who,roles.length,'explicit authored part corrections; all 14 pivot/layer/placement reviews saved');
  return n;
 }
 try{
@@ -157,7 +162,7 @@ try{
   const uiEdited=await api('GET','/api/v1/projects/'+pid+'/rigging/rigs/'+draft.rig_id);
   if(uiEdited.draft_revision!==4||Math.abs(uiEdited.parts.head.pivot.x-.62)>.03)
    throw Error('UI raster/pivot pointer edits not persisted');
-  const n=await partFix(pid,draft.rig_id);
+  const n=await partFix(pid,draft.rig_id,who);
   const exported=await api('POST','/api/v1/projects/'+pid+'/rigging/rigs/'+draft.rig_id+'/export',{expected_revision:n});
   if(exported.loader_verified!==false)throw Error('Unverified loader was reported as verified');
   await page.reload({waitUntil:'networkidle'});
