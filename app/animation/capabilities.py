@@ -97,7 +97,8 @@ def proof(pid,version_id,samples):
                 image.load()
                 if image.format!="PNG" or image.width<150 or image.height<150 or image.width>1024 or image.height>1024:
                     s.error("VALIDATION_FAILED","Runtime capture format/dimensions invalid",422)
-                if len(image.getcolors(maxcolors=2)) if image.getcolors(maxcolors=2) else 3 <= 2:
+                low_variance=image.convert("RGB").getcolors(maxcolors=2)
+                if low_variance is not None:
                     s.error("VALIDATION_FAILED","Blank Spine runtime frame",422)
         except (OSError,UnidentifiedImageError,ValueError) as exc:
             s.error("VALIDATION_FAILED","Invalid real runtime screenshot: "+str(exc),422)
