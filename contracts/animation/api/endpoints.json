@@ -1325,5 +1325,43 @@
     "idempotency": "read-only",
     "authority": "artifacts / project_stage_heads / authoring_reservations",
     "readiness": "validated current director/motion source"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{project_id}/motion/capabilities",
+    "phase": "C5",
+    "owner": "motion",
+    "contract_status": "ACCEPTED",
+    "request_dto": "None",
+    "response_dto": "C5RigCapabilitiesResponse",
+    "success": 200,
+    "errors": [
+      404,
+      409,
+      422
+    ],
+    "precondition": "same-channel approved C4 rig exact version and official runtime proof",
+    "idempotency": "immutable certification reused for exact rig digest",
+    "authority": "artifacts and immutable rig version proof",
+    "readiness": "verified nine-action geometry only; full C5 motion remains separately gated"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{project_id}/motion/capabilities/{rig_version_id}/verify",
+    "phase": "C5",
+    "owner": "motion",
+    "contract_status": "ACCEPTED",
+    "request_dto": "NineActionWebGLProofRequest",
+    "response_dto": "ArtifactRevisionResponse",
+    "success": 201,
+    "errors": [
+      404,
+      409,
+      422
+    ],
+    "precondition": "same-channel approved C4 rig exact version and official runtime proof",
+    "idempotency": "immutable certification reused for exact rig digest",
+    "authority": "artifacts and immutable rig version proof",
+    "readiness": "verified nine-action geometry only; full C5 motion remains separately gated"
   }
 ]
