@@ -258,8 +258,16 @@ def replace(pid, rig_id, role, expected_revision, raw):
             s.error("STALE_HEAD", "Rig draft changed")
     filename = f"rigs/{rig_id}/replacements/{role}/{px.digest(raw)}.png"
     _stored(raw,filename)
-    doc["parts"][role].update({"replacement":filename,"provenance":"manual_replacement",
-                                "reviewed":False,"uncertain":False,"occluded":False})
+    # Replacement brush edits must operate on the replacement's ACTUAL pixels.
+    # A former source-size mask would silently ignore user mask corrections.
+    part_mask = original.getchannel("A").point(lambda a: 255 if a > 0 else 0)
+    mask_raw=px.png_bytes(part_mask)
+    mask_path=f"rigs/{rig_id}/masks/{role}/{px.digest(mask_raw)}.png"
+    _stored(mask_raw,mask_path)
+    doc["parts"][role].update({"replacement":filename,"mask":mask_path,
+                                "provenance":"manual_replacement",
+                                "reviewed":False,"uncertain":False,"occluded":False,
+                                "reason":"USER_SUPPLIED_REPLACEMENT_REQUIRES_REVIEW"})
     return _publish_draft(pid,rig_id,doc,expected_revision)
 
 
@@ -273,8 +281,12 @@ def get_sprite_bytes(pid,rig_id,role,*,document=None,source_path=None):
     part=document["parts"][role]
     if part["replacement"]:
         raw=s.bounded_path(part["replacement"]).read_bytes()
-        px.bounds_for_sprite(raw)
-        return raw
+        original=px.load_rgba(raw)
+        mask=Image.open(s.bounded_path(part["mask"])).convert("L")
+        if mask.size!=original.size:
+            s.error("LINEAGE_MISMATCH","Replacement mask dimensions are wrong",422)
+        output=px.png_bytes(px.sprite(original,mask))
+        return output
     original=px.load_rgba(source_path.read_bytes())
     mask_path=s.bounded_path(part["mask"])
     mask=Image.open(mask_path).convert("L")
