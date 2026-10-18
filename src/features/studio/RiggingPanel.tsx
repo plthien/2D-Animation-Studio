@@ -112,7 +112,7 @@ export function RiggingPanel({projectId,channelId}:{projectId:string;channelId:s
     <option value="">Select approved actor image</option>
     {sources.map(v=><option key={v.asset_version_id} value={v.asset_version_id}>{v.semantic_key} · {v.asset_version_id.slice(0,13)}</option>)}
    </select>
-   <button className={btn} disabled={busy||!source} onClick={()=>void operation(async()=>{const r=await apiClient.rigStart(projectId,source);await reopen(r.rig_id);})}>Extract actual pixels</button>
+   <button className={btn} disabled={busy||!source} onClick={()=>void operation(async()=>{const r=await apiClient.rigStart(projectId,source);await reopen(r.rig_id);})}>Extract / create source revision</button>
    <button className={btn} disabled={busy} onClick={()=>void refresh()}>Refresh</button>
   </div>
   {source&&!draft&&<div className="max-w-56 overflow-hidden rounded-xl border border-white/10"><img src={srcUrl} alt="Selected exact approved source" className="w-full"/></div>}
