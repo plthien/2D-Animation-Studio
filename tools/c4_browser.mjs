@@ -188,7 +188,11 @@ try{
   await page.getByTestId('c4-proof-ready').waitFor({timeout:30000});
   await page.getByRole('button',{name:'Approve verified rig version'}).click();
   await page.getByTestId('c4-rig-approved').waitFor({timeout:30000});
-  rigRecords[who]={asset_version_id:version.asset_version_id,rig_id:draft.rig_id,rig_version_id:exported.rig_version_id};
+  const reviewedVersions=(await api('GET','/api/v1/projects/'+pid+'/rigging/rigs')).items
+   .filter(x=>x.rig_id===draft.rig_id&&x.status==='approved');
+  const approvedVersion=reviewedVersions.at(-1)?.rig_version_id;
+  if(!approvedVersion)throw Error('No actual approved rig version for '+who);
+  rigRecords[who]={asset_version_id:version.asset_version_id,rig_id:draft.rig_id,rig_version_id:approvedVersion};
   const pending=(await api('GET','/api/v1/projects/'+pid+'/workflow')).stages.find(x=>x.stage_key==='rigging');
   if(pending.readiness==='approved')throw Error('Rig version approval falsely approved all project actors');
   const sha=cryptoDigest(readFileSync(join(evidence,'rig-'+who+'-idle.png')));
