@@ -245,8 +245,18 @@ try{
  }
  for(const [frame,label] of [[0,'idle'],[40,'walk'],[80,'reach'],[100,'grab'],
   [140,'carry'],[185,'place'],[206,'react'],[239,'rest']]){
-  await page.getByRole('slider',{name:'Exact motion frame'}).fill(String(frame));
-  await page.getByTestId('c5-spine-pixi-viewport').getByText('Deterministic frame:',{exact:false}).waitFor({timeout:30000});
+  const slider=page.getByRole('slider',{name:'Exact motion frame'});
+  await slider.evaluate((element,target)=>{
+    const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;
+    if(!setter)throw new Error('Native slider setter missing');
+    setter.call(element,String(target));
+    element.dispatchEvent(new Event('input',{bubbles:true}));
+    element.dispatchEvent(new Event('change',{bubbles:true}));
+  },frame);
+  const actual=await api('GET','/api/v1/projects/'+pid+'/motion/compilations/'+compiled.artifact_id+
+   '/shots/shot_one/frames/'+frame);
+  await page.getByTestId('c5-spine-pixi-viewport').getByText(
+   'Deterministic frame: '+actual.fingerprint,{exact:false}).waitFor({timeout:30000});
   await page.getByTestId('c5-spine-pixi-viewport').locator('canvas').screenshot({
    path:join(evidence,'c5-'+label+'-'+frame+'.png')});
  }
