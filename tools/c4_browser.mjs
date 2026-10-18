@@ -4,7 +4,7 @@
  */
 import {chromium} from 'playwright';
 import {spawn,spawnSync} from 'node:child_process';
-import {readFileSync,mkdirSync,mkdtempSync} from 'node:fs';
+import {readFileSync,mkdirSync,mkdtempSync,copyFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {createHash} from 'node:crypto';
@@ -123,7 +123,7 @@ try{
  const rigRecords={};
  for(const who of ['a','b']){
   const version=await sendImage(pid,who);
-  import('node:fs').then(fs=>fs.copyFileSync(join(dir,'actor-'+who+'.png'),join(evidence,'rig-'+who+'-source.png')));
+  copyFileSync(join(dir,'actor-'+who+'.png'),join(evidence,'rig-'+who+'-source.png'));
   await api('POST','/api/v1/projects/'+pid+'/assets/'+version.asset_version_id+'/review',{decision:'approved'});
   await api('POST','/api/v1/projects/'+pid+'/asset-bindings',{
    requirement_id:actorRequirements['character_'+who],
