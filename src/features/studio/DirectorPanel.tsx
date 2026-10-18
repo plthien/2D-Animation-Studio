@@ -1,8 +1,9 @@
 import {useState} from 'react';
 import {apiClient,type Artifact,type DirectorPackage,type DirectorValidation} from '../../api/client';
+import {CapabilityProofPanel} from './CapabilityProofPanel';
 
 const button='rounded-xl border border-white/15 px-3 py-2 text-sm text-slate-100 hover:bg-white/10 disabled:opacity-40';
-export function DirectorPanel({projectId,headRevision,onUpdate}:{projectId:string;headRevision:number;onUpdate:()=>void}){
+export function DirectorPanel({projectId,channelId,headRevision,onUpdate}:{projectId:string;channelId:string;headRevision:number;onUpdate:()=>void}){
  const [pkg,setPkg]=useState<DirectorPackage|null>(null);
  const [json,setJson]=useState('');
  const [report,setReport]=useState<DirectorValidation|null>(null);
@@ -51,6 +52,7 @@ export function DirectorPanel({projectId,headRevision,onUpdate}:{projectId:strin
   setDraft(a.approval_status==='draft'?a:null);setStatus('Opened immutable revision');
  });
  return <section className="space-y-4" data-testid="c5-director">
+  <CapabilityProofPanel projectId={projectId} channelId={channelId} onChanged={onUpdate}/>
   <p className="text-sm text-slate-300">External Animation Director: generate the exact frozen prompt, author JSON outside the app, validate, import, review and approve. No hidden AI API.</p>
   <div className="flex flex-wrap gap-2">
    <button className={button} disabled={busy} onClick={newPrompt}>Create Director prompt</button>
