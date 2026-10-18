@@ -111,7 +111,20 @@ def extract(image: Image.Image) -> tuple[dict[str, dict], dict[str, Image.Image]
     fg, uncertain_bg = foreground(image)
     bbox = fg.getbbox()
     if bbox is None:
-        raise ValueError("No separable foreground; manually supply transparent parts")
+        # RGB photographs with complicated backgrounds cannot be segmented
+        # reliably. Persist explicit empty masks instead of inventing anatomy;
+        # the editor then requires all missing roles to be replaced manually.
+        masks = {role: Image.new("L", image.size, 0) for role in ROLES}
+        parts = {
+            role: {"role": role, "layer": layer, "reviewed": False,
+                   "provenance": "no_automatic_extraction",
+                   "confidence": 0.0, "uncertain": True, "occluded": True,
+                   "reason": "FOREGROUND_NOT_RECOVERABLE_MANUAL_REPLACEMENT_REQUIRED",
+                   "pivot": {"x": 0.5, "y": 0.5,
+                             "coordinate_system": "normalized_top_left"}}
+            for layer, role in enumerate(ROLES)
+        }
+        return parts, masks
     x0, y0, x1, y1 = bbox
     if (x1-x0) * (y1-y0) < 64:
         raise ValueError("Insufficient foreground pixels")
