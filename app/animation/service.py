@@ -594,12 +594,14 @@ def workflow(pid: str) -> dict[str, Any]:
             except DomainError as exc:
                 states["resolver"]=("stale",[exc.code])
                 states["generation"]=("blocked",["RESOLVER_STALE"])
+        from app.animation import rigging as rig
+        states["rigging"] = rig.readiness(con,pid)
         stages=[]
         for stage in STAGES:
             head=heads[stage]
             state,blockers=states.get(stage,("blocked",[f"REQUIRES_{PHASE[stage]}"]))
             computed=style_fingerprint(stage,ch)
-            if stage=="authoring" and state=="approved":
+            if stage in ("authoring","rigging") and state=="approved":
                 computed=head["dependency_fingerprint"]
             if stage=="resolver" and resolved:
                 computed=sha({"requirements":resolved["requirements_fingerprint"],
