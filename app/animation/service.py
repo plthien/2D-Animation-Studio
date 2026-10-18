@@ -596,6 +596,36 @@ def workflow(pid: str) -> dict[str, Any]:
                 states["generation"]=("blocked",["RESOLVER_STALE"])
         from app.animation import rigging as rig
         states["rigging"] = rig.readiness(con,pid)
+        # C5 stays blocked until current C4 selections and exact Director inputs exist.
+        from app.animation import director as d5, motion_compile as m5
+        director_fingerprint=None
+        motion_fingerprint=None
+        try:
+            context=d5._context(con,pid)
+            director_fingerprint=context[-1]
+            current_plan=con.execute("""SELECT * FROM artifacts WHERE project_id=?
+                AND kind='animation_plan.v1' ORDER BY revision DESC LIMIT 1""",(pid,)).fetchone()
+            if current_plan is None:
+                states["director"]=("ready",[])
+            elif current_plan["approval_status"]=="draft":
+                states["director"]=("draft",["DIRECTOR_REVIEW_REQUIRED"])
+            elif json.loads(current_plan["metadata_json"]).get("source_fingerprint")!=director_fingerprint:
+                states["director"]=("stale",["DIRECTOR_SOURCE_CHANGED"])
+            else:
+                try:
+                    issues=d5._issues(con,pid,a.verified_doc(current_plan),context)
+                    states["director"]=("approved",[]) if not issues else ("stale",["DIRECTOR_INVALID"])
+                except DomainError as exc:
+                    states["director"]=("stale",[exc.code])
+            if states["director"][0]=="approved":
+                status5=m5.status(pid)
+                states["motion"]=(status5["readiness"],status5["blockers"])
+                motion_fingerprint=sha(m5._source(context,current_plan))
+            else:
+                states["motion"]=("blocked",["CURRENT_ANIMATION_PLAN_REQUIRED"])
+        except DomainError as exc:
+            states["director"]=("blocked",[exc.code])
+            states["motion"]=("blocked",["CURRENT_DIRECTOR_REQUIRED"])
         stages=[]
         for stage in STAGES:
             head=heads[stage]
@@ -616,6 +646,10 @@ def workflow(pid: str) -> dict[str, Any]:
                                  for x in resolved["requirements"] if x["binding"]}
                         if old==current:computed=head["dependency_fingerprint"]
                         else:state,blockers="stale",["RESOLUTION_HEAD_STALE"]
+            if stage=="director" and director_fingerprint:
+                computed=director_fingerprint
+            if stage=="motion" and motion_fingerprint:
+                computed=motion_fingerprint
             if stage=="generation" and resolved:
                 computed=sha({"requirements":resolved["requirements_fingerprint"],
                               "resolved":resolved["resolved_count"]})
