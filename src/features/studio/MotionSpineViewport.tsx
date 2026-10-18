@@ -117,7 +117,9 @@ export function MotionSpineViewport({projectId,channelId,shotId,compilationId,fr
     if(!actorSpine||!actualWrist||!actorPose)throw new Error('SPINE_GRIP_OWNER_MISSING: '+propId);
     // Test the real Spine runtime bone world transform, not only backend grip metadata.
     const handScreenX=640+0.8*(actorPose.root.x+actualWrist.worldX);
-    const handScreenY=590-0.8*(actorPose.root.y+actualWrist.worldY);
+    // Official Spine/Pixi skeleton worldY is Y-down in the runtime transform;
+    // compiled ShotPlan worldY is Y-up. Apply the sign conversion once.
+    const handScreenY=590-0.8*actorPose.root.y+0.8*actualWrist.worldY;
     const drift=Math.hypot(sprite.position.x-handScreenX,sprite.position.y-handScreenY);
     if(drift>3)throw new Error('SPINE_GRIP_VISUAL_MISMATCH: '+JSON.stringify({
      propId,drift,propScreen:{x:sprite.position.x,y:sprite.position.y},
