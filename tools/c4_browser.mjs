@@ -59,7 +59,7 @@ async function partFix(pid,rig){
  return n;
 }
 try{
- run('python',['-m','uvicorn','app.main:app','--host','127.0.0.1','--port','8000']);
+ let server=run('python',['-m','uvicorn','app.main:app','--host','127.0.0.1','--port','8000']);
  await ready(BASE+'/health');
  run('cmd.exe',['/d','/c','npm.cmd run dev -- --host 127.0.0.1']);
  await ready('http://127.0.0.1:5173');
@@ -85,6 +85,22 @@ try{
   const version=await sendImage(pid,who);
   await api('POST','/api/v1/projects/'+pid+'/assets/'+version.asset_version_id+'/review',{decision:'approved'});
   const draft=await api('POST','/api/v1/projects/'+pid+'/rigging/rigs',{asset_version_id:version.asset_version_id});
+  // Real UI pointer interactions must alter persisted mask bytes/pivot, not
+  // merely update a form or an in-memory preview.
+  await page.reload({waitUntil:'networkidle'});
+  await page.locator('.pipeline-step').nth(3).click();
+  const workshop=page.getByTestId('c4-rigging-workshop');
+  await workshop.getByRole('button',{name:'Reopen draft '+draft.rig_id.slice(0,14)}).click();
+  await workshop.getByText('Draft revision 1',{exact:false}).waitFor();
+  const editCanvas=workshop.getByRole('img',{name:'Interactive source mask editor'});
+  await editCanvas.click({position:{x:110,y:160}});
+  await workshop.getByText('Draft revision 2',{exact:false}).waitFor();
+  await workshop.getByRole('combobox',{name:'Tool'}).selectOption('pivot');
+  await editCanvas.click({position:{x:130,y:115}});
+  await workshop.getByText('Draft revision 3',{exact:false}).waitFor();
+  const uiEdited=await api('GET','/api/v1/projects/'+pid+'/rigging/rigs/'+draft.rig_id);
+  if(uiEdited.draft_revision!==3||uiEdited.parts.head.pivot.x===.5)
+   throw Error('UI mask/pivot pointer edits not persisted');
   const n=await partFix(pid,draft.rig_id);
   const exported=await api('POST','/api/v1/projects/'+pid+'/rigging/rigs/'+draft.rig_id+'/export',{expected_revision:n});
   if(exported.loader_verified!==false)throw Error('Unverified loader was reported as verified');
@@ -117,7 +133,23 @@ try{
  const refreshed=(await api('GET','/api/v1/projects/'+pid+'/rigging/rigs')).items;
  const approved=refreshed.filter(r=>r.status==='approved');
  if(approved.length!==2)throw Error('Expected two independently approved immutable rig versions, got '+approved.length);
- console.log('C4 G2 two original characters, TWO official-runtime-proved APPROVED playable rigs:',approved.map(r=>r.rig_version_id),evidence);
+ // Genuine backend restart with the SAME disposable SQLite/artifact root.
+ stop(server);
+ await new Promise(r=>setTimeout(r,1200));
+ server=run('python',['-m','uvicorn','app.main:app','--host','127.0.0.1','--port','8000']);
+ await ready(BASE+'/health');
+ const afterRestart=await api('GET','/api/v1/projects/'+pid+'/rigging/rigs');
+ const stable=afterRestart.items.filter(r=>r.status==='approved');
+ if(stable.length!==2||stable.some(row=>!approved.some(old=>old.rig_version_id===row.rig_version_id)))
+  throw Error('Approved immutable rig identities not preserved after backend restart');
+ const stageRestart=(await api('GET','/api/v1/projects/'+pid+'/workflow')).stages.find(x=>x.stage_key==='rigging');
+ if(stageRestart.readiness!=='approved')throw Error('Rigging stage not ready after actual backend restart');
+ await page.reload({waitUntil:'networkidle'});
+ await page.locator('.pipeline-step').nth(3).click();
+ await page.getByRole('button',{name:/Play approved/}).last().click();
+ await page.getByTestId('c4-official-runtime').getByText('Official loader succeeded in current browser session (not backend approval proof)').waitFor({timeout:30000});
+ await page.getByTestId('c4-official-runtime').screenshot({path:join(evidence,'approved-rig-after-backend-restart.png')});
+ console.log('C4 G2: two distinct rigs approved, source SHA/stage/Spine loader survive real backend restart:',approved.map(r=>r.rig_version_id),evidence);
 }catch(error){console.error(error);process.exitCode=1;}
 finally{if(browser)await browser.close();children.reverse().forEach(stop);}
 function cryptoDigest(raw){return createHash('sha256').update(raw).digest('hex');}
