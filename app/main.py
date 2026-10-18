@@ -20,6 +20,7 @@ from app.animation import local_assets as localimages
 from app.animation import generation as glabs
 from app.animation import rigging as rigs
 from app.animation import rig_proof as rigproof
+from app.animation import rig_resolution as rigresolution
 from app.animation.provider import AppError as ProviderAppError
 from app.animation.strict_json import parse_strict_document
 from app.animation.database import LegacyDatabaseUnsupported, migrate
@@ -488,6 +489,20 @@ class RigExport(Payload):
 class RigDecision(Payload):
     decision: str
     expected_revision: int
+
+class RigProjectSelection(Payload):
+    requirement_id: str
+    rig_version_id: str
+    expected_revision: int
+
+@app.get("/api/v1/projects/{project_id}/rigging/resolution")
+def c4_project_rig_resolution(request: Request, project_id: str):
+    return enveloped(request, rigresolution.view(project_id))
+
+@app.post("/api/v1/projects/{project_id}/rigging/resolution/select")
+def c4_project_rig_select(request: Request, project_id: str, body: RigProjectSelection):
+    return enveloped(request, rigresolution.select(project_id,body.requirement_id,
+                    body.rig_version_id,body.expected_revision),201)
 
 @app.get("/api/v1/projects/{project_id}/rigging/rigs")
 def c4_rig_list(request: Request, project_id: str):
