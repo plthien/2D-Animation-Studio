@@ -77,8 +77,9 @@ export function SpineViewport({channelId,rigId,candidate,sourceSha,onVerified}:
    for(const bone of REQUIRED)if(!spine.skeleton.findBone(bone))throw new Error('SPINE_MISSING_BONE: '+bone);
    for(const slot of spine.skeleton.slots)
     if(!slot.getAttachment())throw new Error('SPINE_MISSING_ATTACHMENT: '+slot.data.name);
-   spine.position.set(360,480);
-   spine.scale.set(.70);
+   // Display the actual articulated sprite larger, retaining room for arms and feet.
+   spine.position.set(360,515);
+   spine.scale.set(.95);
    instance.stage.addChild(spine);
    application.current=instance;rig.current=spine;
    setLoaded(true);
