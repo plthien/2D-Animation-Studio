@@ -18,6 +18,7 @@ export function MotionSpineViewport({projectId,channelId,shotId,compilationId,fr
  const [error,setError]=useState('');
  const [identity,setIdentity]=useState('');
  const epoch=useRef(0);
+ const requestRevision=useRef(0);
  useEffect(()=>{
   const ticket=++epoch.current;let disposed=false;let instance:Application|null=null;
   let initialized=false;
@@ -39,16 +40,19 @@ export function MotionSpineViewport({projectId,channelId,shotId,compilationId,fr
    instance.ticker.stop();app.current=instance;setReady(true);
   };
   void setup().catch(e=>{if(!disposed)setError(String(e));});
-  return()=>{disposed=true;epoch.current++;figures.current={};propSprites.current={};
+  return()=>{disposed=true;epoch.current++;requestRevision.current++;figures.current={};propSprites.current={};
    loadedRig.current={};cleanupInstance();};
  },[projectId,channelId,compilationId,shotId]);
 
  const renderFrame=useCallback(async(index:number)=>{
   const ticket=epoch.current;const application=app.current;
   if(!application||!ready)return;
+  const revision=++requestRevision.current;
+  const current=()=>ticket===epoch.current&&revision===requestRevision.current&&app.current===application;
   const data=await apiClient.motionFrame(projectId,compilationId,shotId,index);
-  if(ticket!==epoch.current||!app.current)return;
+  if(!current())return;
   const resolution:AssetResolution=await apiClient.assetResolution(projectId);
+  if(!current())return;
   const figuresNow=figures.current;
   for(const [actor,rig] of Object.entries(data.rigs)){
    let spine=figuresNow[actor];
@@ -65,7 +69,7 @@ export function MotionSpineViewport({projectId,channelId,shotId,compilationId,fr
     Assets.add({alias:asset+'_skeleton',src:skeleton});
     Assets.add({alias:asset+'_atlas',src:atlas});
     await Assets.load([asset+'_skeleton',asset+'_atlas']);
-    if(ticket!==epoch.current)return;
+    if(!current())return;
     spine=Spine.from({skeleton:asset+'_skeleton',atlas:asset+'_atlas',autoUpdate:false});
     application.stage.addChild(spine);figuresNow[actor]=spine;
     loadedRig.current[actor]=rig;
@@ -129,7 +133,7 @@ export function MotionSpineViewport({projectId,channelId,shotId,compilationId,fr
     }));
    }
   }
-  if(ticket!==epoch.current)return;
+  if(!current())return;
   application.renderer.render({container:application.stage});
   setIdentity(data.fingerprint);onState?.(data);
  },[ready,projectId,channelId,compilationId,shotId,onState]);
