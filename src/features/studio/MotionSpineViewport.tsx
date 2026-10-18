@@ -119,7 +119,12 @@ export function MotionSpineViewport({projectId,channelId,shotId,compilationId,fr
     const handScreenX=640+0.8*(actorPose.root.x+actualWrist.worldX);
     const handScreenY=590-0.8*(actorPose.root.y+actualWrist.worldY);
     const drift=Math.hypot(sprite.position.x-handScreenX,sprite.position.y-handScreenY);
-    if(drift>3)throw new Error('SPINE_GRIP_VISUAL_MISMATCH: '+propId+' ('+drift.toFixed(2)+'px)');
+    if(drift>3)throw new Error('SPINE_GRIP_VISUAL_MISMATCH: '+JSON.stringify({
+     propId,drift,propScreen:{x:sprite.position.x,y:sprite.position.y},
+     wristScreen:{x:handScreenX,y:handScreenY},
+     runtimeBone:{x:actualWrist.worldX,y:actualWrist.worldY},
+     backendHand:data.hands[prop.held_by],backendProp:prop,root:actorPose.root
+    }));
    }
   }
   if(ticket!==epoch.current)return;
