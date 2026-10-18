@@ -28,6 +28,39 @@ async function api(method,path,body,idem){
  if(!res.ok)throw Error(method+' '+path+' HTTP '+res.status+' '+JSON.stringify(payload));
  return payload.data;
 }
+async function reserved(pid,kind,fill){
+ const prefix='/api/v1/projects/'+pid+'/authoring/'+kind;
+ const pkg=await api('POST',prefix+'/prompt',{});
+ const doc={...pkg.reserved_fields,...fill(pkg)};
+ const validation=await api('POST',prefix+'/validate',{reservation_id:pkg.reservation_id,document:doc});
+ if(!validation.valid)throw Error('Authoring '+kind+' validation '+JSON.stringify(validation));
+ const stored=await api('POST',prefix+'/import',{reservation_id:pkg.reservation_id,document:doc});
+ const workflow=await api('GET','/api/v1/projects/'+pid+'/workflow');
+ const revision=workflow.stages.find(s=>s.stage_key==='authoring').head_revision;
+ await api('POST',prefix+'/'+stored.artifact_id+'/approve',{
+  expected_head_revision:revision,expected_sha256:stored.sha256});
+ return stored;
+}
+async function buildTwoActorShotPlan(pid){
+ const ideas=await reserved(pid,'topic-ideas',pkg=>({
+  channel_dna_artifact_id:pkg.dna_metadata.artifact_id,
+  channel_dna_hash:pkg.dna_metadata.sha256,
+  ideas:[{idea_id:'idea_one',title:'Characters A and B',premise:'Two actors'}]}));
+ const script=await reserved(pid,'script',()=>({
+  topic_ideas_artifact_id:ideas.artifact_id,selected_idea_id:'idea_one',
+  full_text:'Hello!',sections:[{section_id:'section_one',start_char:0,end_char:6,text:'Hello!'}]}));
+ const state={actors:[
+  {actor_id:'character_a',x:0,y:0,facing:'right'},
+  {actor_id:'character_b',x:1,y:0,facing:'left'}],props:[]};
+ await reserved(pid,'shot-plan',()=>({
+  script_artifact_id:script.artifact_id,script_sha256:script.sha256,
+  actor_ids:['character_a','character_b'],prop_ids:[],location_ids:['location_one'],
+  shots:[{shot_id:'shot_one',duration_frames:48,actor_ids:['character_a','character_b'],
+   prop_ids:[],location_id:'location_one',
+   utterance:{text:'Hello!',script_start:0,script_end:6},
+   initial_world_state:state,final_world_state:state,spatial_anchors:[]}]}));
+ return await api('GET','/api/v1/projects/'+pid+'/resolver/resolution');
+}
 async function sendImage(pid,who){
  const form=new FormData();
  form.append('kind','actor');form.append('semantic_key','character_'+who);
@@ -74,6 +107,9 @@ try{
  await api('POST','/api/v1/channels/'+cid+'/dna/'+revision.artifact_id+'/approve',{expected_head_revision:null,expected_sha256:revision.sha256,actor:'test-owner',reviewed_at:'2026-10-18T00:00:00Z'});
  const project=await api('POST','/api/v1/projects',{channel_id:cid,name:'G2 Test',slug:'g2-test'},'c4-project');
  const pid=project.project_id;
+ const sourceRequirements=await buildTwoActorShotPlan(pid);
+ const actorRequirements=Object.fromEntries(sourceRequirements.requirements.filter(x=>x.requirement.kind==='actor')
+  .map(x=>[x.requirement.semantic_key,x.requirement.requirement_id]));
  browser=await chromium.launch({headless:true});
  const page=await browser.newPage({viewport:{width:1440,height:900}});
  await page.addInitScript(([c,p])=>{localStorage.setItem('animationSelectedChannelId',c);localStorage.setItem('animationSelectedProjectId',p);},[cid,pid]);
@@ -84,6 +120,10 @@ try{
  for(const who of ['a','b']){
   const version=await sendImage(pid,who);
   await api('POST','/api/v1/projects/'+pid+'/assets/'+version.asset_version_id+'/review',{decision:'approved'});
+  await api('POST','/api/v1/projects/'+pid+'/asset-bindings',{
+   requirement_id:actorRequirements['character_'+who],
+   asset_version_id:version.asset_version_id,
+   expected_fingerprint:sourceRequirements.requirements_fingerprint});
   const draft=await api('POST','/api/v1/projects/'+pid+'/rigging/rigs',{asset_version_id:version.asset_version_id});
   // Real UI pointer interactions must alter persisted mask bytes/pivot, not
   // merely update a form or an in-memory preview.
@@ -135,14 +175,20 @@ try{
   await page.getByTestId('c4-proof-ready').waitFor({timeout:30000});
   await page.getByRole('button',{name:'Approve verified rig version'}).click();
   await page.getByTestId('c4-rig-approved').waitFor({timeout:30000});
-  const stage=(await api('GET','/api/v1/projects/'+pid+'/workflow')).stages.find(x=>x.stage_key==='rigging');
-  if(!stage||stage.readiness!=='approved')throw Error('Proof accepted without approved C4 readiness: '+JSON.stringify(stage));
+  const pending=(await api('GET','/api/v1/projects/'+pid+'/workflow')).stages.find(x=>x.stage_key==='rigging');
+  if(pending.readiness==='approved')throw Error('Rig version approval falsely approved all project actors');
   const sha=cryptoDigest(readFileSync(join(evidence,'rig-'+who+'-idle.png')));
-  console.log(who,version.source_sha256,draft.rig_id,stage.head_artifact_id,'approved official rig idle sha='+sha);
+  console.log(who,version.source_sha256,draft.rig_id,'approved channel rig idle sha='+sha);
   await page.reload({waitUntil:'networkidle'});
   await page.locator('.pipeline-step').nth(3).click();
   await page.getByRole('button',{name:/Play approved/}).last().click();
   await page.getByTestId('c4-official-runtime').getByText('Official loader succeeded in current browser session (not backend approval proof)').waitFor({timeout:30000});
+  await page.getByRole('combobox',{name:'Required project actor'}).selectOption(actorRequirements['character_'+who]);
+  await page.getByRole('button',{name:'Use previewed rig in this project'}).click();
+  const expected=who==='b'?'approved':'draft';
+  await page.getByTestId('c4-project-rig-selection').getByText('Current project readiness: '+expected,{exact:false}).waitFor({timeout:30000});
+  const selected=await api('GET','/api/v1/projects/'+pid+'/rigging/resolution');
+  if(selected.readiness!==expected)throw Error('Two-actor readiness incorrect: '+JSON.stringify(selected));
  }
  const images=['a','b'].flatMap(who=>['idle','walk','reach','grab'].map(p=>cryptoDigest(readFileSync(join(evidence,'rig-'+who+'-'+p+'.png')))));
  if(new Set(images).size<6)throw Error('Real poses/source rigs not visually distinct enough');
