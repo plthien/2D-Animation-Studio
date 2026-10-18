@@ -118,6 +118,7 @@ export const apiClient = {
   rigExport:(pid:string,rig:string,expected_revision:number)=>request<RigExport>('POST',`/api/v1/projects/${pid}/rigging/rigs/${rig}/export`,{expected_revision}),
   rigPartImage:(pid:string,rig:string,role:string,kind:'mask'|'sprite')=>BASE+`/api/v1/projects/${pid}/rigging/rigs/${rig}/parts/${role}/${kind}`,
   rigOutput:(cid:string,rig:string,version:string,file:string)=>BASE+`/api/v1/channels/${cid}/rigs/${rig}/versions/${version}/${file}`,
+  rigVerify:(cid:string,rig:string,version:string,body:RigProofPayload)=>request<RigProofResult>('POST',`/api/v1/channels/${cid}/rigs/${rig}/versions/${version}/verify`,body),
   rigReview:(cid:string,rig:string,version:string,expected_revision:number,decision:'approved'|'rejected')=>request<{status:string}>('POST',`/api/v1/channels/${cid}/rigs/${rig}/versions/${version}/review`,{expected_revision,decision}),
   rigReplace:async(pid:string,rig:string,role:string,expected_revision:number,file:File)=>{
     const form=new FormData();form.set('file',file);form.set('expected_revision',String(expected_revision));
@@ -148,3 +149,7 @@ export type RigPart={role:string;layer:number;reviewed:boolean;provenance:string
 export type RigDraft={rig_id:string;draft_revision:number;source_version:string;source_sha:string;style_hash:string;size:[number,number];parts:Record<string,RigPart>};
 export type RigRecord={rig_id:string;channel_id:string;asset_id:string;semantic_key:string;rig_version_id:string|null;status:string|null;revision:number|null};
 export type RigExport={rig_id:string;rig_version_id:string;revision:number;candidate:boolean;loader_verified:boolean;manifest:{skeleton_sha256:string;atlas_sha256:string}};
+
+export type RigPoseProof={pose:'idle'|'walk'|'reach'|'grab'|'neutral_return';png_base64:string;bones:Record<string,number>;bone_count:number;slot_count:number;attached_slot_count:number};
+export type RigProofPayload={source_sha256:string;skeleton_sha256:string;atlas_sha256:string;runtime_package:string;runtime_version:string;pixi_version:string;poses:RigPoseProof[]};
+export type RigProofResult={rig_version_id:string;proof_artifact_id:string;pose_png_sha256:Record<string,string>;verified_images:number};
