@@ -123,6 +123,7 @@ try{
  const rigRecords={};
  for(const who of ['a','b']){
   const version=await sendImage(pid,who);
+  import('node:fs').then(fs=>fs.copyFileSync(join(dir,'actor-'+who+'.png'),join(evidence,'rig-'+who+'-source.png')));
   await api('POST','/api/v1/projects/'+pid+'/assets/'+version.asset_version_id+'/review',{decision:'approved'});
   await api('POST','/api/v1/projects/'+pid+'/asset-bindings',{
    requirement_id:actorRequirements['character_'+who],
@@ -173,7 +174,7 @@ try{
   for(const pose of ['idle','walk','reach','grab']){
    await page.getByTestId('c4-official-runtime').getByRole('button',{name:pose,exact:true}).click();
    const name='rig-'+who+'-'+pose+'.png';
-   await page.getByTestId('c4-official-runtime').screenshot({path:join(evidence,name)});
+   await page.getByTestId('c4-official-runtime').locator('canvas').screenshot({path:join(evidence,name)});
   }
   await page.getByRole('button',{name:'Verify official runtime and five poses'}).click();
   await page.getByTestId('c4-proof-ready').waitFor({timeout:30000});
@@ -231,7 +232,7 @@ try{
  await reusePage.locator('.pipeline-step').nth(3).click();
  await reusePage.getByRole('button',{name:'Play approved '+rigRecords.a.rig_version_id.slice(0,13)}).click();
  await reusePage.getByTestId('c4-official-runtime').getByText('Official loader succeeded in current browser session (not backend approval proof)').waitFor({timeout:30000});
- await reusePage.getByTestId('c4-official-runtime').screenshot({path:join(evidence,'rig-a-reused-in-project-b.png')});
+ await reusePage.getByTestId('c4-official-runtime').locator('canvas').screenshot({path:join(evidence,'rig-a-reused-in-project-b.png')});
  await reusePage.close();
  console.log('G2 reuse Project A->B PASS',rigRecords.a.rig_version_id,'identical immutable skeleton',originalSkeleton);
  // Genuine backend restart with the SAME disposable SQLite/artifact root.
@@ -255,7 +256,7 @@ try{
  await page.locator('.pipeline-step').nth(3).click();
  await page.getByRole('button',{name:/Play approved/}).last().click();
  await page.getByTestId('c4-official-runtime').getByText('Official loader succeeded in current browser session (not backend approval proof)').waitFor({timeout:30000});
- await page.getByTestId('c4-official-runtime').screenshot({path:join(evidence,'approved-rig-after-backend-restart.png')});
+ await page.getByTestId('c4-official-runtime').locator('canvas').screenshot({path:join(evidence,'approved-rig-after-backend-restart.png')});
  console.log('C4 G2: two distinct rigs approved, source SHA/stage/Spine loader survive real backend restart:',approved.map(r=>r.rig_version_id),evidence);
 }catch(error){console.error(error);process.exitCode=1;}
 finally{if(browser)await browser.close();children.reverse().forEach(stop);}
