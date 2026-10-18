@@ -62,14 +62,13 @@ def _arm_to(angles,bones,root,hand,target,weight=1):
     angles[shoulder_name]=angles.get(shoulder_name,0)+diff
     angles[elbow_name]=angles.get(elbow_name,0)+delta_lower
 
-def _gait(angles,bones,root,initial_root,move,frame):
+def _gait(angles,bones,root,initial_root,move,frame,shot,actors,props):
     """Per-foot stance pinning and swing trajectories with two-bone ground IK."""
     ratio=(frame-move["start_frame"])/max(1,move["end_frame"]-move["start_frame"])
     ratio=geom._clamp(ratio,0,1)
-    distance=math.dist(initial_root,root)
-    # Determine authored step cadence and target from actual root path.
-    traveled=math.dist(initial_root,root)
-    if traveled<1e-5 or ratio==0:return
+    full_target=_point(shot,actors,props,move["target_id"])
+    distance=math.dist(initial_root,full_target)
+    if distance<1e-5 or ratio==0:return
     rest=_world_joints(bones,{},initial_root)
     default_spacing=70.
     stride_count=max(1,math.ceil(distance/default_spacing))
@@ -78,7 +77,7 @@ def _gait(angles,bones,root,initial_root,move,frame):
         index=math.floor(phase)
         u=phase-index
         base_foot=rest[f"{side}_foot"]
-        stride=(root[0]-initial_root[0])/max(1e-6,ratio*stride_count)
+        stride=(full_target[0]-initial_root[0])/stride_count
         planted=base_foot[0]+index*stride
         if u<.55:
             foot_x=planted; foot_y=base_foot[1]
@@ -150,7 +149,7 @@ def evaluate(shot,plan,bones_by_actor,frame):
         move=_root_move(acts,actor,frame)
         if move:
             beginning=_root_at(acts,actor,arow,shot,initial_actors,initial_props,move["start_frame"])
-            _gait(angles,bones,root,beginning,move,frame)
+            _gait(angles,bones,root,beginning,move,frame,shot,initial_actors,initial_props)
         current=[act for act in acts if act["actor_id"]==actor and
                  act["start_frame"]<=frame<act["end_frame"]]
         for action in current:
