@@ -103,7 +103,7 @@ export function MotionSpineViewport({projectId,channelId,shotId,compilationId,fr
  },[ready,projectId,channelId,compilationId,shotId,onState]);
  useEffect(()=>{
   if(!ready)return;
-  void renderFrame(frame).catch(e=>setError(e instanceof Error?e.message:String(e)));
+  void renderFrame(frame).catch(e=>setError(e instanceof Error?(e.stack||e.message):String(e)));
  },[ready,frame,renderFrame]);
  return <div className="space-y-2" data-testid="c5-spine-pixi-viewport">
   <div ref={mount} className="max-w-full overflow-auto rounded-xl border border-white/10"/>
