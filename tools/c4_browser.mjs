@@ -136,7 +136,7 @@ try{
   await page.reload({waitUntil:'networkidle'});
   await page.locator('.pipeline-step').nth(3).click();
   const workshop=page.getByTestId('c4-rigging-workshop');
-  await workshop.getByRole('button',{name:'Reopen draft '+draft.rig_id.slice(0,14)}).click();
+  await workshop.getByRole('button',{name:'Edit draft '+draft.rig_id.slice(0,14)}).click();
   await workshop.getByText('Draft revision 1',{exact:false}).waitFor();
   // Reopening publishes the draft view before async list refresh clears busy.
   // Do not fire a canvas pointer while the editor intentionally blocks writes.
@@ -191,7 +191,7 @@ try{
    throw Error('Corrected source draft is not fully reviewed and persisted');
   await page.reload({waitUntil:'networkidle'});
   await page.locator('.pipeline-step').nth(3).click();
-  await page.getByTestId('c4-rigging-workshop').getByRole('button',{name:'Reopen draft '+draft.rig_id.slice(0,14)}).click();
+  await page.getByTestId('c4-rigging-workshop').getByRole('button',{name:'Edit draft '+draft.rig_id.slice(0,14)}).click();
   await page.getByRole('button',{name:'Export immutable Spine 4.2 candidate'}).click();
   await page.getByTestId('c4-official-runtime').waitFor();
   await page.getByText('Official loader succeeded in current browser session (not backend approval proof)').waitFor({timeout:30000});
