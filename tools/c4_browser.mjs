@@ -90,7 +90,7 @@ try{
   if(exported.loader_verified!==false)throw Error('Unverified loader was reported as verified');
   await page.reload({waitUntil:'networkidle'});
   await page.locator('.pipeline-step').nth(3).click();
-  await page.getByTestId('c4-rigging-workshop').getByRole('button',{name:'Reopen '+draft.rig_id.slice(0,14)}).click();
+  await page.getByTestId('c4-rigging-workshop').getByRole('button',{name:'Reopen draft '+draft.rig_id.slice(0,14)}).click();
   await page.getByRole('button',{name:'Export immutable Spine 4.2 candidate'}).click();
   await page.getByTestId('c4-official-runtime').waitFor();
   await page.getByText('Official loader succeeded in current browser session (not backend approval proof)').waitFor({timeout:30000});
@@ -99,12 +99,25 @@ try{
    const name='rig-'+who+'-'+pose+'.png';
    await page.getByTestId('c4-official-runtime').screenshot({path:join(evidence,name)});
   }
+  await page.getByRole('button',{name:'Verify official runtime and five poses'}).click();
+  await page.getByTestId('c4-proof-ready').waitFor({timeout:30000});
+  await page.getByRole('button',{name:'Approve verified rig version'}).click();
+  await page.getByTestId('c4-rig-approved').waitFor({timeout:30000});
+  const stage=(await api('GET','/api/v1/projects/'+pid+'/workflow')).stages.find(x=>x.stage_key==='rigging');
+  if(!stage||stage.readiness!=='approved')throw Error('Proof accepted without approved C4 readiness: '+JSON.stringify(stage));
   const sha=cryptoDigest(readFileSync(join(evidence,'rig-'+who+'-idle.png')));
-  console.log(who,version.source_sha256,draft.rig_id,exported.rig_version_id,'visual idle sha='+sha);
+  console.log(who,version.source_sha256,draft.rig_id,stage.head_artifact_id,'approved official rig idle sha='+sha);
+  await page.reload({waitUntil:'networkidle'});
+  await page.locator('.pipeline-step').nth(3).click();
+  await page.getByRole('button',{name:/Play approved/}).last().click();
+  await page.getByTestId('c4-official-runtime').getByText('Official loader succeeded in current browser session (not backend approval proof)').waitFor({timeout:30000});
  }
  const images=['a','b'].flatMap(who=>['idle','walk','reach','grab'].map(p=>cryptoDigest(readFileSync(join(evidence,'rig-'+who+'-'+p+'.png')))));
  if(new Set(images).size<6)throw Error('Real poses/source rigs not visually distinct enough');
- console.log('C4 two original images real Chromium Spine/Pixi preview screenshots created:',evidence);
+ const refreshed=(await api('GET','/api/v1/projects/'+pid+'/rigging/rigs')).items;
+ const approved=refreshed.filter(r=>r.status==='approved');
+ if(approved.length!==2)throw Error('Expected two independently approved immutable rig versions, got '+approved.length);
+ console.log('C4 G2 two original characters, TWO official-runtime-proved APPROVED playable rigs:',approved.map(r=>r.rig_version_id),evidence);
 }catch(error){console.error(error);process.exitCode=1;}
 finally{if(browser)await browser.close();children.reverse().forEach(stop);}
 function cryptoDigest(raw){return createHash('sha256').update(raw).digest('hex');}
