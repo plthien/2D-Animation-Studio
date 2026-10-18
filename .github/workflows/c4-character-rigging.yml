@@ -75,6 +75,10 @@ jobs:
         run: |
           node tools/c4_browser.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Assemble direct-canvas G2 contact sheet
+        run: |
+          python tools/c4_contact_sheet.py artifacts/c4
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Chromium G2 rig and pose screenshots
         if: always()
         uses: actions/upload-artifact@v4
