@@ -1132,5 +1132,65 @@
     "idempotency": "immutable per candidate; duplicate proof rejected",
     "authority": "rig_versions/artifacts/official Spine-Pixi evidence",
     "readiness": "C4 runtime proof"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/channels/{channel_id}/rigs/{rig_id}/versions/{version_id}/info",
+    "phase": "C4",
+    "owner": "rigging",
+    "contract_status": "ACCEPTED",
+    "request_dto": "None",
+    "response_dto": "RigVersionInfo",
+    "success": 200,
+    "errors": [
+      404,
+      409,
+      413,
+      422
+    ],
+    "precondition": "Exact current ShotPlan actor pin and independently verified immutable rig identity",
+    "idempotency": "Read-only, or CAS on project resolution revision",
+    "authority": "artifacts / rig_versions / project_asset_bindings",
+    "readiness": "All exact required actor pins must have compatible approved rigs"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{project_id}/rigging/resolution",
+    "phase": "C4",
+    "owner": "rigging",
+    "contract_status": "ACCEPTED",
+    "request_dto": "None",
+    "response_dto": "ProjectRigResolution",
+    "success": 200,
+    "errors": [
+      404,
+      409,
+      413,
+      422
+    ],
+    "precondition": "Exact current ShotPlan actor pin and independently verified immutable rig identity",
+    "idempotency": "Read-only, or CAS on project resolution revision",
+    "authority": "artifacts / rig_versions / project_asset_bindings",
+    "readiness": "All exact required actor pins must have compatible approved rigs"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{project_id}/rigging/resolution/select",
+    "phase": "C4",
+    "owner": "rigging",
+    "contract_status": "ACCEPTED",
+    "request_dto": "RigProjectSelection",
+    "response_dto": "ProjectRigSelection",
+    "success": 201,
+    "errors": [
+      404,
+      409,
+      413,
+      422
+    ],
+    "precondition": "Exact current ShotPlan actor pin and independently verified immutable rig identity",
+    "idempotency": "Read-only, or CAS on project resolution revision",
+    "authority": "artifacts / rig_versions / project_asset_bindings",
+    "readiness": "All exact required actor pins must have compatible approved rigs"
   }
 ]
