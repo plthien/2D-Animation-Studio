@@ -122,8 +122,15 @@ try{
   topic_ideas_artifact_id:ideas.artifact_id,selected_idea_id:'idea_one',
   full_text:'He finds the orb.',sections:[{section_id:'section_one',start_char:0,end_char:17,text:'He finds the orb.'}]}));
  // The exact approved rig is created using the existing C4 review and real renderer.
+ const joints=JSON.parse(readFileSync(join(dir,'rig-joints.json'),'utf8')).pivots;
+ // These are the exact C4-authored pivot pixels, before immutable ShotPlan approval.
+ // The target is deliberately inside the measured two-bone left-arm workspace.
+ const shoulder={x:(joints.upper_arm_l.x-joints.pelvis.x)*320,
+                 y:(1-joints.upper_arm_l.y)*400};
+ const contact={x:80+shoulder.x-40,y:shoulder.y-80};
+ const drop={x:150+shoulder.x-40,y:shoulder.y-80};
  const initialActor={actor_id:'character_a',x:0,y:0,facing:'right'};
- const initialProp={prop_id:'prop_orb',x:0,y:0,held_by:null};
+ const initialProp={prop_id:'prop_orb',x:contact.x,y:contact.y,held_by:null};
  // Start with approximate world locations; after C4 proof the approved frozen rig
  // determines usable IK targets. We must not silently rewrite approved ShotPlan.
  const prep=await reserved(pid,'shot-plan',()=>({
@@ -133,10 +140,10 @@ try{
    prop_ids:['prop_orb'],location_id:'location_one',utterance:null,
    spatial_anchors:[{anchor_id:'anchor_approach',x:80,y:0},
                     {anchor_id:'anchor_delivery',x:150,y:0},
-                    {anchor_id:'anchor_drop',x:175,y:75}],
+                    {anchor_id:'anchor_drop',x:drop.x,y:drop.y}],
    initial_world_state:{actors:[initialActor],props:[initialProp]},
    final_world_state:{actors:[{...initialActor,x:150}],
-                      props:[{...initialProp,x:175,y:75}]}]}]}));
+                      props:[{...initialProp,x:drop.x,y:drop.y}]}]}]}));
  const required=await api('GET','/api/v1/projects/'+pid+'/resolver/resolution');
  const actorReq=required.requirements.find(x=>x.requirement.kind==='actor');
  const propReq=required.requirements.find(x=>x.requirement.kind==='prop');
