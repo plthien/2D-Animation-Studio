@@ -37,6 +37,7 @@ def _world_joints(bones,angles,root):
     return {name:(v["x"]+root[0],v["y"]+root[1]) for name,v in values.items()}
 
 def _arm_to(angles,bones,root,hand,target,weight=1):
+    if weight<=0:return
     shoulder_name=f"{hand}_upper_arm";elbow_name=f"{hand}_lower_arm";wrist_name=f"{hand}_hand"
     joints=_world_joints(bones,angles,root)
     shoulder=joints[shoulder_name];elbow=joints[elbow_name];wrist=joints[wrist_name]
@@ -58,7 +59,13 @@ def _arm_to(angles,bones,root,hand,target,weight=1):
     from_angle=math.atan2(elbow[1]-shoulder[1],elbow[0]-shoulder[0])
     from_lower=math.atan2(wrist[1]-elbow[1],wrist[0]-elbow[0])
     diff=math.degrees(upper_angle-from_angle)
+    while diff>180:diff-=360
+    while diff< -180:diff+=360
     delta_lower=math.degrees(lower_angle-from_lower)-diff
+    while delta_lower>180:delta_lower-=360
+    while delta_lower< -180:delta_lower+=360
+    if max(abs(diff),abs(delta_lower))>165:
+        s.error("IK_UNREACHABLE","Arm joint limit exceeded by approved target",422)
     angles[shoulder_name]=angles.get(shoulder_name,0)+diff
     angles[elbow_name]=angles.get(elbow_name,0)+delta_lower
 
