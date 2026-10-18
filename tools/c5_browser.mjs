@@ -116,6 +116,18 @@ try{
   return [...new Uint8Array(await (await new Promise(res=>canvas.toBlob(res,'image/png'))).arrayBuffer())];
  });
  const propImage=await importPng(pid,'prop','prop_orb','orb.png',new Uint8Array(propBytes));
+ // A visible physical placement support is a real separately approved shot prop.
+ const supportPixels=await page.evaluate(async()=>{
+  const canvas=document.createElement('canvas');canvas.width=120;canvas.height=300;
+  const g=canvas.getContext('2d');
+  g.clearRect(0,0,120,300);
+  g.fillStyle='#795238';g.fillRect(14,24,16,272);g.fillRect(90,24,16,272);
+  g.fillStyle='#aa7549';g.fillRect(6,4,108,25);
+  g.fillStyle='#d3a06c';g.fillRect(6,4,108,7);
+  return [...new Uint8Array(await (await new Promise(res=>canvas.toBlob(res,'image/png'))).arrayBuffer())];
+ });
+ const tableImage=await importPng(pid,'prop','prop_table','support-table.png',
+    new Uint8Array(supportPixels));
  const ideas=await reserved(pid,'topic-ideas',p=>({
   channel_dna_artifact_id:p.dna_metadata.artifact_id,channel_dna_hash:p.dna_metadata.sha256,
   ideas:[{idea_id:'idea_one',title:'Character carries a bright orb',premise:'One actual articulated exchange'}]}));
@@ -132,32 +144,38 @@ try{
  const drop={x:150+shoulder.x-40,y:shoulder.y-80};
  const initialActor={actor_id:'character_a',x:0,y:0,facing:'right'};
  const initialProp={prop_id:'prop_orb',x:contact.x,y:contact.y,held_by:null};
+ // Texture source is 120x300 displayed at 0.4, with its tabletop ~56px above
+ // the center. Ball bottom (11px) meets tabletop when support is ~67 screen px
+ // below the ball center. All coordinates remain ShotPlan world Y-up.
+ const support={prop_id:'prop_table',x:drop.x,y:drop.y-83.75,held_by:null};
  // Start with approximate world locations; after C4 proof the approved frozen rig
  // determines usable IK targets. We must not silently rewrite approved ShotPlan.
  const shotDoc={
   script_artifact_id:script.artifact_id,script_sha256:script.sha256,
-  actor_ids:['character_a'],prop_ids:['prop_orb'],location_ids:['location_one'],
+  actor_ids:['character_a'],prop_ids:['prop_orb','prop_table'],location_ids:['location_one'],
   shots:[{shot_id:'shot_one',duration_frames:240,
-    actor_ids:['character_a'],prop_ids:['prop_orb'],
+    actor_ids:['character_a'],prop_ids:['prop_orb','prop_table'],
     location_id:'location_one',utterance:null,
     spatial_anchors:[
       {anchor_id:'anchor_approach',x:80,y:0},
       {anchor_id:'anchor_delivery',x:150,y:0},
       {anchor_id:'anchor_drop',x:drop.x,y:drop.y}
     ],
-    initial_world_state:{actors:[initialActor],props:[initialProp]},
+    initial_world_state:{actors:[initialActor],props:[initialProp,support]},
     final_world_state:{
       actors:[{...initialActor,x:150}],
-      props:[{...initialProp,x:drop.x,y:drop.y}]
+      props:[{...initialProp,x:drop.x,y:drop.y},support]
     }
   }]
  };
  await reserved(pid,'shot-plan',()=>shotDoc);
  const required=await api('GET','/api/v1/projects/'+pid+'/resolver/resolution');
  const actorReq=required.requirements.find(x=>x.requirement.kind==='actor');
- const propReq=required.requirements.find(x=>x.requirement.kind==='prop');
- assert(actorReq&&propReq,'Missing real requirements');
- for(const [req,version] of [[actorReq,actorImage.asset_version_id],[propReq,propImage.asset_version_id]]){
+ const propReq=required.requirements.find(x=>x.requirement.kind==='prop'&&x.requirement.semantic_key==='prop_orb');
+ const tableReq=required.requirements.find(x=>x.requirement.kind==='prop'&&x.requirement.semantic_key==='prop_table');
+ assert(actorReq&&propReq&&tableReq,'Missing real requirements for two approved prop versions');
+ for(const [req,version] of [[actorReq,actorImage.asset_version_id],
+   [propReq,propImage.asset_version_id],[tableReq,tableImage.asset_version_id]]){
   await api('POST','/api/v1/projects/'+pid+'/asset-bindings',
    {requirement_id:req.requirement.requirement_id,asset_version_id:version,
     expected_fingerprint:required.requirements_fingerprint});
