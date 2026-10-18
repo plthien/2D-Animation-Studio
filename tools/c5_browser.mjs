@@ -274,6 +274,23 @@ try{
   await page.getByTestId('c5-spine-pixi-viewport').locator('canvas').screenshot({
    path:join(evidence,'c5-'+label+'-'+frame+'.png')});
  }
+ // Rapid nonchronological seeks must not let an older async frame overwrite the latest.
+ const seekControl=page.getByRole('slider',{name:'Exact motion frame'});
+ for(const seekFrame of [239,0,200]){
+  await seekControl.evaluate((element,target)=>{
+   const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;
+   if(!setter)throw new Error('Missing native range setter');
+   setter.call(element,String(target));
+   element.dispatchEvent(new Event('input',{bubbles:true}));
+   element.dispatchEvent(new Event('change',{bubbles:true}));
+  },seekFrame);
+ }
+ const lastFrame=await api('GET','/api/v1/projects/'+pid+'/motion/compilations/'+compiled.artifact_id+
+   '/shots/shot_one/frames/200');
+ await page.getByTestId('c5-spine-pixi-viewport').getByText(
+   'Deterministic frame: '+lastFrame.fingerprint,{exact:false}).waitFor({timeout:30000});
+ assert((await page.getByTestId('c5-frame-counter').innerText()).startsWith('200 /'),
+   'Rapid seek must preserve latest requested frame');
  console.log('C5 CHROMIUM PREVIEW proof',compiled.artifact_id,'real official Spine/Pixi PNGs',evidence);
  stop(server);await new Promise(r=>setTimeout(r,1400));
  server=run('python',['-m','uvicorn','app.main:app','--host','127.0.0.1','--port','8000']);
