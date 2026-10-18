@@ -529,7 +529,7 @@
     "path": "/api/v1/channels/{channel_id}/rigs/{rig_id}/approve",
     "phase": "C4",
     "owner": "rigging",
-    "contract_status": "PROPOSED",
+    "contract_status": "ACCEPTED",
     "request_dto": "RigApprovalRequest",
     "response_dto": "RigVersionResponse",
     "success": 200,
@@ -541,7 +541,7 @@
     "precondition": "candidate revision+loader proof",
     "idempotency": "rig version identity",
     "authority": "rig versions",
-    "readiness": "rigging fingerprint"
+    "readiness": "candidate only; approval fail-closed pending runtime proof"
   },
   {
     "method": "POST",
@@ -932,5 +932,185 @@
     "idempotency": "Never paid resubmit; may reconcile known provider handle",
     "authority": "operations/operation_tasks/jobs",
     "readiness": "generation"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{project_id}/rigging/rigs",
+    "phase": "C4",
+    "owner": "rigging",
+    "contract_status": "ACCEPTED",
+    "request_dto": "None",
+    "response_dto": "RigListResponse",
+    "success": 200,
+    "errors": [
+      404,
+      409,
+      413,
+      422
+    ],
+    "precondition": "Exact channel/project source; draft CAS and verified bytes",
+    "idempotency": "repeat-safe read; draft revision CAS for writes",
+    "authority": "rigs, rig_versions, artifacts, immutable files",
+    "readiness": "candidate only; verified runtime approval pending"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{project_id}/rigging/rigs",
+    "phase": "C4",
+    "owner": "rigging",
+    "contract_status": "ACCEPTED",
+    "request_dto": "C4RigRequest",
+    "response_dto": "RigStartResponse",
+    "success": 201,
+    "errors": [
+      404,
+      409,
+      413,
+      422
+    ],
+    "precondition": "Exact channel/project source; draft CAS and verified bytes",
+    "idempotency": "repeat-safe read; draft revision CAS for writes",
+    "authority": "rigs, rig_versions, artifacts, immutable files",
+    "readiness": "candidate only; verified runtime approval pending"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{project_id}/rigging/rigs/{rig_id}",
+    "phase": "C4",
+    "owner": "rigging",
+    "contract_status": "ACCEPTED",
+    "request_dto": "None",
+    "response_dto": "RigDraftResponse",
+    "success": 200,
+    "errors": [
+      404,
+      409,
+      413,
+      422
+    ],
+    "precondition": "Exact channel/project source; draft CAS and verified bytes",
+    "idempotency": "repeat-safe read; draft revision CAS for writes",
+    "authority": "rigs, rig_versions, artifacts, immutable files",
+    "readiness": "candidate only; verified runtime approval pending"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{project_id}/rigging/rigs/{rig_id}/parts/{role}",
+    "phase": "C4",
+    "owner": "rigging",
+    "contract_status": "ACCEPTED",
+    "request_dto": "C4RigRequest",
+    "response_dto": "RigPartEditResponse",
+    "success": 201,
+    "errors": [
+      404,
+      409,
+      413,
+      422
+    ],
+    "precondition": "Exact channel/project source; draft CAS and verified bytes",
+    "idempotency": "repeat-safe read; draft revision CAS for writes",
+    "authority": "rigs, rig_versions, artifacts, immutable files",
+    "readiness": "candidate only; verified runtime approval pending"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{project_id}/rigging/rigs/{rig_id}/parts/{role}/replacement",
+    "phase": "C4",
+    "owner": "rigging",
+    "contract_status": "ACCEPTED",
+    "request_dto": "C4RigRequest",
+    "response_dto": "RigPartReplaceResponse",
+    "success": 201,
+    "errors": [
+      404,
+      409,
+      413,
+      422
+    ],
+    "precondition": "Exact channel/project source; draft CAS and verified bytes",
+    "idempotency": "repeat-safe read; draft revision CAS for writes",
+    "authority": "rigs, rig_versions, artifacts, immutable files",
+    "readiness": "candidate only; verified runtime approval pending"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{project_id}/rigging/rigs/{rig_id}/parts/{role}/{kind}",
+    "phase": "C4",
+    "owner": "rigging",
+    "contract_status": "ACCEPTED",
+    "request_dto": "None",
+    "response_dto": "RigPartImageBinary",
+    "success": 200,
+    "errors": [
+      404,
+      409,
+      413,
+      422
+    ],
+    "precondition": "Exact channel/project source; draft CAS and verified bytes",
+    "idempotency": "repeat-safe read; draft revision CAS for writes",
+    "authority": "rigs, rig_versions, artifacts, immutable files",
+    "readiness": "candidate only; verified runtime approval pending"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{project_id}/rigging/rigs/{rig_id}/export",
+    "phase": "C4",
+    "owner": "rigging",
+    "contract_status": "ACCEPTED",
+    "request_dto": "C4RigRequest",
+    "response_dto": "RigCandidateResponse",
+    "success": 201,
+    "errors": [
+      404,
+      409,
+      413,
+      422
+    ],
+    "precondition": "Exact channel/project source; draft CAS and verified bytes",
+    "idempotency": "repeat-safe read; draft revision CAS for writes",
+    "authority": "rigs, rig_versions, artifacts, immutable files",
+    "readiness": "candidate only; verified runtime approval pending"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/channels/{channel_id}/rigs/{rig_id}/versions/{version_id}/{filename}",
+    "phase": "C4",
+    "owner": "rigging",
+    "contract_status": "ACCEPTED",
+    "request_dto": "None",
+    "response_dto": "RigVersionBinary",
+    "success": 200,
+    "errors": [
+      404,
+      409,
+      413,
+      422
+    ],
+    "precondition": "Exact channel/project source; draft CAS and verified bytes",
+    "idempotency": "repeat-safe read; draft revision CAS for writes",
+    "authority": "rigs, rig_versions, artifacts, immutable files",
+    "readiness": "candidate only; verified runtime approval pending"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/channels/{channel_id}/rigs/{rig_id}/versions/{version_id}/review",
+    "phase": "C4",
+    "owner": "rigging",
+    "contract_status": "ACCEPTED",
+    "request_dto": "C4RigRequest",
+    "response_dto": "RigReviewResponse",
+    "success": 201,
+    "errors": [
+      404,
+      409,
+      413,
+      422
+    ],
+    "precondition": "Exact channel/project source; draft CAS and verified bytes",
+    "idempotency": "repeat-safe read; draft revision CAS for writes",
+    "authority": "rigs, rig_versions, artifacts, immutable files",
+    "readiness": "candidate only; verified runtime approval pending"
   }
 ]
