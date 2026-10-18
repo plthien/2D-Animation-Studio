@@ -17,7 +17,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 from app.animation.database import connect
 
 STAGES = ("authoring", "resolver", "generation", "rigging", "director", "motion", "delivery")
-PHASE = dict(zip(STAGES, ("C3", "C4", "C5", "C7", "C9", "C8", "C11")))
+PHASE = dict(zip(STAGES, ("C3", "C3", "C3", "C4", "C5", "C5", "C6")))
 ZERO = "0" * 64
 DNA_SCHEMA = json.loads((Path(__file__).resolve().parents[2] /
                           "contracts/animation/schemas/channel_dna.v2.schema.json").read_text(encoding="utf-8"))
@@ -550,36 +550,80 @@ def update_project(pid: str, expected: str, payload: dict[str, Any], *, archive:
 
 
 def workflow(pid: str) -> dict[str, Any]:
+    from app.animation import authoring as a, resolver as r
     with reader() as con:
-        pr = project_row(con, pid)
-        ch = channel_row(con, pr["channel_id"])
-        heads = {r["stage_key"]: rowdict(r) for r in
-                 con.execute("SELECT * FROM project_stage_heads WHERE project_id=?", (pid,))}
-        if set(heads) != set(STAGES):
-            error("LINEAGE_MISMATCH", "Missing stage projections", 422)
-        stages = []
+        pr=project_row(con,pid)
+        ch=channel_row(con,pr["channel_id"])
+        heads={row["stage_key"]:rowdict(row) for row in con.execute(
+            "SELECT * FROM project_stage_heads WHERE project_id=?",(pid,))}
+        if set(heads)!=set(STAGES):error("LINEAGE_MISMATCH","Missing stage projections",422)
+        topic=a.latest(con,pid,"topic-ideas")
+        script=a.latest(con,pid,"script")
+        shot=a.latest(con,pid,"shot-plan")
+        if not ch["current_dna_artifact_id"]: authoring=("blocked",["CHANNEL_DNA_NOT_APPROVED"])
+        elif topic is None:authoring=("ready",["TOPIC_IDEAS_MISSING"])
+        elif script is None:authoring=("ready",["SCRIPT_MISSING"])
+        elif a.verified_doc(script).get("topic_ideas_artifact_id")!=topic["artifact_id"]:
+            authoring=("stale",["SCRIPT_SOURCE_STALE"])
+        elif shot is None:authoring=("ready",["SHOT_PLAN_MISSING"])
+        else:
+            try:r.current_shot(con,pid);authoring=("approved",[])
+            except DomainError as exc:authoring=("stale",[exc.code])
+        states={"authoring":authoring,"resolver":("blocked",["CURRENT_SHOT_PLAN_REQUIRED"]),
+                "generation":("blocked",["CURRENT_SHOT_PLAN_REQUIRED"])}
+        resolved=None
+        if authoring[0]=="approved":
+            try:
+                resolved=r.resolution(pid)
+                count,total=resolved["resolved_count"],resolved["total_count"]
+                states["resolver"]=("approved" if count==total else "draft" if count else "ready",
+                                    [] if count==total else ["ASSETS_UNRESOLVED"])
+                states["generation"]=("approved" if count==total else "ready",
+                                      [] if count==total else ["REQUIRED_ASSETS_MISSING"])
+                op=con.execute("""SELECT status FROM operations WHERE project_id=? AND kind='glabs_image'
+                               ORDER BY updated_at DESC LIMIT 1""",(pid,)).fetchone()
+                if count<total and op:
+                    if op["status"] in ("queued","running"):states["generation"]=("running",[])
+                    if op["status"]=="unknown":states["generation"]=("blocked",["PROVIDER_SUBMISSION_UNKNOWN"])
+                    if op["status"]=="failed":states["generation"]=("failed",["PROVIDER_OPERATION_FAILED"])
+                if count<total and states["generation"][0]=="ready":
+                    candidate=con.execute("""SELECT 1 FROM artifacts WHERE
+                        json_extract(metadata_json,'$.project_id')=? AND kind='asset_version.v1'
+                        AND approval_status='draft' LIMIT 1""",(pid,)).fetchone()
+                    if candidate:states["generation"]=("draft",["IMAGE_REVIEW_REQUIRED"])
+            except DomainError as exc:
+                states["resolver"]=("stale",[exc.code])
+                states["generation"]=("blocked",["RESOLVER_STALE"])
+        stages=[]
         for stage in STAGES:
-            head = heads[stage]
-            computed = style_fingerprint(stage, ch)
-            if pr["status"] == "archived":
-                status, blockers = "blocked", ["PROJECT_ARCHIVED"]
-            elif stage == "authoring" and ch["current_dna_artifact_id"] is None:
-                status, blockers = "blocked", ["CHANNEL_DNA_NOT_APPROVED"]
-            elif stage == "authoring":
-                status, blockers = "blocked", ["REQUIRES_C3_AUTHORING"]
-            else:
-                status, blockers = "blocked", [f"REQUIRES_{PHASE[stage]}"]
-            stages.append({
-                "stage_key": stage, "approval_status": head["approval_status"],
-                "readiness": status, "head_artifact_id": head["artifact_id"],
-                "head_revision": head["revision"],
-                "stored_dependency_fingerprint": head["dependency_fingerprint"],
-                "computed_dependency_fingerprint": computed,
-                "blocker_codes": blockers, "owner_phase": PHASE[stage],
-            })
-        return {"project_id": pid, "channel_id": pr["channel_id"],
-                "dependency_fingerprint_algorithm_version": "animation-dependencies.v1",
-                "stages": stages}
+            head=heads[stage]
+            state,blockers=states.get(stage,("blocked",[f"REQUIRES_{PHASE[stage]}"]))
+            computed=style_fingerprint(stage,ch)
+            if stage=="authoring" and state=="approved":
+                computed=head["dependency_fingerprint"]
+            if stage=="resolver" and resolved:
+                computed=sha({"requirements":resolved["requirements_fingerprint"],
+                  "pins":[(x["requirement"]["requirement_id"],x["binding"]["asset_version_id"] if x["binding"] else None)
+                          for x in resolved["requirements"]]})
+                if state=="approved" and head["approval_status"]=="approved":
+                    record=con.execute("SELECT * FROM artifacts WHERE artifact_id=?",(head["artifact_id"],)).fetchone()
+                    if record and record["kind"]=="asset_resolution.v1":
+                        pins=a.verified_doc(record)["pins"]
+                        old={x["requirement_id"]:x["asset_version_id"] for x in pins}
+                        current={x["requirement"]["requirement_id"]:x["binding"]["asset_version_id"]
+                                 for x in resolved["requirements"] if x["binding"]}
+                        if old==current:computed=head["dependency_fingerprint"]
+                        else:state,blockers="stale",["RESOLUTION_HEAD_STALE"]
+            if stage=="generation" and resolved:
+                computed=sha({"requirements":resolved["requirements_fingerprint"],
+                              "resolved":resolved["resolved_count"]})
+            if pr["status"]=="archived":state,blockers="blocked",["PROJECT_ARCHIVED"]
+            stages.append({"stage_key":stage,"approval_status":head["approval_status"],
+              "readiness":state,"head_artifact_id":head["artifact_id"],"head_revision":head["revision"],
+              "stored_dependency_fingerprint":head["dependency_fingerprint"],
+              "computed_dependency_fingerprint":computed,"blocker_codes":blockers,"owner_phase":PHASE[stage]})
+        return {"project_id":pid,"channel_id":pr["channel_id"],
+          "dependency_fingerprint_algorithm_version":"animation-dependencies.v1","stages":stages}
 
 
 def jobs(pid: str, limit: int, cursor: str | None) -> dict[str, Any]:

@@ -1,0 +1,97 @@
+name: C3 focused Windows authoring and assets
+on:
+  push:
+    branches: [feat/c3-authoring-assets]
+  pull_request:
+    paths:
+      - 'app/animation/**'
+      - 'app/main.py'
+      - 'tools/**'
+      - 'contracts/animation/api/**'
+      - 'docs/qa/**'
+      - 'src/**'
+      - 'tests/c3/**'
+      - 'requirements.txt'
+      - 'package.json'
+      - '.github/workflows/c3-authoring-assets.yml'
+  workflow_dispatch:
+jobs:
+  c3-focused:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact HEAD
+        run: |
+          $target = "${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
+          if ((git rev-parse HEAD).Trim() -ne $target) { throw "C3_SHA_MISMATCH" }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install backend dependencies
+        run: python -m pip install -r requirements.txt
+      - name: M1-A new resolution pin-swap regression
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m pytest -q tests/c3/test_five_integrity_repairs.py::test_m1_pin_swap_during_file_publication_rejected_atomic
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+      - name: M1-B new resolution approval-change regression
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m pytest -q tests/c3/test_five_integrity_repairs.py::test_m1_approval_changes_during_resolution_publication
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+      - name: C3 API SQLite and immutable asset tests
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m pytest -q tests/c3
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+      - name: Affected C2 regressions
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m pytest -q `
+            tests/c2/test_platform.py::test_openapi_preserves_exact_19_c2_and_registers_only_implemented_c3 `
+            tests/c2/test_platform.py::test_channel_dna_project_restart_and_replay
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+      - name: Frontend clean install
+        run: npm ci --ignore-scripts
+      - name: Frontend typecheck build
+        run: npm run build
+      - name: Registered C3 API / immutable C2 core checker
+        run: python tools/check_c2_cutover.py
+      - name: Install Chromium tooling
+        run: |
+          npm install --no-save --package-lock=false playwright@1.57.0
+          npx playwright install chromium
+      - name: Real C3 Chromium Studio -> backend -> SQLite -> restart smoke
+        run: node tools/c3_browser.mjs
+      - name: C3 screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-browser-evidence
+          path: artifacts/c3/*.png
+          if-no-files-found: warn
+      - name: Note Windows test scope
+        run: Write-Host "Hosted Windows runner != owner Windows 11 consumer acceptance"

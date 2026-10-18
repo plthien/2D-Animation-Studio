@@ -6,14 +6,19 @@ import uuid
 from contextlib import asynccontextmanager
 from typing import Any, Annotated
 
-from fastapi import FastAPI, Header, Query, Request
+from fastapi import FastAPI, Header, Query, Request, UploadFile, File, Form
 from fastapi.routing import APIRoute
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.animation import service as svc
+from app.animation import authoring as auth
+from app.animation import resolver as assets
+from app.animation import local_assets as localimages
+from app.animation import generation as glabs
+from app.animation.provider import AppError as ProviderAppError
 from app.animation.strict_json import parse_strict_document
 from app.animation.database import LegacyDatabaseUnsupported, migrate
 
@@ -59,6 +64,8 @@ class StrictC2JSONRoute(APIRoute):
         handler = super().get_route_handler()
 
         async def validated(request: Request):
+            if request.url.path.endswith("/images/import") and request.method=="POST":
+                return await handler(request)
             if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
                 media = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
                 if media != "application/json":
@@ -137,6 +144,11 @@ async def local_only(request: Request, next_handler):
     return await next_handler(request)
 
 
+@app.exception_handler(ProviderAppError)
+async def provider_error(request: Request, exc: ProviderAppError):
+    return err_json(request, exc.code, exc.message, exc.status, exc.details)
+
+
 @app.exception_handler(svc.DomainError)
 async def domain_error(request: Request, exc: svc.DomainError):
     return err_json(request, exc.code, exc.message, exc.status, exc.details)
@@ -206,7 +218,7 @@ def system(request: Request):
         "product": "2D Animation Studio", "api_schema_version": "api.v1",
         "database_revision": "0001_animation_initial",
         "stages": list(svc.STAGES), "animation_generation_ready": False,
-        "disabled_phases": ["C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12"],
+        "disabled_phases": ["C4", "C5", "C6", "C7"],
     })
 
 
@@ -299,3 +311,156 @@ def job(request: Request, job_id: str, project_id: str):
 @app.get("/api/v1/artifacts/{artifact_id}")
 def artifact(request: Request, artifact_id: str, channel_id: str):
     return enveloped(request, svc.artifact(artifact_id, channel_id))
+
+
+# C3 external-authoring endpoints. All operations return the existing envelope.
+class AuthoringPrompt(Payload):
+    expected_source_fingerprint: str | None = None
+
+class AuthoringImport(Payload):
+    reservation_id: str
+    document: dict[str, Any]
+
+class AuthoringApproval(Payload):
+    expected_head_revision: int
+    expected_sha256: str
+
+@app.post("/api/v1/projects/{project_id}/authoring/{artifact_kind}/prompt")
+def authoring_prompt(request: Request, project_id: str, artifact_kind: str, body: AuthoringPrompt):
+    pkg = auth.prompt(project_id, artifact_kind)
+    if body.expected_source_fingerprint is not None and body.expected_source_fingerprint != pkg["source_fingerprint"]:
+        svc.error("STALE_HEAD", "Authoring source changed")
+    return enveloped(request, pkg, 201)
+
+@app.post("/api/v1/projects/{project_id}/authoring/{artifact_kind}/validate")
+def authoring_validate(request: Request, project_id: str, artifact_kind: str, body: AuthoringImport):
+    return enveloped(request, auth.validate(project_id, artifact_kind, body.reservation_id, body.document))
+
+@app.post("/api/v1/projects/{project_id}/authoring/{artifact_kind}/import")
+def authoring_import(request: Request, project_id: str, artifact_kind: str, body: AuthoringImport):
+    return enveloped(request, auth.import_revision(project_id, artifact_kind, body.reservation_id, body.document), 201)
+
+@app.post("/api/v1/projects/{project_id}/authoring/{artifact_kind}/{artifact_id}/approve")
+def authoring_approve(request: Request, project_id: str, artifact_kind: str, artifact_id: str, body: AuthoringApproval):
+    result=auth.approve(project_id, artifact_kind, artifact_id,
+                        body.expected_head_revision, body.expected_sha256)
+    if artifact_kind=="shot-plan": assets.publish_requirements(project_id)
+    return enveloped(request, result)
+
+@app.get("/api/v1/projects/{project_id}/authoring/{artifact_kind}/history")
+def authoring_history(request: Request, project_id: str, artifact_kind: str, limit: Limit = 50):
+    return enveloped(request, auth.history(project_id, artifact_kind, limit))
+
+@app.get("/api/v1/projects/{project_id}/authoring/revisions/{artifact_id}")
+def authoring_document(request: Request, project_id: str, artifact_id: str):
+    return enveloped(request, auth.document(project_id, artifact_id))
+
+
+# C3 Resolver / local image production. Upload is multipart and explicitly bounded.
+class AssetBind(Payload):
+    requirement_id: str
+    asset_version_id: str
+    expected_fingerprint: str
+
+class AssetUnbind(Payload):
+    expected_fingerprint: str
+
+class ReviewAsset(Payload):
+    decision: str
+
+@app.get("/api/v1/projects/{project_id}/resolver/requirements")
+def resolver_requirements(request:Request,project_id:str):
+    return enveloped(request, assets.requirements(project_id))
+
+@app.get("/api/v1/projects/{project_id}/resolver/resolution")
+def resolver_resolution(request:Request,project_id:str):
+    return enveloped(request, assets.resolution(project_id))
+
+@app.get("/api/v1/channels/{channel_id}/assets")
+def list_asset_versions(request:Request,channel_id:str,limit:Limit=50):
+    return enveloped(request,assets.versions(channel_id,limit))
+
+@app.get("/api/v1/projects/{project_id}/asset-bindings")
+def list_project_bindings(request:Request,project_id:str):
+    return enveloped(request,{"items":assets.bindings(project_id),"next_cursor":None})
+
+@app.post("/api/v1/projects/{project_id}/asset-bindings")
+def bind_asset(request:Request,project_id:str,body:AssetBind):
+    result=assets.bind(project_id,body.requirement_id,
+                       body.asset_version_id,body.expected_fingerprint)
+    assets.publish_resolution(project_id)
+    return enveloped(request,result)
+
+@app.delete("/api/v1/projects/{project_id}/asset-bindings/{binding_id}")
+def unbind_asset(request:Request,project_id:str,binding_id:str,body:AssetUnbind):
+    return enveloped(request,assets.unbind(project_id,binding_id,body.expected_fingerprint))
+
+@app.post("/api/v1/projects/{project_id}/images/import")
+async def import_local_image(request:Request,project_id:str,
+        file:UploadFile=File(...),kind:str=Form(...),semantic_key:str=Form(...),view:str=Form(...)):
+    body=await file.read(localimages.MAX_BYTES+1)
+    return enveloped(request,localimages.ingest(project_id,kind,semantic_key,view,body,file.filename or "image"),201)
+
+@app.post("/api/v1/projects/{project_id}/assets/{version_id}/review")
+def review_local_image(request:Request,project_id:str,version_id:str,body:ReviewAsset):
+    return enveloped(request,localimages.review(project_id,version_id,body.decision))
+
+@app.get("/api/v1/projects/{project_id}/assets/{version_id}/image")
+def local_image_preview(request:Request,project_id:str,version_id:str):
+    path,mime=localimages.read_image(project_id,version_id)
+    return FileResponse(path,media_type=mime)
+
+
+# G-Labs: consent recorded durably before any user-initiated paid submission.
+class GenerationPrepare(Payload):
+    requirement_id: str
+    prompt: str
+    negative_prompt: str = ""
+    model: str = "nano_banana_2"
+    aspect_ratio: str = "1:1"
+    cost_ceiling_usd: float = Field(gt=0,le=100)
+
+class GenerationConfirm(Payload):
+    quote: dict[str, Any]
+    fingerprint: str
+    explicitly_approved: bool
+
+@app.get("/api/v1/projects/{project_id}/generation/provider")
+def glabs_provider(request:Request,project_id:str):
+    svc.get_project(project_id)
+    return enveloped(request,glabs.configuration())
+
+@app.post("/api/v1/projects/{project_id}/generation/prepare")
+def glabs_prepare(request:Request,project_id:str,body:GenerationPrepare):
+    return enveloped(request,glabs.prepare(project_id,body.requirement_id,body.prompt,
+                       body.negative_prompt,body.model,body.aspect_ratio,body.cost_ceiling_usd),201)
+
+@app.post("/api/v1/projects/{project_id}/generation/confirm")
+def glabs_confirm(request:Request,project_id:str,body:GenerationConfirm,idem:Idempotency):
+    return enveloped(request,glabs.confirm(project_id,body.quote,body.fingerprint,
+                       idem,body.explicitly_approved),202)
+
+@app.get("/api/v1/projects/{project_id}/generation/operations/{operation_id}")
+def glabs_status(request:Request,project_id:str,operation_id:str):
+    return enveloped(request,glabs.status(project_id,operation_id))
+
+@app.post("/api/v1/projects/{project_id}/generation/operations/{operation_id}/advance")
+def glabs_advance(request:Request,project_id:str,operation_id:str):
+    return enveloped(request,glabs.advance(project_id,operation_id),202)
+
+@app.post("/api/v1/projects/{project_id}/generation/operations/{operation_id}/cancel")
+def glabs_cancel(request:Request,project_id:str,operation_id:str):
+    return enveloped(request,glabs.cancel(project_id,operation_id),202)
+
+@app.get("/api/v1/projects/{project_id}/generation/operations")
+def glabs_operations(request:Request,project_id:str):
+    return enveloped(request,glabs.list_operations(project_id))
+
+class GenerationReconcile(Payload):
+    provider_task_id: str
+    confirmed_owner_match: bool
+
+@app.post("/api/v1/projects/{project_id}/generation/operations/{operation_id}/reconcile")
+def glabs_reconcile(request: Request, project_id: str, operation_id: str, body: GenerationReconcile):
+    return enveloped(request, glabs.reconcile_unknown(project_id, operation_id,
+              body.provider_task_id, body.confirmed_owner_match), 202)

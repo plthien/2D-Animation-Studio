@@ -6,3 +6,6 @@ jsonschema==4.23.0
 SQLAlchemy==2.0.34
 uvicorn==0.30.6
 pytest==9.0.3
+
+Pillow==12.3.0
+python-multipart==0.0.31
