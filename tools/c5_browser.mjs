@@ -99,6 +99,7 @@ try{
  const pid=project.project_id;
  browser=await chromium.launch({headless:true});
  const page=await browser.newPage({viewport:{width:1440,height:960}});
+ const pageErrors=[];page.on('pageerror',e=>pageErrors.push(String(e)));
  await page.addInitScript(([c,p])=>{localStorage.setItem('animationSelectedChannelId',c);
   localStorage.setItem('animationSelectedProjectId',p);},[cid,pid]);
 
@@ -239,8 +240,11 @@ try{
   await page.getByTestId('c5-spine-pixi-viewport').locator('canvas').waitFor({timeout:18000});
  }catch(err){
   const panelText=await motionContainer.innerText().catch(()=>'<motion panel unavailable>');
+  const bodyText=await page.locator('body').innerText().catch(()=>'<body unavailable>');
+  await page.screenshot({path:join(evidence,'c5-browser-motion-failure.png'),fullPage:true}).catch(()=>{});
   const status=await api('GET','/api/v1/projects/'+pid+'/motion/status');
-  console.error('C5 MOTION UI STATE',JSON.stringify({status,panelText,compiled:compiled.artifact_id}));
+  console.error('C5 MOTION UI STATE',JSON.stringify({status,panelText,bodyText:bodyText.slice(0,3200),
+    url:page.url(),pageErrors,compiled:compiled.artifact_id}));
   throw err;
  }
  for(const [frame,label] of [[0,'idle'],[40,'walk'],[80,'reach'],[100,'grab'],
