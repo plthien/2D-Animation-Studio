@@ -2,7 +2,7 @@
 from __future__ import annotations
 import json
 from pathlib import Path
-from app.animation import service as s, authoring as a, director, motion
+from app.animation import service as s, authoring as a, director, motion, motion_world
 
 KIND="compiled_film.v1"
 SCHEMA=json.loads((Path(__file__).resolve().parents[2]/"contracts/animation/schemas/compiled_film.v1.schema.json").read_text(encoding="utf-8"))
@@ -53,6 +53,7 @@ def compile(pid):
     shots=[];start=0
     # Full-frame checks use immutable plan and actual skeleton geometry; reject failures.
     for sid,shot in duration.items():
+        motion_world.verify_choreography(shot,plan,bones)
         hashes=[]
         for frame in range(shot["duration_frames"]):
             state=motion.evaluate(shot,plan,bones,frame)
