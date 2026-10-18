@@ -259,8 +259,18 @@ try{
   },frame);
   const actual=await api('GET','/api/v1/projects/'+pid+'/motion/compilations/'+compiled.artifact_id+
    '/shots/shot_one/frames/'+frame);
-  await page.getByTestId('c5-spine-pixi-viewport').getByText(
-   'Deterministic frame: '+actual.fingerprint,{exact:false}).waitFor({timeout:30000});
+  try {
+    await page.getByTestId('c5-spine-pixi-viewport').getByText(
+      'Deterministic frame: '+actual.fingerprint,{exact:false}).waitFor({timeout:10000});
+   }catch(error){
+    console.error('C5 FRAME SEEK DEBUG',JSON.stringify({
+      requested:frame,sliderValue:await slider.inputValue(),
+      visibleCounter:await page.getByTestId('c5-frame-counter').innerText().catch(()=>'<absent>'),
+      viewportText:await page.getByTestId('c5-spine-pixi-viewport').innerText().catch(()=>'<absent>'),
+      pageErrors,expectedFingerprint:actual.fingerprint
+    }));
+    throw error;
+   }
   await page.getByTestId('c5-spine-pixi-viewport').locator('canvas').screenshot({
    path:join(evidence,'c5-'+label+'-'+frame+'.png')});
  }
