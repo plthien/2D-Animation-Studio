@@ -185,6 +185,8 @@ try{
   'Official loader succeeded in current browser session (not backend approval proof)').waitFor({timeout:30000});
  await page.getByRole('combobox',{name:'Required project actor'}).selectOption(actorReq.requirement.requirement_id);
  await page.getByRole('button',{name:'Use previewed rig in this project'}).click();
+ await page.getByTestId('c4-project-rig-selection').getByText(
+  'Current project readiness: approved',{exact:false}).waitFor({timeout:30000});
  const rigResolution=await api('GET','/api/v1/projects/'+pid+'/rigging/resolution');
  assert(rigResolution.readiness==='approved',
   'Project rig selection incomplete: '+JSON.stringify(rigResolution));
