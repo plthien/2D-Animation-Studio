@@ -61,5 +61,26 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm run build
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: C5 acceptance disclosure
-        run: Write-Host "This focused workflow does not certify nine-action motion, real C5 browser articulated/grip evidence or C5 merge readiness."
+      - name: Install official browser tooling
+        run: |
+          npm install --no-save --package-lock=false playwright@1.57.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npx playwright install chromium
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Real C5 Chromium Director Motion Spine/Pixi workflow
+        run: |
+          node tools/c5_browser.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Create direct-canvas motion contact sheet
+        run: |
+          python tools/c5_contact_sheet.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload C5 original WebGL evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c5-direct-spine-motion
+          path: artifacts/c5/*.png
+          if-no-files-found: warn
+      - name: Windows consumer scope
+        run: Write-Host "Windows Server runner is NOT consumer Windows 11. C7 owns that acceptance."
