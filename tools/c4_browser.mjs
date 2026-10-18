@@ -157,16 +157,31 @@ try{
   await workshop.getByRole('combobox',{name:'Tool'}).selectOption('paint');
   await editCanvas.click({position:brushPoint});
   await workshop.getByText('Draft revision 2',{exact:false}).waitFor();
+  await page.waitForFunction(()=>{
+   const buttons=[...document.querySelectorAll('[data-testid="c4-rigging-workshop"] button')];
+   const refresh=buttons.find(b=>b.textContent?.trim()==='Refresh');
+   return refresh&&!refresh.disabled;
+  });
   const maskPainted=cryptoDigest(Buffer.from(await (await fetch(BASE+partBase)).arrayBuffer()));
   if(maskBefore===maskPainted)throw Error('Canvas paint did not change real raster mask bytes');
   await workshop.getByRole('combobox',{name:'Tool'}).selectOption('erase');
   await editCanvas.click({position:brushPoint});
   await workshop.getByText('Draft revision 3',{exact:false}).waitFor();
+  await page.waitForFunction(()=>{
+   const buttons=[...document.querySelectorAll('[data-testid="c4-rigging-workshop"] button')];
+   const refresh=buttons.find(b=>b.textContent?.trim()==='Refresh');
+   return refresh&&!refresh.disabled;
+  });
   const maskErased=cryptoDigest(Buffer.from(await (await fetch(BASE+partBase)).arrayBuffer()));
   if(maskPainted===maskErased)throw Error('Canvas erase did not change real raster mask bytes');
   await workshop.getByRole('combobox',{name:'Tool'}).selectOption('pivot');
   await editCanvas.click({position:{x:Math.round(box.width*.62),y:Math.round(box.height*.23)}});
   await workshop.getByText('Draft revision 4',{exact:false}).waitFor();
+  await page.waitForFunction(()=>{
+   const buttons=[...document.querySelectorAll('[data-testid="c4-rigging-workshop"] button')];
+   const refresh=buttons.find(b=>b.textContent?.trim()==='Refresh');
+   return refresh&&!refresh.disabled;
+  });
   const uiEdited=await api('GET','/api/v1/projects/'+pid+'/rigging/rigs/'+draft.rig_id);
   if(uiEdited.draft_revision!==4||Math.abs(uiEdited.parts.head.pivot.x-.62)>.03)
    throw Error('UI raster/pivot pointer edits not persisted');
