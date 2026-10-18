@@ -124,6 +124,7 @@ try{
  for(const who of ['a','b']){
   const version=await sendImage(pid,who);
   copyFileSync(join(dir,'actor-'+who+'.png'),join(evidence,'rig-'+who+'-source.png'));
+  copyFileSync(join(dir,'actor-'+who+'-joint-overlay.png'),join(evidence,'rig-'+who+'-joint-overlay.png'));
   await api('POST','/api/v1/projects/'+pid+'/assets/'+version.asset_version_id+'/review',{decision:'approved'});
   await api('POST','/api/v1/projects/'+pid+'/asset-bindings',{
    requirement_id:actorRequirements['character_'+who],
