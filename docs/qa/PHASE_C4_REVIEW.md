@@ -78,3 +78,13 @@ C5 receives project-owned resolved actor→approved rig-version mappings pinned 
 ## Historical audit and final decision
 
 The pre-repair screenshots and earlier failing CI jobs are **superseded historical evidence**, not retroactively PASS. The original C4 working review's no-approved-rig statements no longer describe this implementation. The code-level exact-SHA Windows C4 run passed and the visual evidence was reviewed. Merge approval still requires a successful exact final PR HEAD workflow after this documentation commit; PR stays Draft until that check is complete.
+
+## C4-P1 atlas-page integrity repair (2026-10-18)
+
+The previous approved-rig integrity path verified skeleton JSON, atlas text and individual sprite PNGs but did not freeze the packed `page.png` texture identity. A modified valid RGBA page could pass earlier read and readiness checks.
+
+The existing `rig_manifest.v1` JSON schema remains unchanged. The export transaction now stores `atlas_page_sha256` and `atlas_page_byte_size` in its authoritative rig-manifest artifact `metadata_json`. The common verification path checks mandatory stored digest/size, actual page bytes, valid nonblank PNG RGBA, and atlas-declared dimensions. Candidate proof, approval, approved read-only info, project selection and readiness inherit that validation; the direct page-serving path calls the same validator. Missing metadata fails closed with `LINEAGE_MISMATCH`, without reconstructing the digest from disk.
+
+Previously produced local rig versions without these metadata fields cannot be trusted by the updated validator. They must be re-exported from a source-bound reviewed draft and reverified/reapproved; previously approved immutable files are not altered or silently migrated.
+
+The focused test expands the existing C4 real-PNG/SQLite integration test to replace a page with a valid but different same-dimension PNG, delete the page, remove the persisted digest, assert `LINEAGE_MISMATCH` on version-info and image serving, and restore exact original bytes. Existing H1–H5 and G2 results remain historical baseline evidence. **Final SHA tests and Windows C4/C3 run results must be checked on the last commit before merge; no PASS is claimed here in advance.**
