@@ -24,7 +24,7 @@ POSES = ("idle", "walk", "reach", "grab", "neutral_return")
 MAX_PNG_BYTES = 330_000
 
 
-def _candidate(con, channel_id, rig_id, version_id):
+def _candidate(con, channel_id, rig_id, version_id, *, allow_approved=False):
     row=con.execute("""
         SELECT rv.*,a.project_id,a.metadata_json
         FROM rig_versions rv
@@ -33,7 +33,7 @@ def _candidate(con, channel_id, rig_id, version_id):
     """,(channel_id,rig_id,version_id)).fetchone()
     if row is None:
         s.error("NOT_FOUND","Rig candidate not found",404)
-    if row["status"] != "candidate":
+    if row["status"] != "candidate" and not (allow_approved and row["status"]=="approved"):
         s.error("STALE_HEAD","Rig version has already been reviewed")
     if not row["project_id"]:
         s.error("LINEAGE_MISMATCH","Rig manifest must be owned by a project",422)
@@ -246,3 +246,8 @@ def recorded(con,channel_id,rig_id,version_id,pid):
     if document["rig_id"]!=rig_id or document["rig_version_id"]!=version_id:
         s.error("LINEAGE_MISMATCH","Runtime proof bound to another rig",422)
     return proof,document
+
+
+def _candidate_readonly(con,channel_id,rig_id,version_id):
+    """Integrity check for an already reviewed rig (no mutation)."""
+    return _candidate(con,channel_id,rig_id,version_id,allow_approved=True)
