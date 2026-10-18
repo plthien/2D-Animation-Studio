@@ -17,6 +17,7 @@ export function RiggingPanel({projectId,channelId}:{projectId:string;channelId:s
  const [candidate,setCandidate]=useState<RigExport|null>(null);
  const [proofId,setProofId]=useState('');
  const [approvedId,setApprovedId]=useState('');
+ const [readonlyPreview,setReadonlyPreview]=useState<{candidate:RigExport;sourceSha:string}|null>(null);
  const [imageEpoch,setImageEpoch]=useState(0);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState('');
@@ -43,17 +44,17 @@ export function RiggingPanel({projectId,channelId}:{projectId:string;channelId:s
  const reopen=async(id:string)=>{
   const doc=await apiClient.rigDraft(projectId,id);
   setDraft(doc);setRigId(id);setSource(doc.source_version);setSelected('head');setImageEpoch(x=>x+1);
-  setCandidate(null);setProofId('');setApprovedId('');
+  setCandidate(null);setReadonlyPreview(null);setProofId('');setApprovedId('');
  };
  const openVersion=async(id:string,version:string,revision:number,status:string)=>{
-  const doc=await apiClient.rigDraft(projectId,id);
-  await reopen(id);
-  const res=await fetch(apiClient.rigOutput(channelId,id,version,'manifest.json'),{cache:'no-store'});
-  if(!res.ok)throw new Error('Rig manifest cannot be reopened');
-  const manifest=await res.json() as RigExport['manifest'];
-  setDraft(doc);setCandidate({rig_id:id,rig_version_id:version,revision,
-   candidate:status==='candidate',loader_verified:status==='approved',manifest});
-  if(status==='approved')setApprovedId(version);
+  const res=await fetch('/api/v1/channels/'+channelId+'/rigs/'+id+'/versions/'+version+'/info',{cache:'no-store'});
+  if(!res.ok)throw new Error('Verified rig metadata cannot be opened');
+  const body=await res.json() as {data:{source_sha256:string;manifest:RigExport['manifest']}};
+  const rigData={rig_id:id,rig_version_id:version,revision,
+   candidate:status==='candidate',loader_verified:status==='approved',manifest:body.data.manifest};
+  // A channel-owned approved rig can be previewed without Project A's editable draft.
+  setReadonlyPreview({candidate:rigData,sourceSha:body.data.source_sha256});
+  setRigId(id);setCandidate(null);
  };
  const edit=async(extra:Record<string,unknown>)=>{
   if(!draft)return;
@@ -117,6 +118,11 @@ export function RiggingPanel({projectId,channelId}:{projectId:string;channelId:s
     </button>)}
    </div>
   </div>}
+  {readonlyPreview&&<section data-testid="c4-readonly-rig-preview" className="space-y-3">
+   <h4 className="text-sm text-slate-100">Verified channel rig {readonlyPreview.candidate.rig_version_id} (read-only)</h4>
+   <SpineViewport channelId={channelId} rigId={readonlyPreview.candidate.rig_id}
+    candidate={readonlyPreview.candidate} sourceSha={readonlyPreview.sourceSha}/>
+  </section>}
   {draft&&<>
    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300">
     <span>Draft revision {draft.draft_revision}</span>
