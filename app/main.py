@@ -18,6 +18,9 @@ from app.animation import authoring as auth
 from app.animation import resolver as assets
 from app.animation import local_assets as localimages
 from app.animation import generation as glabs
+from app.animation import rigging as rigs
+from app.animation import rig_proof as rigproof
+from app.animation import rig_resolution as rigresolution
 from app.animation.provider import AppError as ProviderAppError
 from app.animation.strict_json import parse_strict_document
 from app.animation.database import LegacyDatabaseUnsupported, migrate
@@ -64,7 +67,7 @@ class StrictC2JSONRoute(APIRoute):
         handler = super().get_route_handler()
 
         async def validated(request: Request):
-            if request.url.path.endswith("/images/import") and request.method=="POST":
+            if (request.url.path.endswith("/images/import") or request.url.path.endswith("/replacement")) and request.method=="POST":
                 return await handler(request)
             if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
                 media = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
@@ -464,3 +467,117 @@ class GenerationReconcile(Payload):
 def glabs_reconcile(request: Request, project_id: str, operation_id: str, body: GenerationReconcile):
     return enveloped(request, glabs.reconcile_unknown(project_id, operation_id,
               body.provider_task_id, body.confirmed_owner_match), 202)
+
+
+# C4 assisted cutout rigging. Candidates cannot be approved until trustworthy
+# official runtime proof is implemented. Do not trust browser boolean flags.
+class RigStart(Payload):
+    asset_version_id: str
+
+class RigPartEdit(Payload):
+    expected_revision: int
+    strokes: list[dict[str, Any]] | None = None
+    pivot: dict[str, float] | None = None
+    layer: int | None = None
+    placement: dict[str, float] | None = None
+    reviewed: bool | None = None
+    reset: bool = False
+
+class RigExport(Payload):
+    expected_revision: int
+
+class RigDecision(Payload):
+    decision: str
+    expected_revision: int
+
+class RigProjectSelection(Payload):
+    requirement_id: str
+    rig_version_id: str
+    expected_revision: int
+
+@app.get("/api/v1/projects/{project_id}/rigging/resolution")
+def c4_project_rig_resolution(request: Request, project_id: str):
+    return enveloped(request, rigresolution.view(project_id))
+
+@app.post("/api/v1/projects/{project_id}/rigging/resolution/select")
+def c4_project_rig_select(request: Request, project_id: str, body: RigProjectSelection):
+    return enveloped(request, rigresolution.select(project_id,body.requirement_id,
+                    body.rig_version_id,body.expected_revision),201)
+
+@app.get("/api/v1/projects/{project_id}/rigging/rigs")
+def c4_rig_list(request: Request, project_id: str):
+    return enveloped(request, rigs.list_rigs(project_id))
+
+@app.post("/api/v1/projects/{project_id}/rigging/rigs")
+def c4_rig_start(request: Request, project_id: str, body: RigStart):
+    return enveloped(request, rigs.start(project_id, body.asset_version_id), 201)
+
+@app.get("/api/v1/projects/{project_id}/rigging/rigs/{rig_id}")
+def c4_rig_draft(request: Request, project_id: str, rig_id: str):
+    return enveloped(request, rigs.view(project_id, rig_id))
+
+@app.post("/api/v1/projects/{project_id}/rigging/rigs/{rig_id}/parts/{role}")
+def c4_part_edit(request: Request, project_id: str, rig_id: str, role: str, body: RigPartEdit):
+    return enveloped(request, rigs.edit(project_id, rig_id, role, body.expected_revision,
+               strokes=body.strokes, pivot=body.pivot, layer=body.layer, placement=body.placement,
+               reviewed=body.reviewed, reset=body.reset))
+
+@app.post("/api/v1/projects/{project_id}/rigging/rigs/{rig_id}/parts/{role}/replacement")
+async def c4_part_replace(request: Request, project_id: str, rig_id: str, role: str,
+                          expected_revision: int = Form(...), file: UploadFile = File(...)):
+    raw = await file.read(12*1024*1024+1)
+    return enveloped(request, rigs.replace(project_id, rig_id, role, expected_revision, raw))
+
+@app.get("/api/v1/projects/{project_id}/rigging/rigs/{rig_id}/parts/{role}/{kind}")
+def c4_part_image(request: Request, project_id: str, rig_id: str, role: str, kind: str):
+    from fastapi.responses import Response
+    return Response(content=rigs.binary(project_id, rig_id, role, kind), media_type="image/png")
+
+@app.post("/api/v1/projects/{project_id}/rigging/rigs/{rig_id}/export")
+def c4_rig_export(request: Request, project_id: str, rig_id: str, body: RigExport):
+    return enveloped(request, rigs.export(project_id, rig_id, body.expected_revision), 201)
+
+@app.get("/api/v1/channels/{channel_id}/rigs/{rig_id}/versions/{version_id}/info")
+def c4_rig_version_info(request: Request, channel_id: str, rig_id: str, version_id: str):
+    return enveloped(request, rigs.version_info(channel_id, rig_id, version_id))
+
+@app.get("/api/v1/channels/{channel_id}/rigs/{rig_id}/versions/{version_id}/{filename}")
+def c4_rig_version_file(request: Request, channel_id: str, rig_id: str, version_id: str, filename: str):
+    path = rigs.file_for_version(channel_id, rig_id, version_id, filename)
+    mime = "image/png" if filename.endswith(".png") else "text/plain" if filename.endswith(".atlas") else "application/json"
+    return FileResponse(path, media_type=mime)
+
+class RigPoseCapture(Payload):
+    pose: str
+    png_base64: str
+    bones: dict[str, float]
+    bone_count: int
+    slot_count: int
+    attached_slot_count: int
+
+class RigProofRequest(Payload):
+    source_sha256: str
+    skeleton_sha256: str
+    atlas_sha256: str
+    runtime_package: str
+    runtime_version: str
+    pixi_version: str
+    poses: list[RigPoseCapture]
+
+@app.post("/api/v1/channels/{channel_id}/rigs/{rig_id}/versions/{version_id}/verify")
+def c4_rig_verify(request: Request, channel_id: str, rig_id: str,
+                  version_id: str, body: RigProofRequest):
+    return enveloped(request, rigproof.verify(channel_id, rig_id,
+                     version_id, body.model_dump()), 201)
+
+
+@app.post("/api/v1/channels/{channel_id}/rigs/{rig_id}/versions/{version_id}/review")
+def c4_rig_review(request: Request, channel_id: str, rig_id: str, version_id: str, body: RigDecision):
+    return enveloped(request, rigs.approve(channel_id,rig_id,version_id,
+                          body.decision,body.expected_revision))
+
+@app.post("/api/v1/channels/{channel_id}/rigs/{rig_id}/approve")
+def c4_rig_legacy_review(request: Request, channel_id: str, rig_id: str,
+                         body: dict[str, Any]):
+    return enveloped(request, rigs.approve(channel_id,rig_id,body["rig_version_id"],
+                        "approved",body["expected_revision"]))

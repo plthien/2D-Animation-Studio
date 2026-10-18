@@ -110,6 +110,23 @@ export const apiClient = {
   glabsCancel:(pid:string,oid:string)=>request<GLabsOperation>('POST',`/api/v1/projects/${pid}/generation/operations/${oid}/cancel`,{}),
   glabsStatus:(pid:string,oid:string)=>request<GLabsOperation>('GET',`/api/v1/projects/${pid}/generation/operations/${oid}`),
   glabsOperations:(pid:string)=>request<Page<Pick<GLabsOperation,'operation_id'|'status'>>>('GET',`/api/v1/projects/${pid}/generation/operations`),
+
+  rigList:(pid:string)=>request<{items:RigRecord[]}>('GET',`/api/v1/projects/${pid}/rigging/rigs`),
+  rigStart:(pid:string,asset_version_id:string)=>request<{rig_id:string;draft_revision:number}>('POST',`/api/v1/projects/${pid}/rigging/rigs`,{asset_version_id}),
+  rigDraft:(pid:string,rig:string)=>request<RigDraft>('GET',`/api/v1/projects/${pid}/rigging/rigs/${rig}`),
+  rigEdit:(pid:string,rig:string,role:string,body:{expected_revision:number;strokes?:RigStroke[];pivot?:{x:number;y:number};layer?:number;reviewed?:boolean;reset?:boolean})=>request<{draft_revision:number}>('POST',`/api/v1/projects/${pid}/rigging/rigs/${rig}/parts/${role}`,body),
+  rigExport:(pid:string,rig:string,expected_revision:number)=>request<RigExport>('POST',`/api/v1/projects/${pid}/rigging/rigs/${rig}/export`,{expected_revision}),
+  rigPartImage:(pid:string,rig:string,role:string,kind:'mask'|'sprite')=>BASE+`/api/v1/projects/${pid}/rigging/rigs/${rig}/parts/${role}/${kind}`,
+  rigOutput:(cid:string,rig:string,version:string,file:string)=>BASE+`/api/v1/channels/${cid}/rigs/${rig}/versions/${version}/${file}`,
+  rigVerify:(cid:string,rig:string,version:string,body:RigProofPayload)=>request<RigProofResult>('POST',`/api/v1/channels/${cid}/rigs/${rig}/versions/${version}/verify`,body),
+  rigReview:(cid:string,rig:string,version:string,expected_revision:number,decision:'approved'|'rejected')=>request<{status:string}>('POST',`/api/v1/channels/${cid}/rigs/${rig}/versions/${version}/review`,{expected_revision,decision}),
+  rigReplace:async(pid:string,rig:string,role:string,expected_revision:number,file:File)=>{
+    const form=new FormData();form.set('file',file);form.set('expected_revision',String(expected_revision));
+    const res=await fetch(BASE+`/api/v1/projects/${pid}/rigging/rigs/${rig}/parts/${role}/replacement`,{method:'POST',body:form});
+    const payload=await res.json();
+    if(!res.ok)throw new ApiError(payload?.error?.code??'UPLOAD_FAILED',payload?.error?.message??'Replacement failed',res.status);
+    return payload.data as {draft_revision:number};
+  },
   artifact:(aid:string,cid?:string)=>request<Artifact>('GET',`/api/v1/artifacts/${aid}`+query({channel_id:cid})),
 };
 
@@ -126,3 +143,13 @@ export type ImageCandidate={asset_version_id:string;asset_id:string;artifact_id:
 export type GLabsConfig={provider:string;configured:boolean;base_url:string;live_test:string};
 export type GLabsQuote={quote:Record<string,unknown>;fingerprint:string;cost_ceiling_usd:number;estimated_cost_usd:null;explicit_confirmation_required:boolean};
 export type GLabsOperation={operation_id:string;status:'queued'|'running'|'unknown'|'completed'|'failed'|'cancelled';result?:{candidate?:ImageCandidate};error?:{code:string};task?:Record<string,unknown>};
+
+export type RigStroke={x:number;y:number;radius:number;mode:'paint'|'erase'};
+export type RigPart={role:string;layer:number;reviewed:boolean;provenance:string;confidence:number;uncertain:boolean;occluded:boolean;reason:string;pivot:{x:number;y:number;coordinate_system:string};mask:string;replacement:string|null;placement?:{x:number;y:number;width:number;height:number}};
+export type RigDraft={rig_id:string;draft_revision:number;source_version:string;source_sha:string;style_hash:string;size:[number,number];parts:Record<string,RigPart>};
+export type RigRecord={rig_id:string;channel_id:string;asset_id:string;semantic_key:string;rig_version_id:string|null;status:string|null;revision:number|null;editable:number};
+export type RigExport={rig_id:string;rig_version_id:string;revision:number;candidate:boolean;loader_verified:boolean;manifest:{skeleton_sha256:string;atlas_sha256:string}};
+
+export type RigPoseProof={pose:'idle'|'walk'|'reach'|'grab'|'neutral_return';png_base64:string;bones:Record<string,number>;bone_count:number;slot_count:number;attached_slot_count:number};
+export type RigProofPayload={source_sha256:string;skeleton_sha256:string;atlas_sha256:string;runtime_package:string;runtime_version:string;pixi_version:string;poses:RigPoseProof[]};
+export type RigProofResult={rig_version_id:string;proof_artifact_id:string;pose_png_sha256:Record<string,string>;verified_images:number};
