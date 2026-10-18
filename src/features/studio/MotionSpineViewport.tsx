@@ -79,8 +79,9 @@ export function MotionSpineViewport({projectId,channelId,shotId,compilationId,fr
     if(!bone)throw Error('Motion bone missing from actual rig: '+role);
     bone.rotation=bone.data.rotation+degrees;
    }
-   spine.scale.set(0.8);
-   spine.position.set(640+pose.root.x,590-pose.root.y);
+   const worldScale=0.8;
+   spine.scale.set(worldScale);
+   spine.position.set(640+worldScale*pose.root.x,590-worldScale*pose.root.y);
    spine.update(0);
   }
   for(const [propId,prop] of Object.entries(data.props)){
@@ -107,7 +108,7 @@ export function MotionSpineViewport({projectId,channelId,shotId,compilationId,fr
     sprite=new Sprite(tex);sprite.anchor.set(0.5,0.5);sprite.scale.set(.4);
     propSprites.current[propId]=sprite;application.stage.addChild(sprite);
    }
-   sprite.position.set(640+prop.x,590-prop.y);
+   sprite.position.set(640+0.8*prop.x,590-0.8*prop.y);
   }
   if(ticket!==epoch.current)return;
   application.renderer.render({container:application.stage});
