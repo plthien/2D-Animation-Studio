@@ -4,7 +4,7 @@
  */
 import {chromium} from 'playwright';
 import {spawn,spawnSync} from 'node:child_process';
-import {readFileSync,mkdirSync,mkdtempSync,copyFileSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdirSync,mkdtempSync,copyFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {createHash} from 'node:crypto';
@@ -251,6 +251,28 @@ try{
  await reusePage.getByTestId('c4-official-runtime').locator('canvas').screenshot({path:join(evidence,'rig-a-reused-in-project-b.png')});
  await reusePage.close();
  console.log('G2 reuse Project A->B PASS',rigRecords.a.rig_version_id,'identical immutable skeleton',originalSkeleton);
+ // H5: valid JSON tampering must invalidate an already approved reused rig.
+ for(const kind of ['parts','profile','manifest']){
+  const file=join(dir,'artifacts','rigs',rigRecords.a.rig_id,'versions',
+   rigRecords.a.rig_version_id,kind+'.json');
+  const original=readFileSync(file);
+  try{
+   const altered=JSON.parse(original.toString('utf8'));
+   altered.created_at='2026-10-18T23:59:59Z';
+   writeFileSync(file,JSON.stringify(altered));
+   const tamperedStage=(await api('GET','/api/v1/projects/'+pidB+'/workflow')).stages
+    .find(x=>x.stage_key==='rigging');
+   if(tamperedStage.readiness!=='stale')
+    throw Error('Tampered '+kind+' JSON incorrectly preserved project readiness');
+  }finally{
+   writeFileSync(file,original);
+  }
+  const restored=(await api('GET','/api/v1/projects/'+pidB+'/workflow')).stages
+   .find(x=>x.stage_key==='rigging');
+  if(restored.readiness!=='approved')
+   throw Error('Restoring '+kind+' rig manifest did not restore exact project readiness');
+ }
+ console.log('C4_H5_APPROVED_IMMUTABILITY_TAMPER: PASS (parts/profile/manifest)');
  // Genuine backend restart with the SAME disposable SQLite/artifact root.
  stop(server);
  await new Promise(r=>setTimeout(r,1200));
