@@ -133,17 +133,25 @@ try{
  const initialProp={prop_id:'prop_orb',x:contact.x,y:contact.y,held_by:null};
  // Start with approximate world locations; after C4 proof the approved frozen rig
  // determines usable IK targets. We must not silently rewrite approved ShotPlan.
- const prep=await reserved(pid,'shot-plan',()=>({
+ const shotDoc={
   script_artifact_id:script.artifact_id,script_sha256:script.sha256,
   actor_ids:['character_a'],prop_ids:['prop_orb'],location_ids:['location_one'],
-  shots:[{shot_id:'shot_one',duration_frames:240,actor_ids:['character_a'],
-   prop_ids:['prop_orb'],location_id:'location_one',utterance:null,
-   spatial_anchors:[{anchor_id:'anchor_approach',x:80,y:0},
-                    {anchor_id:'anchor_delivery',x:150,y:0},
-                    {anchor_id:'anchor_drop',x:drop.x,y:drop.y}],
-   initial_world_state:{actors:[initialActor],props:[initialProp]},
-   final_world_state:{actors:[{...initialActor,x:150}],
-                      props:[{...initialProp,x:drop.x,y:drop.y}]}]}]}));
+  shots:[{shot_id:'shot_one',duration_frames:240,
+    actor_ids:['character_a'],prop_ids:['prop_orb'],
+    location_id:'location_one',utterance:null,
+    spatial_anchors:[
+      {anchor_id:'anchor_approach',x:80,y:0},
+      {anchor_id:'anchor_delivery',x:150,y:0},
+      {anchor_id:'anchor_drop',x:drop.x,y:drop.y}
+    ],
+    initial_world_state:{actors:[initialActor],props:[initialProp]},
+    final_world_state:{
+      actors:[{...initialActor,x:150}],
+      props:[{...initialProp,x:drop.x,y:drop.y}]
+    }
+  }]
+ };
+ await reserved(pid,'shot-plan',()=>shotDoc);
  const required=await api('GET','/api/v1/projects/'+pid+'/resolver/resolution');
  const actorReq=required.requirements.find(x=>x.requirement.kind==='actor');
  const propReq=required.requirements.find(x=>x.requirement.kind==='prop');
