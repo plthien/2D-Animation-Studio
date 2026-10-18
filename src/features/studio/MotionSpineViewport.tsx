@@ -104,7 +104,7 @@ export function MotionSpineViewport({projectId,channelId,shotId,compilationId,fr
     resource.crossOrigin='anonymous';
     resource.src=image;
     await resource.decode();
-    if(ticket!==epoch.current)return;
+    if(!current())return;
     const tex=Texture.from(resource);
     if(!tex||!tex.source||tex.width<=0||tex.height<=0){
      throw new Error('PROPS_TEXTURE_INVALID: '+propId);
